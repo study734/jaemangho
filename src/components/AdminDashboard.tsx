@@ -103,7 +103,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
   };
 
   const deleteMember = async (m: AdminMember) => {
-    if (!confirm(`${m.gameName}#${m.tagLine} 을(를) 크루원 명단에서 삭제하시겠습니까?`)) return;
+    if (!confirm(`${m.gameName}#${m.tagLine} 을(를) 소환사 목록에서 삭제하시겠습니까?`)) return;
     try {
       await rosterApi.remove(m.id);
       onMemberDeleted(m.id);
@@ -118,7 +118,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
       <header style={styles.header}>
         <div>
           <h2 className="heading-1" style={styles.title}>관리자 대시보드</h2>
-          <p className="subtitle">접속자, 크루원 명단, 시스템 상태를 관리합니다.</p>
+          <p className="subtitle">접속자, 등록 소환사 목록, 시스템 상태를 관리합니다.</p>
         </div>
         <button className="btn btn-secondary" onClick={load}>새로고침</button>
       </header>
@@ -127,7 +127,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
 
       {status && (
         <section style={styles.cards}>
-          <Card label="크루원" value={`${status.counts.members}명`} />
+          <Card label="등록 소환사" value={`${status.counts.members}명`} />
           <Card label="접속자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
           <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
           <Card
@@ -172,7 +172,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
       </section>
 
       <section className="card-base" style={styles.panel}>
-        <h3 className="heading-3" style={styles.panelTitle}>크루원 명단 ({members.length})</h3>
+        <h3 className="heading-3" style={styles.panelTitle}>등록 소환사 목록 ({members.length})</h3>
         <table style={styles.table}>
           <thead>
             <tr><th style={styles.th}>Riot ID</th><th style={styles.th}>등록자</th><th style={styles.th}>등록일</th><th style={styles.th} /></tr>

@@ -139,9 +139,9 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
     <div style={styles.container}>
       <header style={styles.header}>
         <div>
-          <h2 className="heading-1" style={styles.title}>크루 멤버 관리</h2>
+          <h2 className="heading-1" style={styles.title}>소환사 관리</h2>
           <p className="subtitle">
-            실시간 라이엇 서버에서 소환사를 검색하여 검증된 대원을 영입하고, 크루 대시보드를 구축해 보세요.
+            보고 싶은 소환사를 검색해 목록에 추가하면 대시보드에서 전적과 실시간 상태를 확인할 수 있습니다. 목록은 로그인한 모두에게 함께 보입니다.
           </p>
         </div>
         <button 
@@ -154,7 +154,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
             setTagLine('');
           }}
         >
-          {isAdding ? '닫기' : '새 대원 모집'}
+          {isAdding ? '닫기' : '소환사 추가'}
         </button>
       </header>
 
@@ -162,7 +162,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
       {isAdding && (
         <div className="card-feature" style={styles.addForm}>
           <h3 className="heading-3" style={{ marginBottom: '20px', color: '#00ed64' }}>
-            라이엇 대원 신원 검증 및 영입
+            라이엇 소환사 검색 및 추가
           </h3>
           
           <div style={styles.formRow}>
@@ -234,7 +234,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
           {searchedProfile && (
             <div className="card-feature" style={styles.previewCard}>
               <h4 style={{ color: '#00ed64', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.8px' }}>
-                ✓ 신원 확인 완료 (영입 대기)
+                ✓ 계정 확인 완료
               </h4>
               
               <div style={styles.previewContainer}>
@@ -308,7 +308,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                   style={{ flex: 2, padding: '10px 20px', fontWeight: 700, fontSize: '13px' }}
                   onClick={handleConfirmAdd}
                 >
-                  🚢 이 대원 영입하기 (승선 계약 체결)
+                  이 소환사 추가하기
                 </button>
               </div>
             </div>
@@ -394,7 +394,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="submit" className="btn btn-primary" style={{ height: '44px', padding: '0 24px', fontSize: '13px' }}>
-                  🚢 커스텀 스펙으로 대원 즉시 등록
+                  직접 입력한 정보로 추가
                 </button>
               </div>
             </form>
@@ -428,11 +428,11 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                   <button 
                     style={styles.removeBtn} 
                     onClick={() => {
-                      if (confirm(`${member.gameName} 대원을 정말 탈퇴시키겠습니까?`)) {
+                      if (confirm(`${member.gameName}을(를) 목록에서 삭제하시겠습니까?\n(게임 계정에는 영향이 없고, 이 대시보드 목록에서만 사라집니다)`)) {
                         onRemoveMember(member.id);
                       }
                     }}
-                    title="대원 방출"
+                    title="목록에서 삭제"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -549,7 +549,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                     </div>
                   </div>
                   <button className="btn btn-secondary" style={styles.editBtn} onClick={() => startEditing(member)}>
-                    대원 정보 편집
+                    정보 편집
                   </button>
                 </div>
               )}

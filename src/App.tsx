@@ -59,7 +59,7 @@ function App() {
         setMembers(list.map(toMember));
         setRosterReady(true);
       })
-      .catch(() => setApiError('크루원 명단을 불러오지 못했습니다. 새로고침해 주세요.'));
+      .catch(() => setApiError('소환사 목록을 불러오지 못했습니다. 새로고침해 주세요.'));
   }, []);
 
   // 저장 실패(중복 Riot ID, 세션 만료 등) 시 서버 기준으로 명단을 다시 맞춘다
@@ -129,7 +129,7 @@ function App() {
         }
 
         if (!accountData) {
-          throw new Error(`존재하지 않는 Riot ID입니다 (HTTP 404). 대원명(${member.gameName})과 태그(#${member.tagLine})에 오타가 없는지 확인해 주세요.`);
+          throw new Error(`존재하지 않는 Riot ID입니다 (HTTP 404). 소환사명(${member.gameName})과 태그(#${member.tagLine})에 오타가 없는지 확인해 주세요.`);
         }
 
         const puuid = accountData.puuid;
@@ -390,7 +390,7 @@ function App() {
     }
 
     if (!accountData) {
-      throw new Error(`존재하지 않는 Riot ID입니다 (HTTP 404). 대원명(${trimmedName})과 태그(#${trimmedTag})에 오타가 없는지 확인해 주세요.`);
+      throw new Error(`존재하지 않는 Riot ID입니다 (HTTP 404). 소환사명(${trimmedName})과 태그(#${trimmedTag})에 오타가 없는지 확인해 주세요.`);
     }
 
     const puuid = accountData.puuid;
@@ -443,7 +443,7 @@ function App() {
     );
 
     if (duplicate) {
-      alert('이미 동일한 Riot ID를 가진 대원이 존재합니다.');
+      alert('이미 목록에 있는 Riot ID입니다.');
       return;
     }
 
@@ -509,7 +509,7 @@ function App() {
         {isLoadingRealData && (
           <div style={styles.loadingBanner}>
             <span className="pulse-indicator" style={{ marginRight: '8px' }} />
-            라이엇 서버로부터 대원들의 최신 전적을 받아오고 있습니다...
+            라이엇 서버로부터 소환사들의 최신 전적을 받아오고 있습니다...
           </div>
         )}
 

@@ -60,9 +60,9 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const handleReset = () => {
-    if (confirm('대원 목록을 완전히 비우고 초기화하시겠습니까?\n(등록하신 대원 목록이 삭제됩니다)')) {
+    if (confirm('소환사 목록을 완전히 비우고 초기화하시겠습니까?\n(등록하신 소환사 목록이 삭제됩니다)')) {
       onResetMembers();
-      alert('대원 목록이 초기화되었습니다.');
+      alert('소환사 목록이 초기화되었습니다.');
     }
   };
 
@@ -154,10 +154,10 @@ export const Settings: React.FC<SettingsProps> = ({
         <section className="card-base" style={styles.resetCard}>
           <h3 className="heading-3" style={{ color: '#ff4a4a', marginBottom: '10px' }}>데이터 초기화</h3>
           <p className="body-sm" style={{ marginBottom: '16px' }}>
-            크루원 목록이 손상되었거나 직접 편집한 내용을 지우고 처음 재망호 기본 대원 세팅으로 되돌리려면 초기화를 진행하세요.
+            소환사 목록이 손상되었거나 직접 편집한 내용을 지우고 처음 상태로 되돌리려면 초기화를 진행하세요.
           </p>
           <button className="btn btn-secondary" style={styles.resetBtn} onClick={handleReset}>
-            대원 데이터 기본값 복구
+            소환사 목록 초기화
           </button>
         </section>
         )}

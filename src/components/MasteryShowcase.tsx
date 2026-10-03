@@ -86,9 +86,9 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
       {/* Header */}
       <header style={styles.header}>
         <div>
-          <h2 className="heading-1" style={styles.title}>대원 챔피언 숙련도</h2>
+          <h2 className="heading-1" style={styles.title}>챔피언 숙련도</h2>
           <p className="subtitle">
-            라이엇의 <code>CHAMPION-MASTERY-V4</code> API 데이터를 기반으로 대원들의 주력 모스트 챔피언 및 크루 통합 숙련도 랭킹을 파악합니다.
+            라이엇의 <code>CHAMPION-MASTERY-V4</code> API 데이터를 기반으로 등록된 소환사들의 주력 모스트 챔피언 및 통합 숙련도 랭킹을 파악합니다.
           </p>
         </div>
       </header>
@@ -98,7 +98,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
         {/* Left: Mastery Leaderboard (크루 통합 장인 리더보드) */}
         <section className="card-base" style={styles.leaderboardCard}>
           <h3 className="heading-3" style={{ color: '#00ed64', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🏆</span> 크루 통합 최강 장인 리더보드
+            <span>🏆</span> 통합 숙련도 리더보드
           </h3>
           
           <div style={styles.tableWrapper}>
@@ -106,7 +106,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
               <thead>
                 <tr>
                   <th style={styles.th}>순위</th>
-                  <th style={styles.th}>대원명</th>
+                  <th style={styles.th}>소환사명</th>
                   <th style={styles.th}>챔피언</th>
                   <th style={{ ...styles.th, textAlign: 'right' }}>숙련도 점수</th>
                   <th style={{ ...styles.th, textAlign: 'center' }}>레벨</th>
@@ -152,7 +152,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
 
       {/* Selector Row */}
       <div style={styles.selectorRow}>
-        <span style={styles.selectorLabel}>대원 필터:</span>
+        <span style={styles.selectorLabel}>소환사 필터:</span>
         <div style={styles.selectorTabs}>
           <button 
             className={`btn ${selectedMemberId === 'all' ? 'btn-primary' : 'btn-secondary'}`}

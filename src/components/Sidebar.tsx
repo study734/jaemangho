@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <span style={styles.navText}>크루 멤버 관리</span>
+          <span style={styles.navText}>소환사 관리</span>
         </button>
 
         <button
@@ -126,9 +126,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
 
       {/* Summary Info Box */}
       <div style={styles.summaryContainer}>
-        <div style={styles.summaryTitle}>크루 요약 정보</div>
+        <div style={styles.summaryTitle}>요약 정보</div>
         <div style={styles.summaryItem}>
-          <span style={styles.summaryLabel}>전체 대원</span>
+          <span style={styles.summaryLabel}>등록 소환사</span>
           <span style={styles.summaryValue}>{members.length}명</span>
         </div>
         <div style={styles.summaryItem}>

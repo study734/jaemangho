@@ -58,8 +58,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
       {/* Header */}
       <header style={styles.header}>
         <div>
-          <h2 className="heading-1" style={styles.title}>크루 대시보드</h2>
-          <p className="subtitle" style={styles.subtitleText}>실시간으로 플레이 중인 대원들의 상태와 크루 전체 랭킹을 확인하세요.</p>
+          <h2 className="heading-1" style={styles.title}>대시보드</h2>
+          <p className="subtitle" style={styles.subtitleText}>등록된 소환사들의 실시간 상태와 랭킹을 확인하세요.</p>
         </div>
       </header>
 
@@ -80,8 +80,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                 <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
                 <path d="M12 6v6l4 2" />
               </svg>
-              <h4 className="heading-5" style={{ marginTop: '12px', color: '#7c8c9a' }}>현재 플레이 중인 대원이 없습니다.</h4>
-              <p className="body-sm" style={{ marginTop: '4px' }}>대원들이 게임을 시작하면 실시간 현황판이 활성화됩니다.</p>
+              <h4 className="heading-5" style={{ marginTop: '12px', color: '#7c8c9a' }}>현재 게임 중인 소환사가 없습니다.</h4>
+              <p className="body-sm" style={{ marginTop: '4px' }}>등록된 소환사가 게임을 시작하면 실시간 현황판이 활성화됩니다.</p>
             </div>
           ) : (
             <div style={styles.activeGamesList}>
@@ -184,7 +184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ed64" strokeWidth="2" style={{ marginRight: '8px' }}>
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            <h3 className="heading-3">크루 티어 랭킹</h3>
+            <h3 className="heading-3">티어 랭킹</h3>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -192,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
               <thead>
                 <tr>
                   <th style={{ width: '60px', textAlign: 'center' }}>순위</th>
-                  <th>대원명</th>
+                  <th>소환사명</th>
                   <th>티어</th>
                   <th style={{ textAlign: 'center' }}>승률</th>
                   <th style={{ textAlign: 'right' }}>LP</th>
@@ -263,7 +263,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
         </section>
       </div>
 
-      {/* Detailed Player Modal (대원 전적 상세조회) */}
+      {/* Detailed Player Modal (소환사 전적 상세조회) */}
       {selectedPlayer && (
         <div style={styles.modalOverlay} onClick={() => setSelectedPlayer(null)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
