@@ -134,6 +134,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
 
       {/* Footer Info / GitHub Pages badge */}
       <div style={styles.footer}>
+        {!import.meta.env.DEV && (
+          <a className="btn btn-ghost" style={styles.logout} href="/api/auth/logout">
+            로그아웃
+          </a>
+        )}
         <div className="badge-green-soft" style={styles.badge}>
           Static Cloud Safe
         </div>
@@ -257,6 +262,13 @@ const styles = {
     marginTop: 'auto',
     paddingTop: '16px',
     borderTop: '1px solid #143747',
+  },
+  logout: {
+    width: '100%',
+    justifyContent: 'center',
+    marginBottom: '12px',
+    padding: '8px 14px',
+    fontSize: '13px',
   },
   badge: {
     fontSize: '11px',

@@ -1,70 +1,58 @@
-# ⚓ 재망호 (Jaemangho) - League of Legends 크루원 전적 대시보드
+# ⚓ 재망호 (Jaemangho)
 
-재망호(Jaemangho)는 리그 오브 레전드(LoL) 크루원들의 실시간 게임 상태, 솔로 랭크 티어, 최근 매치 히스토리, 그리고 개인별 모스트 챔피언 마스터리 점수를 한눈에 확인하고 시너지를 분석할 수 있는 프리미엄 크루 대시보드 애플리케이션입니다.
+리그 오브 레전드 크루원들의 솔로 랭크 티어, 최근 전적, 실시간 게임 상태, 챔피언 숙련도, 듀오 시너지를 한곳에서 보는 크루 전용 대시보드입니다. UI는 MongoDB 디자인 시스템 테마([DESIGN.md](DESIGN.md))를 따릅니다.
 
-본 프로젝트의 UI/UX 디자인은 **MongoDB의 공식 디자인 시스템 테마**를 차용하여 깊은 Teal 컬러 테두리와 생생한 브랜딩 그린 포인트를 극대화한 다크 모드 스킨으로 설계되었습니다.
+## 기능
+- **대시보드**: 크루원별 티어/LP/승률, 최근 전적, 실시간 게임(관전) 상태
+- **크루 멤버 관리**: 소환사 검색, 추가, 수정, 삭제 (크루 공용 명단)
+- **듀오 시너지 분석**: 함께 플레이한 매치 기반 듀오 승률
+- **챔피언 숙련도**: 크루원별 모스트 3 챔피언
 
----
+## 구조
+```
+브라우저 (Vite + React SPA)
+   │  Discord 로그인 쿠키
+   ▼
+Vercel Serverless Functions (api/)
+   ├─ auth/*      Discord OAuth2 (크루 디스코드 서버 멤버만 허용), 서명된 세션 쿠키
+   ├─ riot.js     Riot API 프록시 (허용 엔드포인트만, 키는 서버에서만 사용)
+   └─ members.js  크루원 명단 CRUD
+        │
+        ▼
+Neon Postgres (명단 저장)
+```
+- 프런트엔드는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
+- `/api/riot`, `/api/members`는 로그인 세션이 있어야 호출할 수 있습니다.
 
-## 🌟 핵심 기능
+## 환경변수 (Vercel → Settings → Environment Variables, Production)
+| 이름 | 설명 |
+|---|---|
+| `RIOT_API_KEY` | Riot API 키. `VITE_` 접두사를 붙이면 클라이언트 번들에 노출되므로 붙이지 않습니다. |
+| `DISCORD_CLIENT_ID` | Discord 앱의 Client ID |
+| `DISCORD_CLIENT_SECRET` | Discord 앱의 Client Secret |
+| `DISCORD_GUILD_ID` | 접속을 허용할 디스코드 서버 ID |
+| `SESSION_SECRET` | 세션 쿠키 서명용 랜덤 문자열 (`openssl rand -base64 32`) |
+| `DATABASE_URL` | Neon 연결 문자열 (Vercel에서 Neon을 연결하면 자동 등록) |
 
-1. **실시간 크루 전적 현황 대시보드**
-   - 크루원들의 솔로 랭크 티어, 승률, LP 현황판.
-   - 인게임 시뮬레이션 및 실시간 라이엇 API를 이용한 실시간 게임(Active Game) 상태 모니터링.
-2. **크루원 관리 (Squad Manager)**
-   - 소환사 검색 및 신규 크루원 추가, 수정, 강퇴 기능.
-3. **시너지 분석기 (Synergy Analyzer)**
-   - 멤버들 간의 게임 플레이 매치 데이터 분석 및 듀오 승률/시너지 자동 분석.
-4. **마스터리 전시관 (Mastery Showcase)**
-   - 소환사별 모스트 3 챔피언 마스터리 레벨 및 마스터리 포인트 시각화.
-5. **라이브 Riot API 연동 엔진 및 CORS 프록시 지원**
-   - 개발자 API 키와 CORS 우회 프록시 서버 설정을 완벽하게 지원하여 실제 유저 데이터를 실시간으로 동기화.
+Discord 앱의 OAuth2 Redirects에는 실제 접속 도메인 기준으로 `https://<도메인>/api/auth/callback`을 등록합니다. 도메인이 `www`로 리다이렉트되면 `www` 주소를 등록해야 합니다.
 
----
-
-## 🎨 디자인 시스템 (MongoDB Theme)
-
-[DESIGN.md](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/DESIGN.md) 규격을 엄격하게 준수합니다.
-- **색상**: 
-  - Primary CTA: MongoDB Green (`#00ed64`)
-  - Background & Hero Panel: Deep Navy Teal (`#001e2b`)
-  - Category Accent: Purple (`#7b3ff2`), Orange (`#fa6e39`), Pink (`#f06bb8`), Blue (`#3d4f9f`)
-- **타이포그래피**: `Euclid Circular A` (기본 폰트), `Source Code Pro` (코드 뷰어)
-- **컴포넌트 형태**: 모든 버튼은 알약 형상(`rounded.full` / `border-radius: 9999px`), 카드는 12px 둥근 모서리(`rounded.lg`) 고정.
-
----
-
-## ⚙️ 엔진 작동 모드 및 외부 API 설정
-
-우측 상단의 **시스템 설정(Settings)** 탭에서 두 가지 모드를 선택할 수 있습니다.
-
-### A. 시뮬레이션 모드 (Default)
-- 라이엇 API 키 없이 로컬 가상 엔진이 실시간 게임 중 상태, 티어 변화, 매치 내역을 시뮬레이션하여 100% 끊김 없이 작동합니다.
-
-### B. 실시간 Riot API 연동 모드
-- [Riot Developer Portal](https://developer.riotgames.com/)에서 획득한 개인 API Key(`RGAPI-...`)를 등록하여 실제 유저 전적을 조회합니다.
-- **CORS 우회 설정**: 브라우저 보안 정책에 의한 API 차단을 방지하기 위해 CORS 프록시 주소(예: `https://corsproxy.io/?` 혹은 `https://cors-anywhere.herokuapp.com/`)를 경유하여 동기화합니다.
-
----
-
-## 🚀 빌드 및 GitHub Pages 배포 (GitHub Pages Deployment)
-
-본 애플리케이션은 서버가 없는 정적 웹 애플리케이션(Static Client-side SPA)으로 빌드되며, **GitHub Pages**를 통해 배포·호스팅됩니다.
-
-### 1. 로컬 개발 환경 실행
+## 로컬 개발
 ```bash
 npm install
 npm run dev
 ```
+- 로컬 개발(`vite`)에서는 로그인과 DB 없이 동작합니다. 명단은 브라우저 localStorage에 저장됩니다.
+- Riot 호출은 vite 프록시(`/riot-kr`, `/riot-asia`)를 거칩니다. 설정 탭에서 개발용 API 키(`RGAPI-...`)를 입력하거나 `.env.local`에 `VITE_RIOT_API_KEY`를 둡니다. 이 값은 DEV에서만 읽히며 배포 번들에는 들어가지 않습니다.
+- 서버리스 함수(`api/`)까지 로컬에서 확인하려면 Vercel CLI(`vercel dev`)가 필요합니다.
 
-### 2. 정적 파일 빌드
 ```bash
-npm run build
+npm run build   # 타입 검사 + 빌드 (dist/)
+npm run lint
+node api/_lib/auth.check.mjs   # 세션 서명 검증 스크립트
 ```
-- 빌드 결과물은 `./dist` 폴더에 생성됩니다.
-- GitHub Pages 배포를 위해 [vite.config.ts](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/vite.config.ts)의 `base` 경로는 반드시 상대 경로인 `'./'`로 유지되어야 합니다.
 
-### 3. GitHub Pages 배포 관리 (GitHub Actions)
-- 배포 프로세스는 [.github/workflows/deploy.yml](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/.github/workflows/deploy.yml)에 의해 구동됩니다.
-- **배포 방식 (수동 실행 권장)**: 무분별한 빌드 남용을 막기 위해 커밋 푸시 시 자동 배포 트리거는 비활성화되어 있습니다.
-- **배포 방법**: GitHub 저장소 페이지의 **Actions** 탭 ➡️ **Deploy static content to Pages** 선택 ➡️ **Run workflow** 버튼을 눌러 수동으로 배포를 완료해 주세요.
+## 배포
+`main` 브랜치에 머지하면 Vercel이 자동 배포합니다. 환경변수를 바꾼 뒤에는 **재배포**해야 반영됩니다.
+
+## Riot 영구 키
+24시간마다 만료되는 개발 키 대신 Personal Product Key를 신청하는 방법은 [RIOT_PRODUCT_KEY_GUIDE.md](RIOT_PRODUCT_KEY_GUIDE.md)를 참고하세요.
