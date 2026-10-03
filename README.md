@@ -38,8 +38,16 @@ src/
 │     ├─ api/               riot.ts(Riot 클라이언트), lolData.ts(lookup/overview/details), roster.ts
 │     ├─ domain/            순수 로직 (응답 변환, 요약 계산, 챔피언 표)
 │     └─ components/        화면
-└─ server/                  서버 전용 (auth.ts 로그인 설정, discord.ts 서버 멤버 확인, db/pool, viewer 접근 제어, Riot 캐시/허용 경로)
+└─ server/                  서버 전용
+   ├─ auth.ts, discord.ts, viewer.ts   로그인 설정 / 서버 멤버 확인 / 요청 사용자와 접근 제어
+   ├─ http.ts                          zod로 요청 body·query 검증 (parseBody, parseQuery)
+   ├─ env.ts                           환경변수 점검 (값이 비었거나 형식이 틀린 것을 이름만 알려줌)
+   ├─ db.ts, pool.ts                   Postgres 연결과 스키마 준비
+   ├─ admin.ts                         관리자 대시보드 조회/조작 (SQL은 여기에만)
+   ├─ lol/roster.ts                    소환사 목록 서비스
+   └─ riot/                            허용 경로·TTL(routes), 캐시/통계(cache), 프록시 본체(proxy)
 ```
+- **라우트 핸들러(`src/app/api`)는 얇게**: 인증 -> zod 검증 -> 서비스 호출 -> 응답만 합니다. SQL과 로직은 `src/server`의 서비스 모듈에 있고 거기서 테스트합니다.
 - **의존 방향**: `app -> features / server`. 공용 UI는 기능과 서버를 모르고(값은 props로 받음), 기능은 화면·서버·다른 기능을 가져오지 않고, 서버는 화면과 기능을 가져오지 않습니다. 새 카테고리는 `src/features/<이름>/`에 `index.ts`와 함께 추가합니다.
 - 이 규칙은 `npm run lint`가 검사합니다(`no-restricted-imports`). 어기면 린트가 실패하고 CI에서도 막힙니다.
 - Riot 데이터 접근은 `RiotClient` 인터페이스 뒤에 있어(지역, 주소 형식, 캐시 키는 호출자가 모름) 테스트에서는 가짜로 바꿔 끼웁니다.
@@ -47,6 +55,7 @@ src/
 
 ## 관리자
 - 디스코드 서버 **소유자이거나 Administrator 권한**이 있는 사용자는 로그인 시 자동으로 관리자가 됩니다. 관리자를 추가하려면 디스코드에서 권한만 주면 됩니다(재로그인 필요).
+- 환경변수가 비었거나 형식이 틀리면(예: 값 자리에 변수 이름을 그대로 넣은 경우) 관리자 탭 위쪽에 경고가 뜨고 서버 시작 로그에도 남습니다. 값은 표시하지 않습니다.
 - 사이드바의 **관리자** 탭에서 접속자 목록과 차단/해제, 등록 소환사 삭제, 시스템 상태(Riot 캐시, DB 사용량, Riot 호출 통계, 최근 Riot 오류), 캐시 비우기를 합니다.
 - 차단하면 그 사용자의 세션을 모두 지워 **즉시** 로그아웃되고, 로그인도 거부됩니다. 관리자는 차단할 수 없습니다.
 - 관리자 여부와 접속 기록은 로그인할 때마다 디스코드 서버 권한을 기준으로 갱신됩니다.
