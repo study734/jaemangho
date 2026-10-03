@@ -17,7 +17,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (state === 'loading') return null;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, background: '#001e2b', color: '#fff' }}>
+    <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, background: '#001e2b', color: '#fff' }}>
       <h1 className="heading-1">⚓ 재망호</h1>
       <p className="subtitle">크루 디스코드 서버 멤버만 접속할 수 있습니다.</p>
       <a className="btn btn-primary" href="/api/auth/login">디스코드로 로그인</a>
