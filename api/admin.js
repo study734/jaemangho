@@ -26,7 +26,7 @@ const handlers = {
 
   async users(sql, req, res, admin) {
     if (req.method === 'GET') {
-      const rows = await sql`select id, name, is_admin as "isAdmin", blocked, login_count as "loginCount",
+      const rows = await sql`select id, name, username, is_admin as "isAdmin", blocked, login_count as "loginCount",
         first_login as "firstLogin", last_login as "lastLogin"
         from users order by last_login desc`;
       return res.status(200).json(rows);
@@ -56,7 +56,7 @@ const handlers = {
   async members(sql, req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
     const rows = await sql`select m.id, m.game_name as "gameName", m.tag_line as "tagLine",
-      m.created_at as "createdAt", u.name as "createdByName"
+      m.created_at as "createdAt", m.created_by as "createdBy", coalesce(u.name, m.created_by_name) as "createdByName"
       from members m left join users u on u.id = m.created_by order by m.created_at desc`;
     return res.status(200).json(rows);
   },

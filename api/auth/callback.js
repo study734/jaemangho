@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     const name = user.global_name ?? user.username;
-    const { blocked } = await recordLogin({ id: user.id, name, isAdmin: isGuildAdmin(guild) });
+    const { blocked } = await recordLogin({ id: user.id, name, username: user.username, isAdmin: isGuildAdmin(guild) });
     if (blocked) {
       return res.status(403).send('차단된 계정입니다. 관리자에게 문의해 주세요.');
     }

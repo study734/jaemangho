@@ -12,6 +12,7 @@ interface Status {
 interface AdminUser {
   id: string;
   name: string;
+  username: string | null;
   isAdmin: boolean;
   blocked: boolean;
   loginCount: number;
@@ -22,6 +23,7 @@ interface AdminMember {
   gameName: string;
   tagLine: string;
   createdAt: string;
+  createdBy: string | null;
   createdByName: string | null;
 }
 
@@ -151,7 +153,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
             {users.map((u) => (
               <tr key={u.id}>
                 <td style={styles.td}>
-                  {u.name} {u.isAdmin && <span className="badge-green-soft">관리자</span>}{' '}
+                  {u.name}{u.username && <span style={styles.handle}> @{u.username}</span>} {u.isAdmin && <span className="badge-green-soft">관리자</span>}{' '}
                   {u.blocked && <span style={styles.blocked}>차단됨</span>}
                 </td>
                 <td style={styles.td}>{u.loginCount}</td>
@@ -179,7 +181,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
             {members.map((m) => (
               <tr key={m.id}>
                 <td style={styles.td}>{m.gameName}#{m.tagLine}</td>
-                <td style={styles.td}>{m.createdByName ?? '-'}</td>
+                <td style={styles.td}>{m.createdByName ?? (m.createdBy ? `디스코드 ID ${m.createdBy}` : '-')}</td>
                 <td style={styles.td}>{when(m.createdAt)}</td>
                 <td style={{ ...styles.td, textAlign: 'right' }}>
                   <button className="btn btn-secondary" style={styles.danger} onClick={() => deleteMember(m)}>삭제</button>
@@ -279,6 +281,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   links: { display: 'flex', gap: '12px', marginTop: '16px' },
   gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: '#143747', margin: '8px 0', overflow: 'hidden' },
   gaugeFill: { height: '100%', borderRadius: '3px' },
+  handle: { color: '#7c8c9a', fontSize: '12px' },
   blocked: { color: '#ff4a4a', fontSize: '12px', fontWeight: 600 },
   danger: { borderColor: '#ff4a4a', color: '#ff4a4a' },
 };

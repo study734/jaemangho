@@ -22,11 +22,11 @@ export async function getUser(id) {
 
 export const forget = (id) => memo.delete(id);
 
-export async function recordLogin({ id, name, isAdmin }) {
+export async function recordLogin({ id, name, username, isAdmin }) {
   const sql = await db();
-  const [row] = await sql`insert into users (id, name, is_admin) values (${id}, ${name}, ${isAdmin})
+  const [row] = await sql`insert into users (id, name, username, is_admin) values (${id}, ${name}, ${username}, ${isAdmin})
     on conflict (id) do update
-      set name = excluded.name, is_admin = excluded.is_admin,
+      set name = excluded.name, username = excluded.username, is_admin = excluded.is_admin,
           login_count = users.login_count + 1, last_login = now()
     returning blocked`;
   forget(id);

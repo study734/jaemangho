@@ -25,6 +25,8 @@ export async function db() {
       first_login timestamptz not null default now(),
       last_login timestamptz not null default now()
     )`;
+    await sql`alter table users add column if not exists username text`;
+    await sql`alter table members add column if not exists created_by_name text`;
     await sql`create table if not exists riot_errors (
       at timestamptz not null default now(),
       status int not null,
