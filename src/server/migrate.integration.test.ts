@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,11 +45,29 @@ describe.skipIf(!testDbUrl)('DB 마이그레이션', () => {
     it('빈 DB에 모든 테이블을 만들고, 다시 실행하면 아무것도 하지 않는다', async () => {
       const url = await scratch();
       const first = await migrate({ url });
-      expect(first).toEqual(['0001_baseline.sql']);
+      expect(first).toEqual(readdirSync('migrations').filter((f) => /^\d{4}_[\w-]+\.sql$/.test(f)).sort());
       for (const table of ['user', 'session', 'account', 'verification', 'members', 'riot_cache', 'riot_errors', 'riot_stats', 'schema_migrations']) {
         expect(await tableExists(url, table), table).toBe(true);
       }
       expect(await migrate({ url })).toEqual([]);
+    });
+
+    it('0002: 예전 users(복수형) 테이블만 지우고 현재 로그인 user(단수형)와 다른 데이터는 건드리지 않는다', async () => {
+      const url = await scratch();
+      // 예전 버전이 만든 DB: users 테이블(디스코드 ID 기반 접속 기록)과 소환사 목록
+      await query(url, `create table users (id text primary key, name text, login_count int)`);
+      await query(url, `insert into users values ('111', '예전기록', 7)`);
+      await query(url, `create table members (id text primary key, game_name text not null, tag_line text not null, created_by text, created_at timestamptz not null default now())`);
+      await query(url, `insert into members (id, game_name, tag_line) values ('keep1', 'Faker', 'KR1')`);
+
+      await migrate({ url });
+      expect(await tableExists(url, 'users')).toBe(false);
+      expect(await tableExists(url, 'user')).toBe(true); // 이름이 비슷한 현재 테이블은 그대로
+      expect(await query(url, `select id from members`)).toEqual([{ id: 'keep1' }]);
+
+      await query(url, `insert into "user" (id, name, email, "emailVerified") values ('u1', '이름', 'a@b.invalid', false)`);
+      expect(await migrate({ url })).toEqual([]); // 다시 실행해도 아무 일도 없고 "user" 데이터는 남는다
+      expect(await query(url, `select id from "user"`)).toEqual([{ id: 'u1' }]);
     });
 
     it('예전 방식(런타임 생성)으로 만들어진 DB에 올려도 데이터가 보존되고 부족한 컬럼이 채워진다', async () => {

@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# 워크플로 토큰은 읽기 전용으로 둔다 (저장소 기본값에 기대지 않고 명시한다)
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -30,6 +34,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test
       - run: npm run build
