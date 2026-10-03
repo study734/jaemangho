@@ -2,7 +2,8 @@
 
 import React, { type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
 
 // 요약 상자의 한 줄. 각 기능(feature)이 이 모양에 맞춰 값을 만들어 넘긴다.
 export interface SummaryRow {
@@ -90,6 +91,7 @@ const ADMIN_NAV: NavItem = {
 
 export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
   const pathname = usePathname();
+  const router = useRouter();
   return (
     <aside style={styles.sidebar}>
       {/* Brand Header */}
@@ -146,9 +148,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
 
       {/* Footer Info / GitHub Pages badge */}
       <div style={styles.footer}>
-        <a className="btn btn-ghost" style={styles.logout} href="/api/auth/logout">
+        <button
+          className="btn btn-ghost"
+          style={styles.logout}
+          onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => router.push('/login') } })}
+        >
           로그아웃
-        </a>
+        </button>
         <div style={styles.footerText}>
           Jaemangho LoL Client v1.2
         </div>
