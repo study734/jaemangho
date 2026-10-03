@@ -40,12 +40,13 @@ function App() {
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
-  const [apiKey, setApiKey] = useState<string>(() => {
-    if (import.meta.env.DEV && import.meta.env.VITE_RIOT_API_KEY) {
-      return import.meta.env.VITE_RIOT_API_KEY as string;
-    }
-    return localStorage.getItem('jaemangho_api_key') || (import.meta.env.VITE_RIOT_API_KEY as string) || '';
-  });
+  // 키는 로컬 개발(vite 프록시)에서만 클라이언트가 가진다. 배포 환경은 서버(/api/riot)가 환경변수 RIOT_API_KEY를 쓴다.
+  const [apiKey, setApiKey] = useState<string>(() =>
+    import.meta.env.DEV
+      ? (import.meta.env.VITE_RIOT_API_KEY as string) || localStorage.getItem('jaemangho_api_key') || ''
+      : ''
+  );
+  const canFetch = !import.meta.env.DEV || !!apiKey;
 
   const [isLoadingRealData, setIsLoadingRealData] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -56,7 +57,8 @@ function App() {
   }, [members]);
 
   useEffect(() => {
-    localStorage.setItem('jaemangho_api_key', apiKey);
+    if (import.meta.env.DEV) localStorage.setItem('jaemangho_api_key', apiKey);
+    else localStorage.removeItem('jaemangho_api_key'); // 이전 버전이 저장해 둔 키 제거
   }, [apiKey]);
 
   // REAL RIOT API FETCHING ENGINE
@@ -84,12 +86,12 @@ function App() {
     const riotKrUrl = (path: string, params: string) =>
       isDev
         ? `/riot-kr${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-        : `/api/riot?region=kr&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+        : `/api/riot?region=kr&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     const riotAsiaUrl = (path: string, params: string) =>
       isDev
         ? `/riot-asia${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-        : `/api/riot?region=asia&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+        : `/api/riot?region=asia&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     // 병렬 큐로 모두 던져도 riotClient 내부 큐가 초당 6.6회로 제한해줌
     await Promise.all(membersToFetch.map(async (member) => {
@@ -177,11 +179,11 @@ function App() {
 
     const riotKrUrl = (path: string, params: string) =>
       isDev ? `/riot-kr${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-            : `/api/riot?region=kr&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+            : `/api/riot?region=kr&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     const riotAsiaUrl = (path: string, params: string) =>
       isDev ? `/riot-asia${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-            : `/api/riot?region=asia&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+            : `/api/riot?region=asia&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     try {
       // Get PUUID from Cache first (since we already fetched it in fetchRealRiotData)
@@ -350,12 +352,12 @@ function App() {
     const srKrUrl = (path: string, params: string) =>
       isDev
         ? `/riot-kr${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-        : `/api/riot?region=kr&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+        : `/api/riot?region=kr&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     const srAsiaUrl = (path: string, params: string) =>
       isDev
         ? `/riot-asia${path}?api_key=${apiKey}${params ? '&' + params : ''}`
-        : `/api/riot?region=asia&path=${encodeURIComponent(path)}&api_key=${apiKey}${params ? '&' + params : ''}`;
+        : `/api/riot?region=asia&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
 
     // 1. Resolve PUUID
     const buildSearchUrl = (name: string) =>
@@ -411,7 +413,7 @@ function App() {
   // Automatically fetch real Riot API data when toggling to Real Mode
   // Automatically fetch real Riot API data when API Key is loaded/provided
   useEffect(() => {
-    if (apiKey) {
+    if (canFetch) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchRealRiotData();
     }
@@ -451,7 +453,7 @@ function App() {
     setMembers(prev => [newMember, ...prev]);
 
     // Trigger immediate real API background fetch to populate actual data
-    if (apiKey) {
+    if (canFetch) {
       setTimeout(() => {
         fetchRealRiotData(newMember);
       }, 50);
@@ -511,7 +513,7 @@ function App() {
         )}
 
         {/* Sync Button for Real API Mode */}
-        {apiKey && !isLoadingRealData && (
+        {canFetch && !isLoadingRealData && (
           <div style={styles.syncRow}>
             <button 
               className="btn btn-secondary" 
