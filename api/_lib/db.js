@@ -16,6 +16,12 @@ export async function db() {
     )`;
     await sql`create unique index if not exists members_riot_id
       on members (lower(game_name), lower(tag_line))`;
+    await sql`create table if not exists riot_cache (
+      key text primary key,
+      status int not null,
+      body jsonb not null,
+      expires_at timestamptz not null
+    )`;
   })().catch((e) => {
     ready = undefined;
     throw e;
