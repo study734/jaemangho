@@ -1,6 +1,5 @@
 import { headers } from 'next/headers';
 import { auth } from './auth';
-import { db } from './db';
 
 export interface Viewer {
   id: string;
@@ -18,9 +17,7 @@ export async function getViewer(): Promise<ViewerResult> {
   if (devLogin()) return { status: 'ok', viewer: { id: 'dev', name: '개발자', isAdmin: true } };
 
   // 요청 헤더를 먼저 읽는다: 이 페이지/핸들러를 동적 렌더링으로 표시해, 빌드 중에 DB에 접속하지 않게 한다.
-  const requestHeaders = await headers();
-  await db(); // 로그인 라이브러리의 테이블이 만들어진 뒤에 세션을 조회한다
-  const session = await auth.api.getSession({ headers: requestHeaders });
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { status: 'anonymous' };
 
   const user = session.user as typeof session.user & { role?: string | null; banned?: boolean | null };

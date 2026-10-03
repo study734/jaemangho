@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { openTestDb, testDbUrl } from './testing/db';
 
 // DB가 필요한 통합 테스트: TEST_DATABASE_URL이 있을 때만 실행한다 (CI에서는 Postgres 서비스 컨테이너를 사용).
 // 디스코드는 fetch를 가짜로 바꿔 대신하고, 로그인 라이브러리와 DB는 실제로 사용한다.
-const url = process.env.TEST_DATABASE_URL;
 
-describe.skipIf(!url)('디스코드 로그인 흐름 (getUserInfo -> 세션 훅 -> DB)', () => {
-  type Mods = { auth: typeof import('./auth').auth; pool: typeof import('./pool').pool; db: typeof import('./db').db };
+describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세션 훅 -> DB)', () => {
+  type Mods = { auth: typeof import('./auth').auth; pool: Awaited<ReturnType<typeof openTestDb>> };
   let m: Mods;
 
   const discord = (opts: { member: boolean; permissions?: string; id?: string }) =>
@@ -35,13 +35,8 @@ describe.skipIf(!url)('디스코드 로그인 흐름 (getUserInfo -> 세션 훅 
   const row = async (id: string) => (await m.pool.query(`select * from "user" where id = $1`, [id])).rows[0];
 
   beforeAll(async () => {
-    Object.assign(process.env, {
-      DATABASE_URL: url, SESSION_SECRET: 'integration-test-secret-at-least-32-chars',
-      DISCORD_CLIENT_ID: 'cid', DISCORD_CLIENT_SECRET: 'csecret', DISCORD_GUILD_ID: 'G',
-    });
-    const [{ auth }, { pool }, { db }] = await Promise.all([import('./auth'), import('./pool'), import('./db')]);
-    m = { auth, pool, db };
-    await db(); // 마이그레이션
+    const pool = await openTestDb();
+    m = { auth: (await import('./auth')).auth, pool };
   });
 
   afterAll(async () => {

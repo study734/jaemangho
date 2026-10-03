@@ -9,6 +9,7 @@ interface Status {
   errorsByStatus: { status: number; count: number }[];
   recentErrors: { at: string; status: number; path: string }[];
   stats: { day: string; hits: number; misses: number }[];
+  envProblems: string[];
 }
 interface AdminUser {
   id: string;
@@ -124,6 +125,17 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
+
+      {status && status.envProblems.length > 0 && (
+        <div style={styles.error}>
+          <strong>환경변수 점검에서 문제가 발견되었습니다</strong> (값은 표시하지 않습니다)
+          <ul style={{ margin: '8px 0 0 18px' }}>
+            {status.envProblems.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {status && (
         <section style={styles.cards}>
