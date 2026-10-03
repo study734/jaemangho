@@ -1,6 +1,6 @@
-import { requireSession } from '../_lib/auth.js';
+import { requireUser } from '../_lib/guard.js';
 
-export default function handler(req, res) {
-  const session = requireSession(req, res);
-  if (session) res.status(200).json({ id: session.id, name: session.name });
+export default async function handler(req, res) {
+  const user = await requireUser(req, res);
+  if (user) res.status(200).json(user);
 }

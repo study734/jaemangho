@@ -5,9 +5,10 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   members: Member[];
+  isAdmin: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, members }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, members, isAdmin }) => {
   const activeCount = members.filter(m => m.activeGame !== null).length;
   
   // Find top ranked player
@@ -108,6 +109,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
           </svg>
           <span style={styles.navText}>설정</span>
         </button>
+
+        {isAdmin && (
+          <button
+            className={`btn btn-ghost ${activeTab === 'admin' ? 'btn-ghost-active' : ''}`}
+            style={styles.navButton}
+            onClick={() => setActiveTab('admin')}
+          >
+            <svg style={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span style={styles.navText}>관리자</span>
+          </button>
+        )}
       </nav>
 
       {/* Summary Info Box */}

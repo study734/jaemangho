@@ -16,13 +16,19 @@
 Vercel Serverless Functions (api/)
    ├─ auth/*      Discord OAuth2 (크루 디스코드 서버 멤버만 허용), 서명된 세션 쿠키
    ├─ riot.js     Riot API 프록시 (허용 엔드포인트만, 키는 서버에서만 사용)
-   └─ members.js  크루원 명단 CRUD
+   ├─ members.js  크루원 명단 CRUD
+   └─ admin.js    관리자 전용 (접속자/차단, 명단, 시스템 상태)
         │
         ▼
 Neon Postgres (명단 저장)
 ```
 - 프런트엔드는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
 - `/api/riot`, `/api/members`는 로그인 세션이 있어야 호출할 수 있습니다.
+
+## 관리자
+- 디스코드 서버 **소유자이거나 Administrator 권한**이 있는 사용자는 로그인 시 자동으로 관리자가 됩니다. 관리자를 추가하려면 디스코드에서 권한만 주면 됩니다(재로그인 필요).
+- 사이드바의 **관리자** 탭에서 접속자 목록과 차단/해제, 크루원 명단 삭제, 시스템 상태(Riot 캐시, DB 사용량, 최근 Riot 오류)를 봅니다.
+- 차단은 DB가 기준이며 최대 30초 안에 반영됩니다. 관리자는 차단할 수 없습니다.
 
 ## 환경변수 (Vercel → Settings → Environment Variables, Production)
 | 이름 | 설명 |

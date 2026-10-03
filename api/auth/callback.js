@@ -1,7 +1,8 @@
 import {
   SESSION_COOKIE, SESSION_MAX_AGE, STATE_COOKIE,
-  makeToken, parseCookies, redirect, redirectUri, setCookie,
+  isGuildAdmin, makeToken, parseCookies, redirect, redirectUri, setCookie,
 } from '../_lib/auth.js';
+import { recordLogin } from '../_lib/users.js';
 
 const DISCORD = 'https://discord.com/api';
 
@@ -40,12 +41,19 @@ export default async function handler(req, res) {
       discordGet('/users/@me/guilds', access_token),
     ]);
 
-    if (!guilds.some((g) => g.id === process.env.DISCORD_GUILD_ID)) {
+    const guild = guilds.find((g) => g.id === process.env.DISCORD_GUILD_ID);
+    if (!guild) {
       return res.status(403).send('재망호 디스코드 서버 멤버만 접속할 수 있습니다.');
     }
 
+    const name = user.global_name ?? user.username;
+    const { blocked } = await recordLogin({ id: user.id, name, isAdmin: isGuildAdmin(guild) });
+    if (blocked) {
+      return res.status(403).send('차단된 계정입니다. 관리자에게 문의해 주세요.');
+    }
+
     const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
-    setCookie(res, SESSION_COOKIE, makeToken({ id: user.id, name: user.global_name ?? user.username, exp }), SESSION_MAX_AGE);
+    setCookie(res, SESSION_COOKIE, makeToken({ id: user.id, name, exp }), SESSION_MAX_AGE);
     redirect(res, '/');
   } catch (e) {
     console.error(e);

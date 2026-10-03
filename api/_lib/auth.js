@@ -48,12 +48,11 @@ export function setCookie(res, name, value, maxAge) {
 
 export const getSession = (req) => readToken(parseCookies(req)[SESSION_COOKIE]);
 
-// 세션이 없으면 401을 보내고 null을 돌려준다.
-export function requireSession(req, res) {
-  const session = getSession(req);
-  if (!session) res.status(401).json({ error: 'Unauthorized' });
-  return session;
-}
+// 디스코드 서버 소유자이거나 Administrator(0x8) 권한이 있으면 관리자.
+// guild는 /users/@me/guilds 항목({ owner, permissions }).
+const ADMINISTRATOR = 8n;
+export const isGuildAdmin = (guild) =>
+  guild.owner === true || (BigInt(guild.permissions ?? 0) & ADMINISTRATOR) !== 0n;
 
 export function redirectUri(req) {
   const proto = req.headers['x-forwarded-proto'] ?? 'https';

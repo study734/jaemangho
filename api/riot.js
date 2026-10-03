@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { requireSession } from './_lib/auth.js';
-import { cacheGet, cachePut } from './_lib/riotCache.js';
+import { requireUser } from './_lib/guard.js';
+import { cacheGet, cachePut, logRiotError } from './_lib/riotCache.js';
 import { routeFor } from './_lib/riotRoutes.js';
 
 const FORWARD_PARAMS = ['count', 'start'];
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!requireSession(req, res)) return;
+  if (!(await requireUser(req, res))) return;
 
   const { region, path } = req.query;
 
@@ -56,6 +56,7 @@ export default async function handler(req, res) {
     const data = error.response?.data || { error: error.message };
     // 404(없는 소환사, 게임 중 아님)만 짧게 캐시한다. 401/403/429/5xx는 캐시하지 않는다.
     if (status === 404) await cachePut(cacheKey, status, data, Math.min(route.ttl, 60));
+    else await logRiotError(status, path);
     return res.status(status).json(data);
   }
 }
