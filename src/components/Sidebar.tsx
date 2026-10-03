@@ -139,9 +139,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
             로그아웃
           </a>
         )}
-        <div className="badge-green-soft" style={styles.badge}>
-          Static Cloud Safe
-        </div>
         <div style={styles.footerText}>
           Jaemangho LoL Client v1.2
         </div>
@@ -269,11 +266,6 @@ const styles = {
     marginBottom: '12px',
     padding: '8px 14px',
     fontSize: '13px',
-  },
-  badge: {
-    fontSize: '11px',
-    display: 'inline-block',
-    marginBottom: '8px',
   },
   footerText: {
     fontSize: '11px',
