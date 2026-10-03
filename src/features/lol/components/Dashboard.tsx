@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import type { Member } from '../types';
 import { getTierColor, getTierLabelKR, getTierOrder, getRankOrder } from '../mockData';

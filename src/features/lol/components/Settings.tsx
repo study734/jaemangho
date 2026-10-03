@@ -1,68 +1,32 @@
+'use client';
+
 import React, { useState } from 'react';
 import axios, { type AxiosError } from 'axios';
 
-interface SettingsProps {
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  onResetMembers: () => void;
-}
-
-export const Settings: React.FC<SettingsProps> = ({
-  apiKey,
-  setApiKey,
-  onResetMembers
-}) => {
-  const isDev = import.meta.env.DEV;
-  // 키 입력 칸은 로컬 개발에서 .env.local(VITE_RIOT_API_KEY)에 키가 없을 때만 보여준다
-  const needsKeyInput = isDev && !import.meta.env.VITE_RIOT_API_KEY;
-  const [apiKeyInput, setApiKeyInput] = useState(apiKey);
+// Riot API 키는 서버(RIOT_API_KEY)가 관리하므로 여기서는 서버의 Riot 연결 상태만 확인한다.
+export const Settings: React.FC = () => {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiKey(apiKeyInput.trim());
-    alert('설정이 성공적으로 저장되었습니다!');
-  };
-
   const handleTestAPI = async () => {
-    if (isDev && !apiKeyInput) {
-      alert('테스트를 위해 Riot API Key를 먼저 입력해 주세요.');
-      return;
-    }
-    
     setTestStatus('testing');
     setErrorMessage('');
 
-    const trimmedKey = apiKeyInput.trim();
-
-    const testUrl = isDev
-      ? `/riot-asia/riot/account/v1/accounts/by-riot-id/%EC%98%A4%EC%B1%84/KR1?api_key=${trimmedKey}`
-      : `/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}`;
-
     try {
-      await axios.get(testUrl);
+      await axios.get(`/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}`);
       setTestStatus('success');
     } catch (e) {
-      const err = e as AxiosError;
-      const status = err.response?.status;
-      const errorReason =
-        status === 401 ? 'Riot API Key 미승인 (HTTP 401)' :
-        status === 403 ? 'Riot API Key 만료 (HTTP 403)' :
+      const status = (e as AxiosError).response?.status;
+      const reason =
+        status === 401 ? '로그인이 만료되었습니다. 다시 로그인해 주세요 (HTTP 401)' :
+        status === 403 ? 'Riot API Key 만료 또는 권한 없음 (HTTP 403)' :
         status === 404 ? '계정 정보 없음 (HTTP 404)' :
         status === 429 ? '라이엇 서버 요청 제한 (HTTP 429)' :
-        !status       ? 'CORS/네트워크 연결 제한' :
+        !status       ? '네트워크 연결 제한' :
         `서버 응답 오류 (HTTP ${status})`;
 
       setTestStatus('failed');
-      setErrorMessage(`❌ 연결 실패: ${errorReason}. ${needsKeyInput ? '정확한 라이엇 API Key를 다시 입력해 주세요.' : isDev ? '.env.local의 VITE_RIOT_API_KEY를 확인해 주세요.' : '계속되면 관리자에게 문의해 주세요.'}`);
-    }
-  };
-
-  const handleReset = () => {
-    if (confirm('소환사 목록을 완전히 비우고 초기화하시겠습니까?\n(등록하신 소환사 목록이 삭제됩니다)')) {
-      onResetMembers();
-      alert('소환사 목록이 초기화되었습니다.');
+      setErrorMessage(`❌ 연결 실패: ${reason}. 계속되면 관리자에게 문의해 주세요.`);
     }
   };
 
@@ -71,96 +35,36 @@ export const Settings: React.FC<SettingsProps> = ({
       <header style={styles.header}>
         <div>
           <h2 className="heading-1" style={styles.title}>시스템 설정</h2>
-          <p className="subtitle">애플리케이션 작동 방식 및 외부 API 연동 옵션을 설정합니다.</p>
+          <p className="subtitle">외부 API 연동 상태를 확인합니다.</p>
         </div>
       </header>
 
       <div style={styles.content}>
-        {/* Real API Key Config Panel */}
-        <form onSubmit={handleSave} className="card-base" style={styles.apiForm}>
-          <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>
-            {needsKeyInput ? 'Riot API 자격 증명 설정' : 'Riot 연결 상태'}
-          </h3>
-          {!needsKeyInput && (
-            <p className="body-sm" style={{ marginBottom: '16px' }}>
-              {isDev
-                ? 'Riot API 키를 .env.local(VITE_RIOT_API_KEY)에서 읽고 있습니다.'
-                : 'Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.'}
-              {' '}아래 버튼으로 Riot 연결을 확인할 수 있습니다.
-            </p>
-          )}
-          
-          {needsKeyInput && (
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              Riot Games API Key
-              <span style={styles.labelSub}> (Riot Developer Portal에서 발급 가능)</span>
-            </label>
-            <input 
-              type="password" 
-              className="text-input" 
-              placeholder="RGAPI-XXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-              value={apiKeyInput}
-              onChange={e => setApiKeyInput(e.target.value)}
-            />
-            <span style={styles.helpText}>
-              * 로컬 개발 전용입니다. 배포 환경의 키는 서버 환경변수(RIOT_API_KEY)로만 관리됩니다.
-            </span>
-          </div>
-          )}
+        <section className="card-base" style={styles.apiForm}>
+          <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>Riot 연결 상태</h3>
+          <p className="body-sm" style={{ marginBottom: '16px' }}>
+            Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.
+            아래 버튼으로 서버의 Riot 연결을 확인할 수 있습니다.
+          </p>
 
-          {/* Test Connection Button */}
           <div style={styles.testSection}>
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
+            <button
+              type="button"
+              className="btn btn-secondary"
               onClick={handleTestAPI}
               disabled={testStatus === 'testing'}
             >
-              {testStatus === 'testing' ? '연결 테스트 중...' : needsKeyInput ? 'API 키 연결 테스트' : '연결 테스트'}
+              {testStatus === 'testing' ? '연결 테스트 중...' : '연결 테스트'}
             </button>
-            
-            {testStatus === 'success' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                <span style={{ color: '#00ed64', fontSize: '13.5px', fontWeight: 600 }}>
-                  ✓ 라이엇 API 연결 테스트 성공!
-                </span>
-                {errorMessage && (
-                  <span style={{ color: '#ffb703', fontSize: '12px', fontWeight: 500, lineHeight: '1.4', textAlign: 'left' }}>
-                    {errorMessage}
-                  </span>
-                )}
-              </div>
-            )}
 
+            {testStatus === 'success' && (
+              <span style={{ color: '#00ed64', fontSize: '13.5px', fontWeight: 600 }}>✓ 라이엇 API 연결 테스트 성공!</span>
+            )}
             {testStatus === 'failed' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                <span style={{ color: '#ff4a4a', fontSize: '13.5px', fontWeight: 600 }}>
-                  {errorMessage}
-                </span>
-              </div>
+              <span style={{ color: '#ff4a4a', fontSize: '13.5px', fontWeight: 600 }}>{errorMessage}</span>
             )}
           </div>
-
-          {needsKeyInput && (
-            <button type="submit" className="btn btn-primary" style={{ marginTop: '24px', width: '100%', height: '44px' }}>
-              연결 설정 저장
-            </button>
-          )}
-        </form>
-
-        {/* Data Reset Section (로컬 개발 전용) */}
-        {isDev && (
-        <section className="card-base" style={styles.resetCard}>
-          <h3 className="heading-3" style={{ color: '#ff4a4a', marginBottom: '10px' }}>데이터 초기화</h3>
-          <p className="body-sm" style={{ marginBottom: '16px' }}>
-            소환사 목록이 손상되었거나 직접 편집한 내용을 지우고 처음 상태로 되돌리려면 초기화를 진행하세요.
-          </p>
-          <button className="btn btn-secondary" style={styles.resetBtn} onClick={handleReset}>
-            소환사 목록 초기화
-          </button>
         </section>
-        )}
       </div>
     </div>
   );
@@ -171,67 +75,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '32px',
     flexGrow: 1,
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     gap: '32px',
-    overflowY: 'auto' as const,
+    overflowY: 'auto',
     height: '100vh',
   },
-  header: {
-    borderBottom: '1px solid #1c4558',
-    paddingBottom: '20px',
-  },
-  title: {
-    color: '#ffffff',
-    letterSpacing: '-1px',
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '32px',
-    maxWidth: '800px',
-  },
-  apiForm: {
-    backgroundColor: '#001e2b',
-    border: '1px solid #1c4558',
-    padding: '24px',
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  label: {
-    fontSize: '13.5px',
-    fontWeight: 600,
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-  },
-  labelSub: {
-    fontSize: '12px',
-    color: '#7c8c9a',
-    fontWeight: 400,
-    marginLeft: '4px',
-  },
-  helpText: {
-    fontSize: '11px',
-    color: '#7c8c9a',
-    marginTop: '4px',
-    lineHeight: '1.4',
-  },
-  testSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    marginTop: '16px',
-  },
-  resetCard: {
-    backgroundColor: '#001e2b',
-    border: '1px solid #1c4558',
-    padding: '24px',
-  },
-  resetBtn: {
-    borderColor: '#ff4a4a',
-    color: '#ff4a4a',
-  }
+  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px' },
+  title: { color: '#ffffff', letterSpacing: '-1px' },
+  content: { display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '800px' },
+  apiForm: { backgroundColor: '#001e2b', border: '1px solid #1c4558', padding: '24px' },
+  testSection: { display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' },
 };

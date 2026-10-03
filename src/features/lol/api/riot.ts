@@ -1,21 +1,11 @@
 import type { AccountDto, LeagueEntryDto, MasteryDto, MatchDto, SpectatorDto, SummonerDto } from '../domain/riotDto';
 import { riotGet } from './riotClient';
 
-export type Region = 'kr' | 'asia';
+type Region = 'kr' | 'asia';
 
-// 이음새: 요청 주소를 만드는 방법. 로컬 개발(vite 프록시)과 배포(서버 프록시) 두 어댑터가 있다.
-export type Route = (region: Region, path: string, params?: string) => string;
-
-export const serverRoute: Route = (region, path, params) =>
+// 앞으로 로그인한 사용자의 요청은 모두 서버(/api/riot)를 거친다. 키는 서버에만 있다.
+const route = (region: Region, path: string, params?: string) =>
   `/api/riot?region=${region}&path=${encodeURIComponent(path)}${params ? '&' + params : ''}`;
-
-export const devProxyRoute =
-  (apiKey: string): Route =>
-  (region, path, params) =>
-    `/riot-${region}${path}?api_key=${apiKey}${params ? '&' + params : ''}`;
-
-// 개발 서버에서는 vite 프록시(키를 브라우저가 붙임), 그 외에는 서버 프록시(키는 서버가 보관).
-export const defaultRoute = (devApiKey: string): Route => (import.meta.env.DEV ? devProxyRoute(devApiKey) : serverRoute);
 
 type Get = typeof riotGet;
 const enc = encodeURIComponent;
@@ -32,7 +22,7 @@ export interface RiotClient {
   activeGame(puuid: string): Promise<SpectatorDto | null>;
 }
 
-export function createRiotClient(route: Route, get: Get = riotGet): RiotClient {
+export function createRiotClient(get: Get = riotGet): RiotClient {
   const account = async (name: string, tag: string) =>
     get<AccountDto>(route('asia', `/riot/account/v1/accounts/by-riot-id/${enc(name)}/${enc(tag)}`), `puuid_${name}_${tag}`, true);
 
