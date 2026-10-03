@@ -53,7 +53,7 @@ export const Settings: React.FC<SettingsProps> = ({
         `서버 응답 오류 (HTTP ${status})`;
 
       setTestStatus('failed');
-      setErrorMessage(`❌ 연결 실패: ${errorReason}. 정확한 라이엇 API Key를 다시 입력해 주세요.`);
+      setErrorMessage(`❌ 연결 실패: ${errorReason}. ${isDev ? '정확한 라이엇 API Key를 다시 입력해 주세요.' : '계속되면 관리자에게 문의해 주세요.'}`);
     }
   };
 
@@ -76,7 +76,15 @@ export const Settings: React.FC<SettingsProps> = ({
       <div style={styles.content}>
         {/* Real API Key Config Panel */}
         <form onSubmit={handleSave} className="card-base" style={styles.apiForm}>
-          <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>Riot API 자격 증명 설정</h3>
+          <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>
+            {isDev ? 'Riot API 자격 증명 설정' : 'Riot 서버 연결 상태'}
+          </h3>
+          {!isDev && (
+            <p className="body-sm" style={{ marginBottom: '16px' }}>
+              Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.
+              아래 버튼으로 서버의 Riot 연결을 확인할 수 있습니다.
+            </p>
+          )}
           
           {isDev && (
           <div style={styles.formGroup}>
@@ -105,7 +113,7 @@ export const Settings: React.FC<SettingsProps> = ({
               onClick={handleTestAPI}
               disabled={testStatus === 'testing'}
             >
-              {testStatus === 'testing' ? '연결 테스트 중...' : 'API 키 연결 테스트'}
+              {testStatus === 'testing' ? '연결 테스트 중...' : isDev ? 'API 키 연결 테스트' : '서버 연결 테스트'}
             </button>
             
             {testStatus === 'success' && (
