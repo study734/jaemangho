@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { rosterApi } from '../features/lol/api/roster';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -28,8 +27,8 @@ interface AdminMember {
 }
 
 interface Props {
-  // 관리자가 명단에서 삭제하면 앱의 화면 상태도 맞춘다
-  onMemberDeleted: (id: string) => void;
+  // 등록 소환사 삭제(서버 반영 + 화면 상태 갱신). 실패하면 예외를 던진다.
+  onDeleteMember: (id: string) => Promise<void>;
 }
 
 // Neon 무료 플랜 저장 용량: 프로젝트당 1GB (neon.com/docs/introduction/plans, neon.com/faqs/free-plan-limits-and-quotas 에서 확인).
@@ -50,7 +49,7 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
+export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [status, setStatus] = useState<Status | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [members, setMembers] = useState<AdminMember[]>([]);
@@ -105,8 +104,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
   const deleteMember = async (m: AdminMember) => {
     if (!confirm(`${m.gameName}#${m.tagLine} 을(를) 소환사 목록에서 삭제하시겠습니까?`)) return;
     try {
-      await rosterApi.remove(m.id);
-      onMemberDeleted(m.id);
+      await onDeleteMember(m.id);
       await load();
     } catch {
       alert('삭제하지 못했습니다.');

@@ -1,35 +1,20 @@
 import React from 'react';
-import type { Member } from '../features/lol/types';
+
+// 요약 상자의 한 줄. 각 기능(feature)이 이 모양에 맞춰 값을 만들어 넘긴다.
+export interface SummaryRow {
+  label: string;
+  value: string;
+  tone?: 'live' | 'highlight';
+}
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  members: Member[];
+  summary: SummaryRow[];
   isAdmin: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, members, isAdmin }) => {
-  const activeCount = members.filter(m => m.activeGame !== null).length;
-  
-  // Find top ranked player
-  const getTopPlayer = () => {
-    if (members.length === 0) return '없음';
-    const tierPriority = ['CHALLENGER', 'GRANDMASTER', 'MASTER', 'DIAMOND', 'EMERALD', 'PLATINUM', 'GOLD', 'SILVER', 'BRONZE', 'IRON'];
-    
-    let topPlayer = members[0];
-    let minIdx = 99;
-
-    members.forEach(m => {
-      const idx = tierPriority.indexOf(m.tier);
-      if (idx < minIdx) {
-        minIdx = idx;
-        topPlayer = m;
-      }
-    });
-
-    return `${topPlayer.gameName} (${topPlayer.tier})`;
-  };
-
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, summary, isAdmin }) => {
   return (
     <aside style={styles.sidebar}>
       {/* Brand Header */}
@@ -127,23 +112,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, membe
       {/* Summary Info Box */}
       <div style={styles.summaryContainer}>
         <div style={styles.summaryTitle}>요약 정보</div>
-        <div style={styles.summaryItem}>
-          <span style={styles.summaryLabel}>등록 소환사</span>
-          <span style={styles.summaryValue}>{members.length}명</span>
-        </div>
-        <div style={styles.summaryItem}>
-          <span style={styles.summaryLabel}>전투 중 (실시간)</span>
-          <span style={styles.summaryValueActive}>
-            <span className="pulse-indicator" style={{ marginRight: '6px' }} />
-            {activeCount}명
-          </span>
-        </div>
-        <div style={styles.summaryItem}>
-          <span style={styles.summaryLabel}>대장 주주</span>
-          <span style={styles.summaryValueTop} title={getTopPlayer()}>
-            {getTopPlayer()}
-          </span>
-        </div>
+        {summary.map((row) => (
+          <div key={row.label} style={styles.summaryItem}>
+            <span style={styles.summaryLabel}>{row.label}</span>
+            {row.tone === 'live' ? (
+              <span style={styles.summaryValueActive}>
+                <span className="pulse-indicator" style={{ marginRight: '6px' }} />
+                {row.value}
+              </span>
+            ) : (
+              <span style={row.tone === 'highlight' ? styles.summaryValueTop : styles.summaryValue} title={row.value}>
+                {row.value}
+              </span>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Footer Info / GitHub Pages badge */}

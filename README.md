@@ -26,8 +26,20 @@ Neon Postgres (명단 저장)
 - `/api/riot`, `/api/members`는 로그인 세션이 있어야 호출할 수 있습니다.
 
 ## 프런트엔드 구조
-- `src/features/lol/`: 리그 오브 레전드 관련 화면, API 클라이언트, 타입, 목 데이터. 새 카테고리는 `src/features/<이름>/`에 모읍니다.
-- `src/components/`, `src/auth.ts`: 앱 공용(사이드바, 로그인 게이트, 관리자 대시보드).
+```
+src/
+├─ App.tsx, main.tsx        앱 조립 (기능을 불러와 탭에 연결)
+├─ components/, auth.ts      앱 공용 (사이드바, 로그인 게이트, 관리자 대시보드)
+└─ features/
+   └─ lol/                  리그 오브 레전드 기능
+      ├─ index.ts           공개 인터페이스 (바깥은 여기만 import)
+      ├─ api/               riot.ts(Riot 클라이언트), lolData.ts(lookup/overview/details), roster.ts
+      ├─ domain/            순수 로직 (응답 변환, 요약 계산, 챔피언 표)
+      └─ components/        화면
+```
+- **의존 방향**: `App -> features`. 공용 코드는 기능을 모르고(필요한 값은 props로 받음), 기능은 공용 코드나 다른 기능을 가져오지 않습니다. 새 카테고리는 `src/features/<이름>/`에 `index.ts`와 함께 추가합니다.
+- 이 규칙은 `npm run lint`가 검사합니다(`no-restricted-imports`). 어기면 린트가 실패하고 CI에서도 막힙니다.
+- Riot 데이터 접근은 `RiotClient` 인터페이스 뒤에 있습니다(지역, 주소 형식, 캐시 키는 호출자가 모름). 개발 프록시와 서버 프록시는 `Route`라는 이음새의 두 어댑터입니다.
 - 서버(`api/`)의 URL(`/api/riot`, `/api/members`)과 DB 테이블 이름은 아직 롤 기준 그대로입니다. 두 번째 카테고리가 생길 때 `/api/<카테고리>/...`로 나눕니다.
 
 ## 관리자
@@ -58,8 +70,10 @@ npm run dev
 
 ```bash
 npm run build   # 타입 검사 + 빌드 (dist/)
-npm run lint
-node api/_lib/auth.check.mjs   # 세션 서명 검증 스크립트
+npm run lint    # 코드 규칙 + 모듈 경계 검사
+npm test        # 단위 테스트 (vitest)
+node api/_lib/auth.check.mjs   # 세션 서명/관리자 판정 검증 스크립트
+node api/_lib/riotRoutes.check.mjs   # 허용 경로/캐시 TTL 검증 스크립트
 ```
 
 ## 배포

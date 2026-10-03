@@ -1,15 +1,10 @@
 import { useState, useEffect, useContext, useMemo } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { createLolData, type Overview, type Summoner } from './features/lol/api/lolData';
-import { createRiotClient, defaultRoute } from './features/lol/api/riot';
-import { Dashboard } from './features/lol/components/Dashboard';
-import { SquadManager } from './features/lol/components/SquadManager';
-import { SynergyAnalyzer } from './features/lol/components/SynergyAnalyzer';
-import { Settings } from './features/lol/components/Settings';
-import { MasteryShowcase } from './features/lol/components/MasteryShowcase';
-import type { Member } from './features/lol/types';
-import { INITIAL_MEMBERS } from './features/lol/mockData';
-import { rosterApi, toMember } from './features/lol/api/roster';
+import {
+  Dashboard, MasteryShowcase, Settings, SquadManager, SynergyAnalyzer,
+  INITIAL_MEMBERS, createLol, rosterApi, summarizeRoster, toMember,
+  type Member, type Overview, type Summoner,
+} from './features/lol';
 import { MeContext } from './auth';
 import { AdminDashboard } from './components/AdminDashboard';
 import './App.css';
@@ -56,7 +51,7 @@ function App() {
   }, [apiKey]);
 
   // Riot 데이터 접근은 LolData 모듈이 맡는다. 여기서는 결과를 화면 상태에 반영만 한다.
-  const lol = useMemo(() => createLolData(createRiotClient(defaultRoute(apiKey))), [apiKey]);
+  const lol = useMemo(() => createLol(apiKey), [apiKey]);
 
   // 목록 전체(또는 한 명)의 기본 정보(레벨/아이콘/랭크)를 갱신한다
   const fetchRealRiotData = async (targetMember?: Member) => {
@@ -183,7 +178,7 @@ function App() {
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        members={members} 
+        summary={summarizeRoster(members)}
         isAdmin={isAdmin}
       />
 
@@ -258,7 +253,12 @@ function App() {
         )}
 
         {activeTab === 'admin' && isAdmin && (
-          <AdminDashboard onMemberDeleted={(id) => setMembers(prev => prev.filter(m => m.id !== id))} />
+          <AdminDashboard
+            onDeleteMember={async (id) => {
+              await rosterApi.remove(id);
+              setMembers(prev => prev.filter(m => m.id !== id));
+            }}
+          />
         )}
 
         {activeTab === 'settings' && (
