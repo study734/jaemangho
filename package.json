@@ -17,8 +17,8 @@
     "better-auth": "^1.7.7",
     "next": "^16.3.8",
     "pg": "^8.23.1",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -26,14 +26,14 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.12.2",
     "@types/pg": "^8.23.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^10.2.1",
+    "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.5.0",
+    "globals": "^17.12.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.58.2",
+    "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
   }
 }
