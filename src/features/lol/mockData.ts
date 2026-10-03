@@ -1,4 +1,3 @@
-import type { Member } from './types';
 
 // Champions list (kept for mapping/UI helpers if needed)
 export const CHAMPIONS = [
@@ -22,7 +21,6 @@ export const CHAMPIONS = [
 ];
 
 // CLEAN INITIAL SQUAD (Empty array for pure real-time custom crew setup)
-export const INITIAL_MEMBERS: Member[] = [];
 
 // Helper map tiers to rank power (for sorting)
 export const getTierOrder = (tier: string): number => {
