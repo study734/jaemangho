@@ -9,6 +9,7 @@ import { Settings } from './components/Settings';
 import { MasteryShowcase } from './components/MasteryShowcase';
 import type { Member, ChampionMastery, MatchHistory, MatchPlayer, ActiveGame } from './types';
 import { INITIAL_MEMBERS } from './mockData';
+import { rosterApi, toMember } from './api/roster';
 import './App.css';
 
 const CHAMPION_ID_MAP: { [key: number]: string } = {
@@ -32,11 +33,9 @@ const CHAMPION_ID_MAP: { [key: number]: string } = {
 };
 
 function App() {
-  // Load State from LocalStorage or Fallback (INITIAL_MEMBERS is now empty [])
-  const [members, setMembers] = useState<Member[]>(() => {
-    const saved = localStorage.getItem('jaemangho_members');
-    return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
-  });
+  // 크루원 명단은 서버 DB(개발 환경은 localStorage)에서 불러온다
+  const [members, setMembers] = useState<Member[]>([]);
+  const [rosterReady, setRosterReady] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
@@ -51,10 +50,22 @@ function App() {
   const [isLoadingRealData, setIsLoadingRealData] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Sync state to LocalStorage
   useEffect(() => {
-    localStorage.setItem('jaemangho_members', JSON.stringify(members));
-  }, [members]);
+    rosterApi.list()
+      .then((list) => {
+        setMembers(list.map(toMember));
+        setRosterReady(true);
+      })
+      .catch(() => setApiError('크루원 명단을 불러오지 못했습니다. 새로고침해 주세요.'));
+  }, []);
+
+  // 저장 실패(중복 Riot ID, 세션 만료 등) 시 서버 기준으로 명단을 다시 맞춘다
+  const persist = (p: Promise<unknown>) =>
+    p.catch(async () => {
+      alert('저장하지 못했습니다. 명단을 서버 기준으로 다시 불러옵니다.');
+      const list = await rosterApi.list();
+      setMembers((prev) => list.map((e) => prev.find((m) => m.id === e.id) ?? toMember(e)));
+    });
 
   useEffect(() => {
     if (import.meta.env.DEV) localStorage.setItem('jaemangho_api_key', apiKey);
@@ -413,12 +424,12 @@ function App() {
   // Automatically fetch real Riot API data when toggling to Real Mode
   // Automatically fetch real Riot API data when API Key is loaded/provided
   useEffect(() => {
-    if (canFetch) {
+    if (canFetch && rosterReady) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchRealRiotData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey]);
+  }, [apiKey, rosterReady]);
 
   // Add Member Handler
   const handleAddMember = (newMemberData: Omit<Member, 'id' | 'matches' | 'activeGame'>) => {
@@ -451,6 +462,7 @@ function App() {
     };
 
     setMembers(prev => [newMember, ...prev]);
+    persist(rosterApi.add({ id: newId, gameName: newMember.gameName, tagLine: newMember.tagLine }));
 
     // Trigger immediate real API background fetch to populate actual data
     if (canFetch) {
@@ -463,16 +475,18 @@ function App() {
   // Remove Member Handler
   const handleRemoveMember = (id: string) => {
     setMembers(prev => prev.filter(m => m.id !== id));
+    persist(rosterApi.remove(id));
   };
 
   // Update Member Handler (used for edits)
   const handleUpdateMember = (updatedMember: Member) => {
     setMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+    persist(rosterApi.update({ id: updatedMember.id, gameName: updatedMember.gameName, tagLine: updatedMember.tagLine }));
   };
 
-  // Reset to default crew
+  // Reset (로컬 개발 전용: 배포 환경은 명단이 크루 공용 DB라 초기화 UI를 숨긴다)
   const handleResetMembers = () => {
-    localStorage.removeItem('jaemangho_members');
+    localStorage.removeItem('jaemangho_roster');
     setMembers(INITIAL_MEMBERS);
   };
 

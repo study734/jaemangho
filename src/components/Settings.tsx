@@ -137,7 +137,8 @@ export const Settings: React.FC<SettingsProps> = ({
           )}
         </form>
 
-        {/* Data Reset Section */}
+        {/* Data Reset Section (로컬 개발 전용) */}
+        {isDev && (
         <section className="card-base" style={styles.resetCard}>
           <h3 className="heading-3" style={{ color: '#ff4a4a', marginBottom: '10px' }}>데이터 초기화</h3>
           <p className="body-sm" style={{ marginBottom: '16px' }}>
@@ -147,6 +148,7 @@ export const Settings: React.FC<SettingsProps> = ({
             대원 데이터 기본값 복구
           </button>
         </section>
+        )}
       </div>
     </div>
   );

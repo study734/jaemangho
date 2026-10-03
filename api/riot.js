@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { requireSession } from './_lib/auth.js';
 
 // 앱이 실제로 쓰는 Riot 엔드포인트만 허용 (그 외는 프록시로 통과시키지 않는다)
 const ID = '[\\w-]+';
@@ -18,6 +19,8 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  if (!requireSession(req, res)) return;
 
   const { region, path } = req.query;
 
