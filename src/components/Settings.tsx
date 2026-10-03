@@ -13,6 +13,8 @@ export const Settings: React.FC<SettingsProps> = ({
   onResetMembers
 }) => {
   const isDev = import.meta.env.DEV;
+  // 키 입력 칸은 로컬 개발에서 .env.local(VITE_RIOT_API_KEY)에 키가 없을 때만 보여준다
+  const needsKeyInput = isDev && !import.meta.env.VITE_RIOT_API_KEY;
   const [apiKeyInput, setApiKeyInput] = useState(apiKey);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,7 +55,7 @@ export const Settings: React.FC<SettingsProps> = ({
         `서버 응답 오류 (HTTP ${status})`;
 
       setTestStatus('failed');
-      setErrorMessage(`❌ 연결 실패: ${errorReason}. ${isDev ? '정확한 라이엇 API Key를 다시 입력해 주세요.' : '계속되면 관리자에게 문의해 주세요.'}`);
+      setErrorMessage(`❌ 연결 실패: ${errorReason}. ${needsKeyInput ? '정확한 라이엇 API Key를 다시 입력해 주세요.' : isDev ? '.env.local의 VITE_RIOT_API_KEY를 확인해 주세요.' : '계속되면 관리자에게 문의해 주세요.'}`);
     }
   };
 
@@ -77,16 +79,18 @@ export const Settings: React.FC<SettingsProps> = ({
         {/* Real API Key Config Panel */}
         <form onSubmit={handleSave} className="card-base" style={styles.apiForm}>
           <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>
-            {isDev ? 'Riot API 자격 증명 설정' : 'Riot 서버 연결 상태'}
+            {needsKeyInput ? 'Riot API 자격 증명 설정' : 'Riot 연결 상태'}
           </h3>
-          {!isDev && (
+          {!needsKeyInput && (
             <p className="body-sm" style={{ marginBottom: '16px' }}>
-              Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.
-              아래 버튼으로 서버의 Riot 연결을 확인할 수 있습니다.
+              {isDev
+                ? 'Riot API 키를 .env.local(VITE_RIOT_API_KEY)에서 읽고 있습니다.'
+                : 'Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.'}
+              {' '}아래 버튼으로 Riot 연결을 확인할 수 있습니다.
             </p>
           )}
           
-          {isDev && (
+          {needsKeyInput && (
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Riot Games API Key
@@ -113,7 +117,7 @@ export const Settings: React.FC<SettingsProps> = ({
               onClick={handleTestAPI}
               disabled={testStatus === 'testing'}
             >
-              {testStatus === 'testing' ? '연결 테스트 중...' : isDev ? 'API 키 연결 테스트' : '서버 연결 테스트'}
+              {testStatus === 'testing' ? '연결 테스트 중...' : needsKeyInput ? 'API 키 연결 테스트' : '연결 테스트'}
             </button>
             
             {testStatus === 'success' && (
@@ -138,7 +142,7 @@ export const Settings: React.FC<SettingsProps> = ({
             )}
           </div>
 
-          {isDev && (
+          {needsKeyInput && (
             <button type="submit" className="btn btn-primary" style={{ marginTop: '24px', width: '100%', height: '44px' }}>
               연결 설정 저장
             </button>
