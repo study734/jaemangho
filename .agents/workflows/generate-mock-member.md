@@ -14,7 +14,7 @@ This workflow automates the creation of a realistic mock player member, complete
   - `<tag>`: The tagline (e.g. `KR1`)
   - `<main champion>`: Main played champion (e.g. `Teemo`)
   - `<tier/rank>`: Target rank (e.g. `GOLD III` or `DIAMOND I`)
-- Reference [src/types.ts](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/src/types.ts) to verify the data schemas for `Member`, `MatchHistory`, and `ChampionMastery`.
+- Reference [src/features/lol/types.ts](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/src/features/lol/types.ts) to verify the data schemas for `Member`, `MatchHistory`, and `ChampionMastery`.
 
 ### 2. Formulate Member Object Structure
 Construct a fresh `Member` object with the following:
@@ -40,5 +40,5 @@ Create 5 matches in `matches` representing the member's performance:
   - `items`: 6 random valid high-tier item IDs (numbers from 3000 to 4000).
 
 ### 4. Append to `mockData.ts` or State Hydration
-- Open [src/mockData.ts](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/src/mockData.ts) and locate `INITIAL_MEMBERS`.
+- Open [src/features/lol/mockData.ts](file:///c:/Users/zes13/OneDrive/Dokumen/Jaemangho/src/features/lol/mockData.ts) and locate `INITIAL_MEMBERS`.
 - Add the generated member object to the `INITIAL_MEMBERS` array so it is loaded by default, or suggest inserting it directly into the active state in `src/App.tsx`.

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { rosterApi } from '../api/roster';
+import { rosterApi } from '../features/lol/api/roster';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Member } from '../types';
+import type { Member } from '../features/lol/types';
 
 interface SidebarProps {
   activeTab: string;

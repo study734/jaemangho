@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useContext } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { riotGet, getCachedData } from './api/riotClient';
-import { Dashboard } from './components/Dashboard';
-import { SquadManager } from './components/SquadManager';
-import { SynergyAnalyzer } from './components/SynergyAnalyzer';
-import { Settings } from './components/Settings';
-import { MasteryShowcase } from './components/MasteryShowcase';
-import type { Member, ChampionMastery, MatchHistory, MatchPlayer, ActiveGame } from './types';
-import { INITIAL_MEMBERS } from './mockData';
-import { rosterApi, toMember } from './api/roster';
+import { riotGet, getCachedData } from './features/lol/api/riotClient';
+import { Dashboard } from './features/lol/components/Dashboard';
+import { SquadManager } from './features/lol/components/SquadManager';
+import { SynergyAnalyzer } from './features/lol/components/SynergyAnalyzer';
+import { Settings } from './features/lol/components/Settings';
+import { MasteryShowcase } from './features/lol/components/MasteryShowcase';
+import type { Member, ChampionMastery, MatchHistory, MatchPlayer, ActiveGame } from './features/lol/types';
+import { INITIAL_MEMBERS } from './features/lol/mockData';
+import { rosterApi, toMember } from './features/lol/api/roster';
 import { MeContext } from './auth';
 import { AdminDashboard } from './components/AdminDashboard';
 import './App.css';

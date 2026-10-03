@@ -17,7 +17,7 @@ This workflow automates the process of adding a new, premium UI component styled
   - Font: Euclid Circular A for standard texts, Source Code Pro for code snippets.
 
 ### 2. Design the Component Structure
-- Create the new component as a TypeScript React file inside the `src/components/` directory (e.g. `src/components/MatchDetailsModal.tsx`).
+- Create the new component as a TypeScript React file inside the `src/features/lol/components/` directory for League of Legends UI (e.g. `src/features/lol/components/MatchDetailsModal.tsx`); app-level UI such as the sidebar and admin dashboard stays in `src/components/`.
 - Define explicit, typed Props to make the component highly reusable.
 - Use explicit Inline Styles (matching `styles: { [key: string]: React.CSSProperties }` in other components) referencing the exact tokens from `DESIGN.md`.
 
