@@ -7,6 +7,7 @@ interface Status {
   counts: { members: number; users: number; blocked: number; admins: number };
   errorsByStatus: { status: number; count: number }[];
   recentErrors: { at: string; status: number; path: string }[];
+  stats: { day: string; hits: number; misses: number }[];
 }
 interface AdminUser {
   id: string;
@@ -31,6 +32,9 @@ interface Props {
 
 // Neon 무료 플랜 저장 용량: 프로젝트당 1GB (neon.com/docs/introduction/plans, neon.com/faqs/free-plan-limits-and-quotas 에서 확인).
 const DB_LIMIT_BYTES = 1024 * 1024 * 1024;
+
+const hitRate = (d: { hits: number; misses: number }) =>
+  d.hits + d.misses === 0 ? '-' : `${Math.round((d.hits / (d.hits + d.misses)) * 100)}%`;
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const when = (iso: string) => new Date(iso).toLocaleString('ko-KR');
@@ -70,6 +74,17 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  const purgeCache = async () => {
+    if (!confirm('Riot 캐시를 모두 비웁니다.\n다음 새로고침부터 Riot을 다시 호출하므로 호출량이 일시적으로 늘 수 있습니다.')) return;
+    try {
+      const { deleted } = await call<{ deleted: number }>('/api/admin?resource=cache', { method: 'POST' });
+      alert(`캐시 ${deleted}건을 삭제했습니다.`);
+      await load();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };
 
   const toggleBlock = async (u: AdminUser) => {
     if (!u.blocked && !confirm(`${u.name} 님을 차단하시겠습니까?\n(최대 30초 안에 접근이 막힙니다)`)) return;
@@ -118,6 +133,7 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
             value={`${mb(status.database.bytes)} / ${mb(DB_LIMIT_BYTES)}`}
             ratio={status.database.bytes / DB_LIMIT_BYTES}
           />
+          {status.stats[0] && <Card label="Riot 호출 (오늘)" value={`Riot ${status.stats[0].misses}회`} sub={`캐시 응답 ${status.stats[0].hits}회 · 적중률 ${hitRate(status.stats[0])}`} />}
           <Card
             label="Riot 오류 (24시간)"
             value={status.errorsByStatus.length ? status.errorsByStatus.map((e) => `${e.status}: ${e.count}`).join(', ') : '없음'}
@@ -173,6 +189,28 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
           </tbody>
         </table>
       </section>
+
+      {status && (
+        <section className="card-base" style={styles.panel}>
+          <div style={styles.panelHeader}>
+            <h3 className="heading-3" style={{ ...styles.panelTitle, marginBottom: 0 }}>Riot 호출 통계 (최근 7일)</h3>
+            <button className="btn btn-secondary" style={styles.danger} onClick={purgeCache}>캐시 비우기</button>
+          </div>
+          <table style={styles.table}>
+            <thead>
+              <tr><th style={styles.th}>날짜</th><th style={styles.th}>캐시 응답</th><th style={styles.th}>Riot 호출</th><th style={styles.th}>적중률</th></tr>
+            </thead>
+            <tbody>
+              {status.stats.map((d) => (
+                <tr key={d.day}>
+                  <td style={styles.td}>{d.day}</td><td style={styles.td}>{d.hits}</td><td style={styles.td}>{d.misses}</td><td style={styles.td}>{hitRate(d)}</td>
+                </tr>
+              ))}
+              {status.stats.length === 0 && <tr><td style={styles.td} colSpan={4}>아직 기록이 없습니다.</td></tr>}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="card-base" style={styles.panel}>
         <h3 className="heading-3" style={styles.panelTitle}>무료 한도 확인</h3>
@@ -237,6 +275,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', color: '#e1e5e8' },
   th: { textAlign: 'left', padding: '8px 12px', color: '#7c8c9a', fontWeight: 600, borderBottom: '1px solid #1c4558' },
   td: { padding: '10px 12px', borderBottom: '1px solid #143747' },
+  panelHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
   links: { display: 'flex', gap: '12px', marginTop: '16px' },
   gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: '#143747', margin: '8px 0', overflow: 'hidden' },
   gaugeFill: { height: '100%', borderRadius: '3px' },

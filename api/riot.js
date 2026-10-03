@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { requireUser } from './_lib/guard.js';
-import { cacheGet, cachePut, logRiotError } from './_lib/riotCache.js';
+import { bumpStat, cacheGet, cachePut, logRiotError } from './_lib/riotCache.js';
 import { routeFor } from './_lib/riotRoutes.js';
 
 const FORWARD_PARAMS = ['count', 'start'];
@@ -32,6 +32,7 @@ export default async function handler(req, res) {
   const cacheKey = `${targetRegion}${path}?${new URLSearchParams(params)}`;
   const hit = await cacheGet(cacheKey);
   if (hit) {
+    await bumpStat('hit');
     res.setHeader('X-Cache', 'HIT');
     return res.status(hit.status).json(hit.body);
   }
@@ -42,6 +43,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server is missing RIOT_API_KEY' });
   }
 
+  await bumpStat('miss');
   try {
     const response = await axios.get(`https://${targetRegion}.api.riotgames.com${encodeURI(path)}`, {
       params,

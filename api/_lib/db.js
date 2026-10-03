@@ -30,6 +30,11 @@ export async function db() {
       status int not null,
       path text not null
     )`;
+    await sql`create table if not exists riot_stats (
+      day date primary key,
+      hits int not null default 0,
+      misses int not null default 0
+    )`;
     await sql`create table if not exists riot_cache (
       key text primary key,
       status int not null,
