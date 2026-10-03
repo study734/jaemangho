@@ -29,7 +29,7 @@ interface Props {
   onMemberDeleted: (id: string) => void;
 }
 
-// Neon 무료 플랜 저장 용량(프로젝트당 1GB, neon.com/docs/introduction/plans). 문서에 0.5GB로 적힌 곳도 있어 콘솔 값과 맞춰 조정할 것.
+// Neon 무료 플랜 저장 용량: 프로젝트당 1GB (neon.com/docs/introduction/plans, neon.com/faqs/free-plan-limits-and-quotas 에서 확인).
 const DB_LIMIT_BYTES = 1024 * 1024 * 1024;
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
