@@ -1,48 +1,48 @@
 import axios from 'axios';
 
-export default async function handler(req, res) {
-  // CORS 헤더 설정 (에러 방지)
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Key'
-  );
+// 앱이 실제로 쓰는 Riot 엔드포인트만 허용 (그 외는 프록시로 통과시키지 않는다)
+const ID = '[\\w-]+';
+const ALLOWED_PATHS = [
+  /^\/riot\/account\/v1\/accounts\/by-riot-id\/[^/?#]+\/[^/?#]+$/,
+  new RegExp(`^/lol/summoner/v4/summoners/by-puuid/${ID}$`),
+  new RegExp(`^/lol/league/v4/entries/by-puuid/${ID}$`),
+  new RegExp(`^/lol/champion-mastery/v4/champion-masteries/by-puuid/${ID}/top$`),
+  new RegExp(`^/lol/match/v5/matches/by-puuid/${ID}/ids$`),
+  /^\/lol\/match\/v5\/matches\/[A-Z0-9_]+$/,
+  new RegExp(`^/lol/spectator/v5/active-games/by-puuid/${ID}$`),
+];
+const FORWARD_PARAMS = ['count', 'start'];
 
-  // preflight OPTIONS 요청 즉시 승인
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+// 같은 오리진에서만 호출되므로 CORS 헤더는 의도적으로 설정하지 않는다.
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { region, path } = req.query;
 
-  if (!region || !path) {
+  if (typeof region !== 'string' || typeof path !== 'string') {
     return res.status(400).json({ error: 'Missing region or path parameter' });
+  }
+  if (path.includes('..') || !ALLOWED_PATHS.some((re) => re.test(path))) {
+    return res.status(403).json({ error: 'Path not allowed' });
+  }
+
+  // 키는 서버 환경변수에서만 읽는다 (클라이언트가 보낸 키는 무시)
+  const apiKey = process.env.RIOT_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Server is missing RIOT_API_KEY' });
   }
 
   const targetRegion = region === 'asia' ? 'asia' : 'kr';
-  const targetUrl = `https://${targetRegion}.api.riotgames.com${path}`;
-
-  // API 키 결정 (쿼리에 있으면 그것을 쓰고, 없으면 Vercel 환경변수 사용)
-  const apiKey = req.query.api_key || process.env.VITE_RIOT_API_KEY;
-
-  if (!apiKey) {
-    return res.status(401).json({ 
-      error: 'Riot API Key가 설정되지 않았습니다. 서비스 설정 탭에서 입력하거나, Vercel 환경변수(VITE_RIOT_API_KEY)를 등록해 주세요.' 
-    });
-  }
-
-  // 전달받은 쿼리 파라미터 재구성 (region, path는 제외하고 라이엇으로 전달)
-  const queryParams = { ...req.query };
-  delete queryParams.region;
-  delete queryParams.path;
-  queryParams.api_key = apiKey;
+  const params = Object.fromEntries(
+    FORWARD_PARAMS.filter((k) => typeof req.query[k] === 'string').map((k) => [k, req.query[k]])
+  );
 
   try {
-    const response = await axios.get(targetUrl, {
-      params: queryParams,
+    const response = await axios.get(`https://${targetRegion}.api.riotgames.com${encodeURI(path)}`, {
+      params,
+      headers: { 'X-Riot-Token': apiKey },
       timeout: 10000,
     });
     return res.status(response.status).json(response.data);

@@ -12,6 +12,7 @@ export const Settings: React.FC<SettingsProps> = ({
   setApiKey,
   onResetMembers
 }) => {
+  const isDev = import.meta.env.DEV;
   const [apiKeyInput, setApiKeyInput] = useState(apiKey);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -23,7 +24,7 @@ export const Settings: React.FC<SettingsProps> = ({
   };
 
   const handleTestAPI = async () => {
-    if (!apiKeyInput) {
+    if (isDev && !apiKeyInput) {
       alert('테스트를 위해 Riot API Key를 먼저 입력해 주세요.');
       return;
     }
@@ -33,10 +34,9 @@ export const Settings: React.FC<SettingsProps> = ({
 
     const trimmedKey = apiKeyInput.trim();
 
-    const isDev = import.meta.env.DEV;
     const testUrl = isDev
       ? `/riot-asia/riot/account/v1/accounts/by-riot-id/%EC%98%A4%EC%B1%84/KR1?api_key=${trimmedKey}`
-      : `/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}&api_key=${trimmedKey}`;
+      : `/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}`;
 
     try {
       await axios.get(testUrl);
@@ -78,6 +78,7 @@ export const Settings: React.FC<SettingsProps> = ({
         <form onSubmit={handleSave} className="card-base" style={styles.apiForm}>
           <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>Riot API 자격 증명 설정</h3>
           
+          {isDev && (
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Riot Games API Key
@@ -91,9 +92,10 @@ export const Settings: React.FC<SettingsProps> = ({
               onChange={e => setApiKeyInput(e.target.value)}
             />
             <span style={styles.helpText}>
-              * 입력한 API Key는 본인 브라우저의 LocalStorage에 암호화 저장되며, 절대 외부 서버로 업로드되거나 유출되지 않습니다.
+              * 로컬 개발 전용입니다. 배포 환경의 키는 서버 환경변수(RIOT_API_KEY)로만 관리됩니다.
             </span>
           </div>
+          )}
 
           {/* Test Connection Button */}
           <div style={styles.testSection}>
@@ -128,9 +130,11 @@ export const Settings: React.FC<SettingsProps> = ({
             )}
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '24px', width: '100%', height: '44px' }}>
-            연결 설정 저장
-          </button>
+          {isDev && (
+            <button type="submit" className="btn btn-primary" style={{ marginTop: '24px', width: '100%', height: '44px' }}>
+              연결 설정 저장
+            </button>
+          )}
         </form>
 
         {/* Data Reset Section */}
