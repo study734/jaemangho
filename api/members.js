@@ -1,4 +1,4 @@
-import { requireSession } from './_lib/auth.js';
+import { requireUser } from './_lib/guard.js';
 import { db } from './_lib/db.js';
 
 const clean = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -6,7 +6,7 @@ const valid = ({ id, gameName, tagLine }) =>
   /^[\w-]{1,32}$/.test(id) && gameName && gameName.length <= 32 && tagLine && tagLine.length <= 16;
 
 export default async function handler(req, res) {
-  const session = requireSession(req, res);
+  const session = await requireUser(req, res);
   if (!session) return;
 
   try {

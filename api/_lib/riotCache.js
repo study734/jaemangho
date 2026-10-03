@@ -25,3 +25,14 @@ export async function cachePut(key, status, body, ttlSeconds) {
     console.error('cache put failed', e);
   }
 }
+
+// 관리자 대시보드용 Riot 오류 기록(401/403/429/5xx). 기록 실패는 무시한다.
+export async function logRiotError(status, path) {
+  try {
+    const sql = await db();
+    await sql`insert into riot_errors (status, path) values (${status}, ${path})`;
+    if (Math.random() < 0.02) await sql`delete from riot_errors where at < now() - interval '7 days'`;
+  } catch (e) {
+    console.error('riot error log failed', e);
+  }
+}

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { riotGet, getCachedData } from './api/riotClient';
 import { Dashboard } from './components/Dashboard';
@@ -10,6 +10,8 @@ import { MasteryShowcase } from './components/MasteryShowcase';
 import type { Member, ChampionMastery, MatchHistory, MatchPlayer, ActiveGame } from './types';
 import { INITIAL_MEMBERS } from './mockData';
 import { rosterApi, toMember } from './api/roster';
+import { MeContext } from './auth';
+import { AdminDashboard } from './components/AdminDashboard';
 import './App.css';
 
 const CHAMPION_ID_MAP: { [key: number]: string } = {
@@ -38,6 +40,7 @@ function App() {
   const [rosterReady, setRosterReady] = useState(false);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const isAdmin = useContext(MeContext)?.isAdmin === true;
 
   // 키는 로컬 개발(vite 프록시)에서만 클라이언트가 가진다. 배포 환경은 서버(/api/riot)가 환경변수 RIOT_API_KEY를 쓴다.
   const [apiKey, setApiKey] = useState<string>(() =>
@@ -497,6 +500,7 @@ function App() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         members={members} 
+        isAdmin={isAdmin}
       />
 
       {/* Main Content Pane */}
@@ -567,6 +571,10 @@ function App() {
           <MasteryShowcase 
             members={members} 
           />
+        )}
+
+        {activeTab === 'admin' && isAdmin && (
+          <AdminDashboard onMemberDeleted={(id) => setMembers(prev => prev.filter(m => m.id !== id))} />
         )}
 
         {activeTab === 'settings' && (
