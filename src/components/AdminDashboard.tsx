@@ -29,6 +29,9 @@ interface Props {
   onMemberDeleted: (id: string) => void;
 }
 
+// Neon 무료 플랜 저장 용량(프로젝트당 1GB, neon.com/docs/introduction/plans). 문서에 0.5GB로 적힌 곳도 있어 콘솔 값과 맞춰 조정할 것.
+const DB_LIMIT_BYTES = 1024 * 1024 * 1024;
+
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const when = (iso: string) => new Date(iso).toLocaleString('ko-KR');
 
@@ -110,7 +113,11 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
           <Card label="크루원" value={`${status.counts.members}명`} />
           <Card label="접속자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
           <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
-          <Card label="DB 사용량" value={mb(status.database.bytes)} />
+          <Card
+            label="DB 사용량 (Neon 무료 한도 대비)"
+            value={`${mb(status.database.bytes)} / ${mb(DB_LIMIT_BYTES)}`}
+            ratio={status.database.bytes / DB_LIMIT_BYTES}
+          />
           <Card
             label="Riot 오류 (24시간)"
             value={status.errorsByStatus.length ? status.errorsByStatus.map((e) => `${e.status}: ${e.count}`).join(', ') : '없음'}
@@ -167,6 +174,17 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
         </table>
       </section>
 
+      <section className="card-base" style={styles.panel}>
+        <h3 className="heading-3" style={styles.panelTitle}>무료 한도 확인</h3>
+        <p style={styles.cardLabel}>
+          Vercel(함수 호출 월 100만 회, 전송량 100GB)과 Neon(연산 월 100 CU-시간)의 사용량은 각 서비스 화면에서 확인하세요.
+        </p>
+        <div style={styles.links}>
+          <a className="btn btn-secondary" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">Vercel 대시보드</a>
+          <a className="btn btn-secondary" href="https://console.neon.tech" target="_blank" rel="noreferrer">Neon 콘솔</a>
+        </div>
+      </section>
+
       {status && status.recentErrors.length > 0 && (
         <section className="card-base" style={styles.panel}>
           <h3 className="heading-3" style={styles.panelTitle}>최근 Riot 오류</h3>
@@ -187,10 +205,20 @@ export const AdminDashboard: React.FC<Props> = ({ onMemberDeleted }) => {
   );
 };
 
-const Card: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
+const gaugeColor = (ratio: number) => (ratio >= 0.9 ? '#ff4a4a' : ratio >= 0.7 ? '#ffb703' : '#00ed64');
+
+const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: number }> = ({ label, value, sub, ratio }) => (
   <div className="card-base" style={styles.card}>
     <div style={styles.cardLabel}>{label}</div>
     <div style={styles.cardValue}>{value}</div>
+    {ratio !== undefined && (
+      <>
+        <div style={styles.gaugeTrack}>
+          <div style={{ ...styles.gaugeFill, width: `${Math.min(ratio, 1) * 100}%`, backgroundColor: gaugeColor(ratio) }} />
+        </div>
+        <div style={styles.cardLabel}>{(ratio * 100).toFixed(1)}% 사용</div>
+      </>
+    )}
     {sub && <div style={styles.cardLabel}>{sub}</div>}
   </div>
 );
@@ -209,6 +237,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', color: '#e1e5e8' },
   th: { textAlign: 'left', padding: '8px 12px', color: '#7c8c9a', fontWeight: 600, borderBottom: '1px solid #1c4558' },
   td: { padding: '10px 12px', borderBottom: '1px solid #143747' },
+  links: { display: 'flex', gap: '12px', marginTop: '16px' },
+  gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: '#143747', margin: '8px 0', overflow: 'hidden' },
+  gaugeFill: { height: '100%', borderRadius: '3px' },
   blocked: { color: '#ff4a4a', fontSize: '12px', fontWeight: 600 },
   danger: { borderColor: '#ff4a4a', color: '#ff4a4a' },
 };
