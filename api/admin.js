@@ -6,7 +6,7 @@ import { forget } from './_lib/users.js';
 const handlers = {
   async status(sql, req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-    const [[cache], [database], [counts], errorsByStatus, recentErrors] = await Promise.all([
+    const [[cache], [database], [counts], errorsByStatus, recentErrors, stats] = await Promise.all([
       sql`select count(*)::int as rows,
                  (count(*) filter (where expires_at > now()))::int as fresh,
                  pg_total_relation_size('riot_cache')::float8 as bytes
@@ -19,13 +19,14 @@ const handlers = {
       sql`select status, count(*)::int as count from riot_errors
           where at > now() - interval '24 hours' group by status order by status`,
       sql`select at, status, path from riot_errors order by at desc limit 10`,
+      sql`select to_char(day, 'MM-DD') as day, hits, misses from riot_stats order by riot_stats.day desc limit 7`,
     ]);
-    return res.status(200).json({ cache, database, counts, errorsByStatus, recentErrors });
+    return res.status(200).json({ cache, database, counts, errorsByStatus, recentErrors, stats });
   },
 
   async users(sql, req, res, admin) {
     if (req.method === 'GET') {
-      const rows = await sql`select id, name, is_admin as "isAdmin", blocked, login_count as "loginCount",
+      const rows = await sql`select id, name, username, is_admin as "isAdmin", blocked, login_count as "loginCount",
         first_login as "firstLogin", last_login as "lastLogin"
         from users order by last_login desc`;
       return res.status(200).json(rows);
@@ -45,10 +46,17 @@ const handlers = {
     return res.status(405).json({ error: 'Method not allowed' });
   },
 
+  // Riot 캐시 전체 삭제. 다음 요청부터 Riot을 다시 호출한다.
+  async cache(sql, req, res) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const [row] = await sql`with d as (delete from riot_cache returning 1) select count(*)::int as deleted from d`;
+    return res.status(200).json(row);
+  },
+
   async members(sql, req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
     const rows = await sql`select m.id, m.game_name as "gameName", m.tag_line as "tagLine",
-      m.created_at as "createdAt", u.name as "createdByName"
+      m.created_at as "createdAt", m.created_by as "createdBy", coalesce(u.name, m.created_by_name) as "createdByName"
       from members m left join users u on u.id = m.created_by order by m.created_at desc`;
     return res.status(200).json(rows);
   },

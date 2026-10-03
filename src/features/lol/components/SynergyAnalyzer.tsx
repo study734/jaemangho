@@ -116,7 +116,7 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
           </svg>
           <h4 className="heading-5" style={{ marginTop: '12.5px', color: '#7c8c9a' }}>시너지를 분석할 데이터가 부족합니다.</h4>
-          <p className="body-sm" style={{ marginTop: '4px' }}>대원들끼리 아군으로 매칭되어 플레이한 기록이 존재해야 승률 연산이 이루어집니다.</p>
+          <p className="body-sm" style={{ marginTop: '4px' }}>등록된 소환사끼리 아군으로 매칭되어 플레이한 기록이 존재해야 승률 연산이 이루어집니다.</p>
         </div>
       ) : (
         <div style={styles.content}>

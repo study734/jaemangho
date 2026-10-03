@@ -1,12 +1,12 @@
 # ⚓ 재망호 (Jaemangho)
 
-리그 오브 레전드 크루원들의 솔로 랭크 티어, 최근 전적, 실시간 게임 상태, 챔피언 숙련도, 듀오 시너지를 한곳에서 보는 크루 전용 대시보드입니다. UI는 MongoDB 디자인 시스템 테마([DESIGN.md](DESIGN.md))를 따릅니다.
+리그 오브 레전드 소환사들의 솔로 랭크 티어, 최근 전적, 실시간 게임 상태, 챔피언 숙련도, 듀오 시너지를 한곳에서 보는 크루 전용 대시보드입니다. UI는 MongoDB 디자인 시스템 테마([DESIGN.md](DESIGN.md))를 따릅니다.
 
 ## 기능
-- **대시보드**: 크루원별 티어/LP/승률, 최근 전적, 실시간 게임(관전) 상태
-- **크루 멤버 관리**: 소환사 검색, 추가, 수정, 삭제 (크루 공용 명단)
+- **대시보드**: 등록된 소환사별 티어/LP/승률, 최근 전적, 실시간 게임(관전) 상태
+- **소환사 관리**: 보고 싶은 소환사를 검색해 목록에 추가, 수정, 삭제 (로그인한 모두가 함께 보는 공용 목록)
 - **듀오 시너지 분석**: 함께 플레이한 매치 기반 듀오 승률
-- **챔피언 숙련도**: 크루원별 모스트 3 챔피언
+- **챔피언 숙련도**: 소환사별 모스트 3 챔피언
 
 ## 구조
 ```
@@ -16,7 +16,7 @@
 Vercel Serverless Functions (api/)
    ├─ auth/*      Discord OAuth2 (크루 디스코드 서버 멤버만 허용), 서명된 세션 쿠키
    ├─ riot.js     Riot API 프록시 (허용 엔드포인트만, 키는 서버에서만 사용)
-   ├─ members.js  크루원 명단 CRUD
+   ├─ members.js  등록 소환사 목록 CRUD
    └─ admin.js    관리자 전용 (접속자/차단, 명단, 시스템 상태)
         │
         ▼
@@ -25,9 +25,26 @@ Neon Postgres (명단 저장)
 - 프런트엔드는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
 - `/api/riot`, `/api/members`는 로그인 세션이 있어야 호출할 수 있습니다.
 
+## 프런트엔드 구조
+```
+src/
+├─ App.tsx, main.tsx        앱 조립 (기능을 불러와 탭에 연결)
+├─ components/, auth.ts      앱 공용 (사이드바, 로그인 게이트, 관리자 대시보드)
+└─ features/
+   └─ lol/                  리그 오브 레전드 기능
+      ├─ index.ts           공개 인터페이스 (바깥은 여기만 import)
+      ├─ api/               riot.ts(Riot 클라이언트), lolData.ts(lookup/overview/details), roster.ts
+      ├─ domain/            순수 로직 (응답 변환, 요약 계산, 챔피언 표)
+      └─ components/        화면
+```
+- **의존 방향**: `App -> features`. 공용 코드는 기능을 모르고(필요한 값은 props로 받음), 기능은 공용 코드나 다른 기능을 가져오지 않습니다. 새 카테고리는 `src/features/<이름>/`에 `index.ts`와 함께 추가합니다.
+- 이 규칙은 `npm run lint`가 검사합니다(`no-restricted-imports`). 어기면 린트가 실패하고 CI에서도 막힙니다.
+- Riot 데이터 접근은 `RiotClient` 인터페이스 뒤에 있습니다(지역, 주소 형식, 캐시 키는 호출자가 모름). 개발 프록시와 서버 프록시는 `Route`라는 이음새의 두 어댑터입니다.
+- 서버(`api/`)의 URL(`/api/riot`, `/api/members`)과 DB 테이블 이름은 아직 롤 기준 그대로입니다. 두 번째 카테고리가 생길 때 `/api/<카테고리>/...`로 나눕니다.
+
 ## 관리자
 - 디스코드 서버 **소유자이거나 Administrator 권한**이 있는 사용자는 로그인 시 자동으로 관리자가 됩니다. 관리자를 추가하려면 디스코드에서 권한만 주면 됩니다(재로그인 필요).
-- 사이드바의 **관리자** 탭에서 접속자 목록과 차단/해제, 크루원 명단 삭제, 시스템 상태(Riot 캐시, DB 사용량, 최근 Riot 오류)를 봅니다.
+- 사이드바의 **관리자** 탭에서 접속자 목록과 차단/해제, 등록 소환사 삭제, 시스템 상태(Riot 캐시, DB 사용량, 최근 Riot 오류)를 봅니다.
 - 차단은 DB가 기준이며 최대 30초 안에 반영됩니다. 관리자는 차단할 수 없습니다.
 
 ## 환경변수 (Vercel → Settings → Environment Variables, Production)
@@ -53,8 +70,10 @@ npm run dev
 
 ```bash
 npm run build   # 타입 검사 + 빌드 (dist/)
-npm run lint
-node api/_lib/auth.check.mjs   # 세션 서명 검증 스크립트
+npm run lint    # 코드 규칙 + 모듈 경계 검사
+npm test        # 단위 테스트 (vitest)
+node api/_lib/auth.check.mjs   # 세션 서명/관리자 판정 검증 스크립트
+node api/_lib/riotRoutes.check.mjs   # 허용 경로/캐시 TTL 검증 스크립트
 ```
 
 ## 배포

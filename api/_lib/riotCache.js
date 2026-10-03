@@ -36,3 +36,19 @@ export async function logRiotError(status, path) {
     console.error('riot error log failed', e);
   }
 }
+
+// 하루(한국 시간 기준) 단위 호출 통계. hit = 캐시로 응답, miss = Riot을 실제로 호출. 실패는 무시한다.
+export async function bumpStat(kind) {
+  try {
+    const sql = await db();
+    if (kind === 'hit') {
+      await sql`insert into riot_stats (day, hits) values ((now() at time zone 'Asia/Seoul')::date, 1)
+        on conflict (day) do update set hits = riot_stats.hits + 1`;
+    } else {
+      await sql`insert into riot_stats (day, misses) values ((now() at time zone 'Asia/Seoul')::date, 1)
+        on conflict (day) do update set misses = riot_stats.misses + 1`;
+    }
+  } catch (e) {
+    console.error('stat bump failed', e);
+  }
+}

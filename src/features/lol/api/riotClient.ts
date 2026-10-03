@@ -63,7 +63,7 @@ export const getCachedData = <T>(cacheKey: string, isImmutable: boolean = false)
     }
 
     return entry.data;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -75,7 +75,7 @@ export const setCachedData = <T>(cacheKey: string, data: T) => {
       timestamp: Date.now(),
     };
     localStorage.setItem(`riot_cache_${cacheKey}`, JSON.stringify(entry));
-  } catch (e) {
+  } catch {
     // QuotaExceededError 등 발생 시 조용히 실패 (스토리지 공간 부족 시)
     console.warn('Failed to save to localStorage cache');
   }

@@ -27,8 +27,8 @@ export default async function handler(req, res) {
       const m = { id: clean(req.body?.id), gameName: clean(req.body?.gameName), tagLine: clean(req.body?.tagLine) };
       if (!valid(m)) return res.status(400).json({ error: 'Invalid member' });
       if (req.method === 'POST') {
-        await sql`insert into members (id, game_name, tag_line, created_by)
-          values (${m.id}, ${m.gameName}, ${m.tagLine}, ${session.id})`;
+        await sql`insert into members (id, game_name, tag_line, created_by, created_by_name)
+          values (${m.id}, ${m.gameName}, ${m.tagLine}, ${session.id}, ${session.name})`;
       } else {
         await sql`update members set game_name = ${m.gameName}, tag_line = ${m.tagLine} where id = ${m.id}`;
       }
