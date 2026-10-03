@@ -16,7 +16,10 @@ describe('route (이음새의 두 어댑터)', () => {
 
 describe('createRiotClient', () => {
   const fakeGet = (responses: Record<string, unknown>) =>
-    vi.fn(async (_url: string, cacheKey?: string, _immutable?: boolean) => (cacheKey && cacheKey in responses ? responses[cacheKey] : null) as never);
+    vi.fn(async (...args: [url: string, cacheKey?: string, immutable?: boolean]) => {
+      const cacheKey = args[1];
+      return (cacheKey && cacheKey in responses ? responses[cacheKey] : null) as never;
+    });
 
   it('엔드포인트별 지역·캐시 키·불변 여부를 정한다', async () => {
     const get = fakeGet({});
