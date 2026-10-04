@@ -37,6 +37,12 @@ export const steamApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input }),
     }),
+  setOwner: (steamId: string, ownerId: string | null) =>
+    call<null>('/api/steam/members', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steamId, ownerId }),
+    }),
   remove: (steamId: string) => call<null>(`/api/steam/members?id=${encodeURIComponent(steamId)}`, { method: 'DELETE' }),
   games: (ids: string[], mode: Mode) => call<GamesResult>(`/api/steam/games?ids=${ids.join(',')}&mode=${mode}`),
 };

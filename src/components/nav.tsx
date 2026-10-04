@@ -6,7 +6,7 @@ export interface NavItem {
   icon: ReactNode;
 }
 
-export type SectionId = 'home' | 'lol' | 'steam' | 'settings';
+export type SectionId = 'home' | 'lol' | 'steam' | 'people' | 'settings';
 
 // 상단 메뉴바의 큰 주제와, 각 주제의 좌측 상세 메뉴
 export interface Section {
@@ -87,6 +87,21 @@ const STEAM: NavItem[] = [
   },
 ];
 
+const PEOPLE: NavItem[] = [
+  {
+    href: '/people',
+    label: '멤버 목록',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+];
+
 const SETTINGS: NavItem[] = [
   {
     href: '/lol/settings',
@@ -115,6 +130,7 @@ export function sectionsFor(isAdmin: boolean): Section[] {
     { id: 'home', label: '홈', items: HOME },
     { id: 'lol', label: '롤', items: LOL },
     { id: 'steam', label: 'Steam', items: STEAM },
+    { id: 'people', label: '멤버', items: PEOPLE },
     { id: 'settings', label: isAdmin ? '설정 · 관리자' : '설정', items: isAdmin ? [...SETTINGS, ADMIN] : SETTINGS },
   ];
 }
@@ -125,6 +141,7 @@ export function sectionOf(pathname: string): SectionId {
   if (pathname === '/') return 'home';
   if (pathname.startsWith('/admin') || pathname.startsWith('/lol/settings')) return 'settings';
   if (pathname.startsWith('/steam')) return 'steam';
+  if (pathname.startsWith('/people')) return 'people';
   return 'lol';
 }
 

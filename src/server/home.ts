@@ -8,6 +8,7 @@ export interface Activity {
   at: string; // ISO 시각
 }
 export interface Person {
+  id: string;
   name: string;
   at: string;
 }
@@ -24,12 +25,12 @@ export async function getHomeFeed(): Promise<{ activity: Activity[]; people: Per
           union all
           select 'login', name, '', "lastLoginAt" from "user" where "lastLoginAt" is not null and not coalesce(banned, false)
         ) t order by at desc limit 15`,
-    sql`select name, coalesce("lastLoginAt", "createdAt") as at from "user"
+    sql`select id, name, coalesce("lastLoginAt", "createdAt") as at from "user"
         where not coalesce(banned, false) order by coalesce("lastLoginAt", "createdAt") desc limit 10`,
   ]);
   const iso = (v: unknown) => new Date(v as string | Date).toISOString();
   return {
     activity: activity.map((r) => ({ kind: r.kind as ActivityKind, actor: r.actor as string, target: r.target as string, at: iso(r.at) })),
-    people: people.map((r) => ({ name: r.name as string, at: iso(r.at) })),
+    people: people.map((r) => ({ id: r.id as string, name: r.name as string, at: iso(r.at) })),
   };
 }

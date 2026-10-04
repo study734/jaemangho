@@ -27,3 +27,14 @@ export async function compareGames(ids: string[], mode: 'common' | 'unplayed'): 
   if (!visible.length) return { games: [], excluded };
   return { games: (mode === 'common' ? commonGames : unplayedByAll)(visible), excluded };
 }
+
+// 프로필용: 한 계정의 플레이 시간 상위 게임. 비공개이거나 Steam 호출이 실패하면 null(프로필 전체를 막지 않는다).
+export async function topPlayed(steamId: string, limit = 5): Promise<{ name: string; minutes: number }[] | null> {
+  try {
+    const lib = await getLibrary(steamId);
+    if (!lib.ok) return null;
+    return [...lib.games].sort((a, b) => b.minutes - a.minutes).slice(0, limit).map((g) => ({ name: g.name, minutes: g.minutes }));
+  } catch {
+    return null;
+  }
+}
