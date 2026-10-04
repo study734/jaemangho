@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
@@ -12,6 +12,13 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
   const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
   const pathname = usePathname();
+  // 화면이 열릴 때 한 번 센다(누가 열었는지는 저장하지 않는다). 실패해도 화면에는 영향이 없다.
+  const lastTracked = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastTracked.current === pathname) return;
+    lastTracked.current = pathname;
+    fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: pathname }), keepalive: true }).catch(() => {});
+  }, [pathname]);
   const onLol = pathname.startsWith('/lol');
   const isLoading = onLol && lolLoading;
 

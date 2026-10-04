@@ -17,6 +17,7 @@ test.describe('로그인하지 않은 방문자', () => {
     }
     // 크론 경로는 세션이 아니라 비밀값으로 보호된다. 이 환경에는 설정이 없어 503, 설정돼 있어도 인증 없이는 401.
     expect([401, 503]).toContain((await request.get('/api/cron/chat')).status());
+    expect((await request.post('/api/track', { data: { path: '/steam' } })).status()).toBe(401);
     expect((await request.patch('/api/steam/members', { data: { steamId: '76561190000000001', ownerId: null } })).status()).toBe(401);
     expect((await request.post('/api/steam/members', { data: { input: 'someone' } })).status()).toBe(401);
     expect((await request.post('/api/members', { data: { id: 'e2e_x', gameName: 'x', tagLine: 'y' } })).status()).toBe(401);

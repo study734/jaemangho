@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { db } from './db';
+import { viewStats } from './analytics';
 import { envProblems } from './env';
 
 // 관리자 대시보드가 쓰는 조회/조작. SQL은 여기에만 있고, 라우트는 인증과 검증만 한다.
@@ -11,7 +12,7 @@ export const blockInputSchema = z.object({
 
 export async function getStatus() {
   const sql = await db();
-  const [cache, database, counts, errorsByStatus, recentErrors, stats] = await Promise.all([
+  const [cache, database, counts, errorsByStatus, recentErrors, stats, pageViews] = await Promise.all([
     sql`select count(*)::int as rows,
                (count(*) filter (where expires_at > now()))::int as fresh,
                pg_total_relation_size('riot_cache')::float8 as bytes
@@ -25,6 +26,7 @@ export async function getStatus() {
         where at > now() - interval '24 hours' group by status order by status`,
     sql`select at, status, path from riot_errors order by at desc limit 10`,
     sql`select to_char(day, 'MM-DD') as day, hits, misses from riot_stats order by riot_stats.day desc limit 7`,
+    viewStats(),
   ]);
   return {
     cache: cache[0],
@@ -33,6 +35,7 @@ export async function getStatus() {
     errorsByStatus,
     recentErrors,
     stats,
+    pageViews,
     // 설정이 잘못된 환경변수 이름과 이유 (값은 포함하지 않는다)
     envProblems: envProblems(),
   };
