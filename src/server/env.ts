@@ -13,6 +13,9 @@ const schema = z.object({
   DISCORD_CLIENT_SECRET: z.string().min(1, '비어 있습니다'),
   DISCORD_GUILD_ID: snowflake,
   RIOT_API_KEY: z.string().regex(/^RGAPI-/, 'RGAPI- 로 시작하는 Riot 키여야 합니다'),
+  // 선택: 채팅 하이라이트(명예의 전당)용. 설정했다면 형식을 점검한다.
+  DISCORD_BOT_TOKEN: z.string().min(30, '봇 토큰이 너무 짧습니다').or(z.literal('')).optional(),
+  CRON_SECRET: z.string().min(16, '16자 이상이어야 합니다').or(z.literal('')).optional(),
   // 선택: Steam 기능을 쓸 때만 필요하다. 설정했다면 형식을 점검한다.
   STEAM_API_KEY: z.string().regex(/^[0-9A-Fa-f]{32}$/, '32자리 16진수 Steam 키여야 합니다').or(z.literal('')).optional(),
 });

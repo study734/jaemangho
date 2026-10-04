@@ -65,6 +65,13 @@ src/
 - 서버 로그에 로그인마다 `discord connection types: …; unhandled: …`가 남습니다(계정 이름·id는 남기지 않고 **종류 이름만**). 공식 문서의 서비스 목록에 Riot이 없어서 실제로 어떤 종류로 오는지 이 줄로 확인하고, `unhandled`에 나온 종류는 아직 처리기가 없는 것입니다.
 - **새 주제의 연결을 추가하려면**: `src/server/<이름>/connection.ts`에 `ConnectionHandler`(`types`, `link`)를 만들고 `discord-connections.ts`의 `HANDLERS`에 한 줄 더합니다.
 
+## 채팅 하이라이트 (홈의 명예의 전당·수다 통계)
+디스코드 채널의 **메타데이터**(누가, 언제, 반응이 몇 개)만 집계해 홈에 보여줍니다. **글 내용은 읽지도 저장하지도 않습니다**: 봇에 메시지 내용 권한(MESSAGE_CONTENT)을 주지 않으면 디스코드가 내용을 빈 값으로 보내고, 우리는 그것을 쓰지 않습니다.
+- 이름에 `⛵`가 들어간 텍스트·공지 채널만 봅니다(`src/server/chat/sync.ts`의 `WATCH_MARK`).
+- 하루 한 번 Vercel 크론(`vercel.json`)이 `GET /api/cron/chat`을 불러 최근 7일을 REST로 가져와 `chat_messages`에 저장합니다(반응 수는 변하므로 매번 갱신, 60일 지난 기록은 삭제). 이 경로는 로그인 세션이 아니라 `CRON_SECRET`(Bearer)으로 보호하며, 설정이 없으면 누구도 호출할 수 없습니다.
+- 필요한 환경변수(둘 다 선택, 없으면 기능이 꺼짐): `DISCORD_BOT_TOKEN`(개발자 포털의 같은 앱에서 봇을 만들고 서버에 초대. 권한은 **채널 보기, 메시지 기록 읽기**만), `CRON_SECRET`(16자 이상 랜덤, `openssl rand -base64 24`).
+- 처음 한 번 바로 채우려면(배포 후): `curl -H "Authorization: Bearer $CRON_SECRET" https://<도메인>/api/cron/chat` — 응답은 개수만 담습니다.
+
 ## 관리자
 - 디스코드 서버 **소유자이거나 Administrator 권한**이 있는 사용자는 로그인 시 자동으로 관리자가 됩니다. 관리자를 추가하려면 디스코드에서 권한만 주면 됩니다(재로그인 필요).
 - 환경변수가 비었거나 형식이 틀리면(예: 값 자리에 변수 이름을 그대로 넣은 경우) 관리자 탭 위쪽에 경고가 뜨고 서버 시작 로그에도 남습니다. 값은 표시하지 않습니다.
