@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { TITLES } from '@/lib/titles';
 import { type AwardRow, listAwards } from '@/server/chat/awards';
+import { chatNotice } from '@/server/chat/notice';
 
 const weekLabel = (start: string) => {
   const d = new Date(`${start}T00:00:00+09:00`);
@@ -20,7 +21,7 @@ export default async function AwardsPage() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h2 className="heading-3" style={styles.title}>시상식</h2>
-        <p style={styles.hint}>매주 월요일에 지난주(월~일) 칭호가 나옵니다. 글 내용은 읽지 않고 메시지 수, 시간대, 반응 수만 봅니다.</p>
+        <p style={styles.hint}>매주 월요일에 지난주(월~일) 칭호가 나옵니다. 메시지 수, 시간대, 답글·반응 수로 정하고, {chatNotice()}</p>
       </header>
 
       {weeks.length === 0 ? (

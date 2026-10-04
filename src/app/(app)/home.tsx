@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HomeCard } from '@/components/HomeCard';
 import { LolHomeSummary } from '@/features/lol';
+import { scoreLabel } from '@/lib/chat-format';
+import type { HotMoment } from '@/server/chat/moments';
 import type { ChatHighlights } from '@/server/chat/stats';
 import { SteamHomeSummary } from '@/features/steam';
 
@@ -50,7 +52,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 const hourLabel = (h: number) => `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시`;
 
 // 채팅 하이라이트: 내용은 읽지 않고, 반응 수와 메시지 수만 집계한 것
-function ChatPanels({ chat }: { chat: ChatHighlights }) {
+function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: HotMoment[]; notice: string }) {
   return (
     <>
       {chat.hallOfFame.length > 0 && (
@@ -58,7 +60,7 @@ function ChatPanels({ chat }: { chat: ChatHighlights }) {
           <ul style={styles.list}>
             {chat.hallOfFame.map((h) => (
               <li key={h.url} style={styles.row}>
-                <span style={styles.tag}>{h.topEmoji ?? '👍'} {h.reactions}</span>
+                <span style={styles.tag}>{scoreLabel(h.topEmoji, h.reactions, h.replies)}</span>
                 <a href={h.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: '#ffffff' }}>
                   {h.authorName}님의 메시지 보러 가기
                 </a>
@@ -66,7 +68,20 @@ function ChatPanels({ chat }: { chat: ChatHighlights }) {
               </li>
             ))}
           </ul>
-          <p style={styles.hint}>글 내용은 읽지 않고 반응 수만 집계합니다. 링크를 누르면 디스코드로 이동합니다. <Link href="/community" style={{ color: '#00ed64' }}>개념글 보관함 →</Link></p>
+          <p style={styles.hint}>{notice} 링크를 누르면 디스코드로 이동합니다. <Link href="/community" style={{ color: '#00ed64' }}>개념글 보관함 →</Link></p>
+        </Panel>
+      )}
+      {moments.length > 0 && (
+        <Panel title="뜨거웠던 순간">
+          <ul style={styles.list}>
+            {moments.map((m) => (
+              <li key={m.url} style={styles.row}>
+                <span style={styles.tag}>🔥 {m.messages}개</span>
+                <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: '#ffffff' }}>{m.people}명이 10분 동안 몰려서 말했어요</a>
+                <Ago iso={m.at} />
+              </li>
+            ))}
+          </ul>
         </Panel>
       )}
       <Panel title="수다 통계 (이번 주)">
@@ -87,7 +102,7 @@ function ChatPanels({ chat }: { chat: ChatHighlights }) {
   );
 }
 
-export function Home({ name, activity, people, chat }: { name: string; activity: Activity[]; people: Person[]; chat: ChatHighlights | null }) {
+export function Home({ name, activity, people, chat, moments, notice }: { name: string; activity: Activity[]; people: Person[]; chat: ChatHighlights | null; moments: HotMoment[]; notice: string }) {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -112,7 +127,7 @@ export function Home({ name, activity, people, chat }: { name: string; activity:
             </ul>
           )}
         </Panel>
-        {chat && <ChatPanels chat={chat} />}
+        {chat && <ChatPanels chat={chat} moments={moments} notice={notice} />}
         </div>
 
         <div style={styles.side}>

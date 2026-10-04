@@ -4,7 +4,7 @@ import { type TitleKey, isTitleKey } from '../../lib/titles';
 
 // 한 주(한국 시간 월~일)의 칭호를 계산해 보관한다. 데이터가 너무 적은 주(봇이 안 돌았던 주 등)는 만들지 않는다.
 const MIN_WEEK_MESSAGES = 20;
-const MIN = { talker: 10, owl: 5, popular: 5, oneshot: 3 } as const;
+const MIN = { talker: 10, owl: 5, magnet: 5, oneshot: 3, replier: 10, jester: 30, laugher: 50 } as const;
 
 interface Winner {
   title: TitleKey;
@@ -24,16 +24,31 @@ async function compute(sql: Sql, weekStart: string): Promise<Winner[]> {
   const one = async (title: TitleKey, rows: Record<string, unknown>[]): Promise<Winner[]> =>
     rows.length ? [{ title, authorId: rows[0].author_id as string, authorName: rows[0].author_name as string, value: rows[0].value as number }] : [];
 
-  const [talker, owl, popular, oneshot, lurkers] = await Promise.all([
+  const [talker, owl, magnet, oneshot, replier, jester, laugher, lurkers] = await Promise.all([
     sql`select author_id, max(author_name) as author_name, count(*)::int as value from chat_messages
         where created_at >= ${lo} and created_at < ${hi} group by author_id having count(*) >= ${MIN.talker} order by value desc, author_id limit 1`,
     sql`select author_id, max(author_name) as author_name, count(*)::int as value from chat_messages
         where created_at >= ${lo} and created_at < ${hi} and extract(hour from created_at at time zone 'Asia/Seoul') between 2 and 5
         group by author_id having count(*) >= ${MIN.owl} order by value desc, author_id limit 1`,
-    sql`select author_id, max(author_name) as author_name, sum(reactions)::int as value from chat_messages
-        where created_at >= ${lo} and created_at < ${hi} group by author_id having sum(reactions) >= ${MIN.popular} order by value desc, author_id limit 1`,
-    sql`select author_id, author_name, reactions as value from chat_messages
-        where created_at >= ${lo} and created_at < ${hi} and reactions >= ${MIN.oneshot} order by reactions desc, created_at limit 1`,
+    // 떡밥 갤러: 받은 답글(본인 답글 제외)이 가장 많은 사람
+    sql`select m.author_id, max(m.author_name) as author_name, count(r.id)::int as value from chat_messages m
+        join chat_messages r on r.reply_to = m.id and r.author_id <> m.author_id
+        where m.created_at >= ${lo} and m.created_at < ${hi} group by m.author_id having count(r.id) >= ${MIN.magnet} order by value desc, m.author_id limit 1`,
+    // 한 방 갤러: 메시지 하나의 (반응 + 받은 답글)이 가장 큰 사람
+    sql`select author_id, author_name, value from (
+          select m.author_id, m.author_name, m.created_at,
+                 (m.reactions + (select count(*) from chat_messages r where r.reply_to = m.id and r.author_id <> m.author_id))::int as value
+          from chat_messages m where m.created_at >= ${lo} and m.created_at < ${hi}) x
+        where value >= ${MIN.oneshot} order by value desc, created_at limit 1`,
+    sql`select author_id, max(author_name) as author_name, count(*)::int as value from chat_messages
+        where created_at >= ${lo} and created_at < ${hi} and reply_to is not null group by author_id having count(*) >= ${MIN.replier} order by value desc, author_id limit 1`,
+    // 웃음 유발자: 그 사람 말 직후 2분 안에 다른 사람들이 보낸 ㅋ의 합이 가장 큰 사람 (웃음 분석을 켰을 때만 데이터가 있다)
+    sql`select m.author_id, max(m.author_name) as author_name, sum(l.s)::int as value from chat_messages m
+        cross join lateral (select coalesce(sum(o.laugh), 0)::int as s from chat_messages o
+          where o.channel_id = m.channel_id and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
+        where m.created_at >= ${lo} and m.created_at < ${hi} group by m.author_id having sum(l.s) >= ${MIN.jester} order by value desc, m.author_id limit 1`,
+    sql`select author_id, max(author_name) as author_name, sum(laugh)::int as value from chat_messages
+        where created_at >= ${lo} and created_at < ${hi} group by author_id having sum(laugh) >= ${MIN.laugher} order by value desc, author_id limit 1`,
     // 눈팅러: 그 주에 로그인(세션 생성)했지만 채팅은 한 번도 안 한 멤버
     sql`select a."accountId" as author_id, u.name as author_name, 0 as value from "user" u
         join account a on a."userId" = u.id and a."providerId" = 'discord'
@@ -46,8 +61,11 @@ async function compute(sql: Sql, weekStart: string): Promise<Winner[]> {
   return [
     ...(await one('talker', talker)),
     ...(await one('owl', owl)),
-    ...(await one('popular', popular)),
+    ...(await one('magnet', magnet)),
     ...(await one('oneshot', oneshot)),
+    ...(await one('replier', replier)),
+    ...(await one('jester', jester)),
+    ...(await one('laugher', laugher)),
     ...lurkers.map((r) => ({ title: 'lurker' as const, authorId: r.author_id as string, authorName: r.author_name as string, value: 0 })),
   ];
 }

@@ -11,6 +11,9 @@ const messageSchema = z.object({
   timestamp: z.string(),
   author: z.object({ id: z.string(), username: z.string(), global_name: z.string().nullish(), bot: z.boolean().optional() }),
   reactions: z.array(z.object({ count: z.number(), emoji: z.object({ id: z.string().nullable(), name: z.string().nullable() }) })).optional(),
+  message_reference: z.object({ message_id: z.string().optional() }).optional(),
+  // 메시지 내용 권한이 없으면 빈 값으로 온다. 웃음 분석을 켰을 때만 읽고, 숫자를 센 뒤 바로 버린다(저장·로그 금지).
+  content: z.string().optional(),
 });
 
 export interface ChatMessage {
@@ -20,7 +23,13 @@ export interface ChatMessage {
   createdAt: string;
   reactions: number;
   topEmoji: string | null;
+  replyTo: string | null;
+  laugh: number; // ㅋ/ㅎ 글자 수(웃음 분석을 켰을 때만, 아니면 0)
 }
+
+const LAUGH_CAP = 30; // 한 메시지가 지표를 독점하지 않게
+// 글 내용에서 숫자만 센다. 이 함수 밖으로 내용을 내보내지 않는다.
+export const countLaugh = (content: string | undefined) => Math.min(LAUGH_CAP, (content?.match(/[ㅋㅎ]/g) ?? []).length);
 
 // 네트워크 의존: 테스트에서는 가짜 fetch와 sleep을 넣는다. deadline(ms 시각)을 넘길 기다림은 하지 않는다.
 export interface Net {
@@ -64,7 +73,7 @@ const emojiLabel = (e: { id: string | null; name: string | null }) => (e.name ? 
 export async function fetchMessagePage(
   channelId: string,
   token: string,
-  opts: { before?: string; limit?: number } = {},
+  opts: { before?: string; limit?: number; laugh?: boolean } = {},
   net: Net = {}
 ): Promise<{ messages: ChatMessage[]; rawCount: number; oldestId: string | null }> {
   const q = new URLSearchParams({ limit: String(opts.limit ?? 100) });
@@ -86,6 +95,8 @@ export async function fetchMessagePage(
         createdAt: m.timestamp,
         reactions: rs.reduce((n, r) => n + r.count, 0),
         topEmoji: top ? emojiLabel(top.emoji) : null,
+        replyTo: m.type === 19 ? (m.message_reference?.message_id ?? null) : null,
+        laugh: opts.laugh ? countLaugh(m.content) : 0,
       };
     });
   return { messages, rawCount: raw.length, oldestId: parsed.at(-1)?.id ?? null };
