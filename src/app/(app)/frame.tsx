@@ -4,20 +4,22 @@ import type { CSSProperties, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
+import { sectionOf } from '@/components/nav';
 import { TopBar } from '@/components/TopBar';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
 export function Frame({ isAdmin, children }: { isAdmin: boolean; children: ReactNode }) {
   const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
-  const onLol = usePathname().startsWith('/lol');
+  const pathname = usePathname();
+  const onLol = pathname.startsWith('/lol');
   const isLoading = onLol && lolLoading;
 
   return (
     <div style={styles.appContainer}>
       <TopBar isAdmin={isAdmin} />
       <div style={styles.body}>
-      <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />
+      {sectionOf(pathname) !== 'home' && <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />}
 
       <main style={styles.mainPane}>
         {isLoading && (

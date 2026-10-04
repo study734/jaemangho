@@ -3,6 +3,18 @@ import { cleanup, createUser, expect, loginAs, test } from './fixtures';
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('홈은 사이드바 없이 주제 카드를 보여주고, 카드로 각 주제에 들어간다', async ({ page, context }) => {
+  await loginAs(context, await createUser('home', 'E2E홈'));
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: '주제' }).getByRole('link', { name: '홈', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByText('E2E홈님, 오늘은 뭘 같이 할까요?')).toBeVisible();
+  await expect(page.locator('aside')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '롤' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Steam' })).toBeVisible();
+  await page.getByRole('link', { name: '공통 게임 찾기' }).click();
+  await expect(page).toHaveURL(/\/steam$/);
+});
+
 test('상단 메뉴바로 주제를 바꾸면 좌측 상세 메뉴가 그 주제의 것으로 바뀐다', async ({ page, context }) => {
   await loginAs(context, await createUser('nav', 'E2E메뉴'));
   await page.goto('/lol');

@@ -12,7 +12,7 @@ function messageFor(error: string) {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
   // 이미 로그인한 사용자는 앱으로 보낸다 (오류 안내 화면은 예외)
-  if (!error && (await getViewer()).status === 'ok') redirect('/lol');
+  if (!error && (await getViewer()).status === 'ok') redirect('/');
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, background: '#001e2b', color: '#fff' }}>

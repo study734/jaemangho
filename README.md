@@ -52,6 +52,7 @@ src/
 - **의존 방향**: `app -> features / server`. 공용 UI는 기능과 서버를 모르고(값은 props로 받음), 기능은 화면·서버·다른 기능을 가져오지 않고, 서버는 화면과 기능을 가져오지 않습니다. 새 카테고리는 `src/features/<이름>/`에 `index.ts`와 함께 추가합니다.
 - 이 규칙은 `npm run lint`가 검사합니다(`no-restricted-imports`). 어기면 린트가 실패하고 CI에서도 막힙니다.
 - Riot 데이터 접근은 `RiotClient` 인터페이스 뒤에 있어(지역, 주소 형식, 캐시 키는 호출자가 모름) 테스트에서는 가짜로 바꿔 끼웁니다.
+- **새 주제(롤, Steam 같은 큰 단위)를 추가하는 법**: ① `src/features/<이름>/`에 기능과 `index.ts`(화면, 홈 카드용 `<이름>HomeSummary`) 만들기 ② `src/components/nav.tsx`에 상세 메뉴와 `sectionsFor`/`sectionOf` 한 줄씩 ③ `src/app/(app)/<주소>/page.tsx` ④ `src/app/(app)/home.tsx`에 `HomeCard` 하나 추가. 서버 로직은 `src/server/<이름>/`, API는 `/api/<이름>/...`.
 - API URL(`/api/riot`, `/api/members`)과 DB 테이블 이름은 아직 롤 기준입니다. 두 번째 카테고리가 생길 때 `/api/<카테고리>/...`로 나눕니다.
 
 ## 관리자
