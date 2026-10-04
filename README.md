@@ -18,6 +18,7 @@ Next.js(App Router) + React 19 + TypeScript(strict), 로그인은 [Better Auth](
         ├─ auth/*      Better Auth (디스코드 로그인, 서버 멤버만 허용, DB 세션)
         ├─ riot        Riot API 프록시 (허용 엔드포인트만, 키는 서버에서만 사용, DB 캐시)
         ├─ members     등록 소환사 목록 CRUD
+        ├─ steam       Steam 멤버 목록, 공통 게임·사 놓고 안 한 게임 (키는 서버에서만 사용)
         └─ admin       관리자 전용 (접속자/차단, 목록, 시스템 상태, 캐시 비우기)
         │
         ▼
@@ -68,6 +69,7 @@ src/
 | `DISCORD_CLIENT_SECRET` | Discord 앱의 Client Secret |
 | `DISCORD_GUILD_ID` | 접속을 허용할 디스코드 서버 ID |
 | `SESSION_SECRET` | 로그인 비밀키(세션 서명용) 랜덤 문자열, 32자 이상 (`openssl rand -base64 32`) |
+| `STEAM_API_KEY` | (선택) Steam Web API 키. 없으면 Steam 기능은 503을 돌려줍니다. 32자리 16진수. |
 | `DATABASE_URL` | Postgres 연결 문자열 (Vercel에서 Neon을 연결하면 자동 등록) |
 | `DATABASE_URL_UNPOOLED` | (선택) 마이그레이션이 우선 사용하는 직접 연결 주소. Neon 연동이 자동 등록합니다. |
 | `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. |
