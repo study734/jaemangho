@@ -3,12 +3,12 @@ import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins';
 import type { DiscordProfile } from 'better-auth/social-providers';
 import { fetchGuildMember } from './discord';
-import { type Connections, fetchConnections, linkConnections } from './discord-connections';
+import { type RawConnection, fetchConnections, linkConnections } from './discord-connections';
 import { pool } from './pool';
 
 // 로그인 중인 사용자의 권한. getUserInfo(디스코드 토큰을 가진 유일한 지점)에서 계산해 두었다가
 // 세션이 만들어진 직후 훅에서 user 행에 반영한다. 한 번의 콜백 요청 안에서만 쓰이는 값이라 금방 비운다.
-const pending = new Map<string, { role: 'admin' | 'user'; username: string; connections: Connections; at: number }>();
+const pending = new Map<string, { role: 'admin' | 'user'; username: string; connections: RawConnection[]; at: number }>();
 const PENDING_TTL_MS = 5 * 60 * 1000;
 
 // 빌드는 비밀키 없이도 되어야 한다(CI 등). 빌드 단계에서만 자리표시자를 쓰고, 실행 중에 SESSION_SECRET이 없으면 라이브러리가 오류를 낸다.
@@ -40,7 +40,7 @@ export const auth = betterAuth({
       clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
       // 기본 스코프(identify+email)는 쓰지 않는다: 이메일이 없는 계정이 있고, 서버 멤버 확인에는 guilds가 필요하다.
       disableDefaultScope: true,
-      // connections: 디스코드에 연결해 둔 Steam·Riot 계정을 읽어 멤버에 자동으로 묶는다(discord-connections.ts)
+      // connections: 디스코드에 연결해 둔 앱을 훑어 우리 주제(Steam, 롤 등)의 계정을 멤버에 자동으로 묶는다(discord-connections.ts)
       scope: ['identify', 'guilds', 'connections'],
 
       // 크루 디스코드 서버 멤버만 통과시킨다. null을 돌려주면 로그인이 거부된다(unable_to_get_user_info).
@@ -101,7 +101,7 @@ export const auth = betterAuth({
             [session.userId, info.role, info.username]
           );
 
-          // 연결된 Steam·롤 계정을 멤버에 묶는다. 실패하거나 느려도 로그인은 그대로 성공시킨다.
+          // 연결된 앱의 계정을 멤버에 묶는다. 실패하거나 느려도 로그인은 그대로 성공시킨다.
           await Promise.race([
             linkConnections(session.userId, info.connections).catch((e) => console.error('discord connection link failed', e)),
             new Promise((resolve) => setTimeout(resolve, 5000)),
