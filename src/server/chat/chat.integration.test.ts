@@ -21,16 +21,22 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     reactions: reactions.map((r) => ({ count: r.count, emoji: { id: null, name: r.emoji } })),
   });
   // 길드 채널 목록과 채널의 메시지(최신순, before로 이어 받기)를 흉내 낸다
-  const discord = (messages: ReturnType<typeof msg>[], opts: { rateLimitAfterFirstPage?: boolean } = {}) =>
-    vi.fn(async (url: string | URL | Request) => {
+  const discord = (messages: ReturnType<typeof msg>[], opts: { rateLimitAfterFirstPage?: boolean; rateLimitOnce?: boolean } = {}) => {
+    let limitedOnce = false;
+    return vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes('/guilds/')) return new Response(JSON.stringify([{ id: 'tcm_c1', name: '⛵｜잡담', type: 0 }, { id: 'tcm_c2', name: '공지', type: 0 }]));
       const before = new URL(u).searchParams.get('before');
       if (before && opts.rateLimitAfterFirstPage) return new Response('{}', { status: 429 });
+      if (before && opts.rateLimitOnce && !limitedOnce) {
+        limitedOnce = true;
+        return new Response(JSON.stringify({ retry_after: 0.1 }), { status: 429 });
+      }
       const limit = Number(new URL(u).searchParams.get('limit'));
       const start = before ? messages.findIndex((m) => m.id === before) + 1 : 0;
       return new Response(JSON.stringify(messages.slice(start, start + limit)));
     }) as unknown as typeof fetch;
+  };
 
   beforeAll(async () => {
     pool = await openTestDb();
@@ -43,7 +49,8 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     await pool.end();
   });
 
-  const opts = (fetchFn: typeof fetch) => ({ token: 't'.repeat(40), guildId: 'G1', pageSize: 2, fetchFn });
+  const sleeps: number[] = [];
+  const opts = (fetchFn: typeof fetch) => ({ token: 't'.repeat(40), guildId: 'G1', pageSize: 2, fetchFn, sleep: async (ms: number) => void sleeps.push(ms) });
   const ids = async () => (await pool.query(`select id from chat_messages where id like 'tcm_%' order by id`)).rows.map((r) => r.id);
 
   it('이름에 ⛵가 있는 채널만 보고, 7일 안의 메시지를 페이지를 넘기며 저장한다 (기간 밖은 저장하지 않는다)', async () => {
@@ -68,7 +75,18 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     expect((await pool.query(`select reactions from chat_messages where id = 'tcm_4'`)).rows[0].reactions).toBe(0);
   });
 
-  it('호출 한도(429)에 걸려도 이미 받은 페이지는 남기고 rateLimited로 알린다', async () => {
+  it('한 번 429를 받아도 기다렸다가 이어서 끝까지 가져온다 (rateLimited 아님)', async () => {
+    await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    sleeps.length = 0;
+    const result = await sync.syncChat(
+      opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1'), msg('tcm_2', 3, 'tcm_a1')], { rateLimitOnce: true }))
+    );
+    expect(result).toEqual({ channels: 1, messages: 4, rateLimited: false });
+    expect(sleeps).toEqual([150]); // retry_after 0.1초 + 여유 50ms
+    expect(await ids()).toEqual(['tcm_2', 'tcm_3', 'tcm_4', 'tcm_5']);
+  });
+
+  it('기다려도 계속 429면 이미 받은 페이지는 남기고 rateLimited로 알린다', async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
     const result = await sync.syncChat(
       opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1')], { rateLimitAfterFirstPage: true }))
