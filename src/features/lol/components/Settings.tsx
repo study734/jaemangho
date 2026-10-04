@@ -78,7 +78,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     gap: '32px',
     overflowY: 'auto',
-    height: '100vh',
+    minHeight: 0,
   },
   header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px' },
   title: { color: '#ffffff', letterSpacing: '-1px' },

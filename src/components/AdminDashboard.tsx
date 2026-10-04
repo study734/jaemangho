@@ -276,7 +276,7 @@ const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: numbe
 );
 
 const styles: { [key: string]: React.CSSProperties } = {
-  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', height: '100vh' },
+  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', minHeight: 0 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1c4558', paddingBottom: '20px' },
   title: { color: '#ffffff', letterSpacing: '-1px' },
   error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
