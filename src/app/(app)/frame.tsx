@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
+import { TopBar } from '@/components/TopBar';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
 export function Frame({ isAdmin, children }: { isAdmin: boolean; children: ReactNode }) {
@@ -14,6 +15,8 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
 
   return (
     <div style={styles.appContainer}>
+      <TopBar isAdmin={isAdmin} />
+      <div style={styles.body}>
       <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />
 
       <main style={styles.mainPane}>
@@ -46,12 +49,14 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
 
         {children}
       </main>
+      </div>
     </div>
   );
 }
 
 const styles: { [key: string]: CSSProperties } = {
-  appContainer: { display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' },
+  appContainer: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden' },
+  body: { display: 'flex', flexGrow: 1, minHeight: 0 },
   mainPane: {
     flexGrow: 1,
     display: 'flex',

@@ -571,7 +571,7 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '32px',
     overflowY: 'auto' as const,
-    height: '100vh',
+    minHeight: 0,
   },
   header: {
     display: 'flex',
