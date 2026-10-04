@@ -5,9 +5,19 @@ import { recordHighlights } from './highlights';
 
 // 이 표시가 이름에 들어간 채널만 본다. 바꾸려면 여기를 고친다.
 export const WATCH_MARK = '⛵';
-const WINDOW_DAYS = 8; // 반응 수는 시간이 지나며 변하므로 최근 이 기간을 매번 다시 가져온다. 지난주(월~일)를 월요일 새벽에도 빠짐없이 덮도록 7일보다 하루 길게
+const MAX_DAYS = 8; // 처음 채우거나 크론이 오래 빠졌을 때 거슬러 올라가는 최대 기간(지난주 월~일을 월요일 새벽에도 덮도록 7일보다 하루 길게)
+const REFRESH_DAYS = 3; // 평소에는 최근 이 기간만 다시 가져온다(반응·답글은 보통 이 안에 정해진다)
 const KEEP_DAYS = 60;
 const MAX_PAGES = 60;
+
+// 이번 실행이 어디까지 거슬러 올라갈지. 이미 저장된 기록이 있으면 평소엔 최근 REFRESH_DAYS만 새로고침하고,
+// 크론이 빠져 빈 구간이 생겼으면(가장 최근 저장 시각이 더 오래됐으면) 그 하루 전부터 다시 받는다. 처음이면 MAX_DAYS.
+export function syncCutoff(now: Date, latestStored: Date | null): number {
+  const day = 86_400_000;
+  const floor = now.getTime() - MAX_DAYS * day;
+  if (!latestStored) return floor;
+  return Math.max(floor, Math.min(now.getTime() - REFRESH_DAYS * day, latestStored.getTime() - day));
+}
 
 export interface SyncOptions {
   token: string;
@@ -28,9 +38,10 @@ export interface SyncResult {
 export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const { token, guildId, pageSize = 100, now = new Date(), fetchFn = fetch, laugh = false, sleep, budgetMs = 50_000 } = o;
   const net = { fetchFn, sleep, deadline: Date.now() + budgetMs };
-  const cutoff = now.getTime() - WINDOW_DAYS * 86_400_000;
   const channels = await findWatchedChannels(guildId, WATCH_MARK, token, net);
   const sql = await db();
+  const [latest] = await sql`select max(created_at) as at from chat_messages`;
+  const cutoff = syncCutoff(now, latest?.at ? new Date(latest.at as string | Date) : null);
   let total = 0;
   let rateLimited = false;
 

@@ -69,6 +69,28 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     expect(row).toEqual({ channel_id: 'tcm_c1', author_name: '이름_tcm_a1', reactions: 6, top_emoji: '😂' });
   });
 
+  it('syncCutoff: 처음이면 최대 8일, 평소엔 최근 3일, 크론이 빠져 빈 구간이 있으면 그만큼 거슬러 올라간다 (8일 상한)', () => {
+    const now = new Date('2026-10-20T00:00:00Z');
+    const daysAgo = (d: number) => new Date(now.getTime() - d * DAY);
+    expect(sync.syncCutoff(now, null)).toBe(daysAgo(8).getTime());
+    expect(sync.syncCutoff(now, daysAgo(0.1))).toBe(daysAgo(3).getTime());
+    expect(sync.syncCutoff(now, daysAgo(2))).toBe(daysAgo(3).getTime());
+    expect(sync.syncCutoff(now, daysAgo(5))).toBe(daysAgo(6).getTime()); // 5일 비었으면 하루 더 앞에서부터
+    expect(sync.syncCutoff(now, daysAgo(30))).toBe(daysAgo(8).getTime()); // 상한
+  });
+
+  it('이미 최근 기록이 있으면 오래된 날은 다시 받지 않고 최근 3일만 새로고침한다', async () => {
+    const fetchFn = discord([
+      msg('tcm_5', 0.1, 'tcm_a1', [{ count: 9, emoji: '😂' }]),
+      msg('tcm_4', 1, 'tcm_a2'),
+      msg('tcm_3', 2, 'tcm_a1'),
+      msg('tcm_1', 6, 'tcm_a2', [{ count: 50, emoji: '🔥' }]), // 6일 전: 이미 정해진 기록이라 건드리지 않는다
+    ]);
+    await sync.syncChat(opts(fetchFn));
+    expect((await pool.query(`select id from chat_messages where id = 'tcm_1'`)).rows).toHaveLength(0);
+    expect((await pool.query(`select reactions from chat_messages where id = 'tcm_5'`)).rows[0].reactions).toBe(9);
+  });
+
   it('다시 실행하면 중복 없이 반응 수만 갱신된다', async () => {
     await sync.syncChat(opts(discord([msg('tcm_5', 0.1, 'tcm_a1', [{ count: 9, emoji: '😂' }]), msg('tcm_4', 1, 'tcm_a2')])));
     expect(await ids()).toEqual(['tcm_2', 'tcm_3', 'tcm_4', 'tcm_5']);
