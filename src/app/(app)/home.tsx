@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { HomeCard } from '@/components/HomeCard';
 import { LolHomeSummary } from '@/features/lol';
 import { SteamHomeSummary } from '@/features/steam';
@@ -12,6 +13,7 @@ interface Activity {
   at: string;
 }
 interface Person {
+  id: string;
   name: string;
   at: string;
 }
@@ -79,8 +81,8 @@ export function Home({ name, activity, people }: { name: string; activity: Activ
           <Panel title="멤버">
             <ul style={styles.list}>
               {people.map((p) => (
-                <li key={p.name} style={styles.row}>
-                  <span style={styles.text}>{p.name}</span>
+                <li key={p.id} style={styles.row}>
+                  <Link href={`/people/${p.id}`} style={{ ...styles.text, color: '#ffffff' }}>{p.name}</Link>
                   <Ago iso={p.at} />
                 </li>
               ))}

@@ -5,6 +5,7 @@ export interface RosterEntry {
   id: string;
   gameName: string;
   tagLine: string;
+  ownerId?: string | null; // 안 보내면 그대로(등록 때는 등록자), null이면 주인 없음
 }
 
 async function call<T = null>(url: string, method: string, body?: RosterEntry): Promise<T> {

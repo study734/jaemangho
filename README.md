@@ -19,6 +19,7 @@ Next.js(App Router) + React 19 + TypeScript(strict), 로그인은 [Better Auth](
         ├─ riot        Riot API 프록시 (허용 엔드포인트만, 키는 서버에서만 사용, DB 캐시)
         ├─ members     등록 소환사 목록 CRUD
         ├─ steam       Steam 멤버 목록, 공통 게임·사 놓고 안 한 게임 (키는 서버에서만 사용)
+        ├─ /people     멤버 목록·프로필 (디스코드 사용자에 연결된 롤·Steam 계정, 주인 지정·해제)
         │              (롤 소환사와 Steam 계정은 owner_id로 로그인 사용자=멤버에 연결. 등록자가 기본 주인, 지정·해제 가능)
         └─ admin       관리자 전용 (접속자/차단, 목록, 시스템 상태, 캐시 비우기)
         │

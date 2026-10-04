@@ -60,3 +60,13 @@ export async function getPerson(id: string): Promise<Person | null> {
     steam: steam as unknown as SteamAccount[],
   };
 }
+
+// 주인이 없는 계정. 프로필 화면에서 "이 사람 것으로" 연결할 수 있다.
+export async function listUnowned(): Promise<{ lol: LolAccount[]; steam: SteamAccount[] }> {
+  const sql = await db();
+  const [lol, steam] = await Promise.all([
+    sql`select id, game_name as "gameName", tag_line as "tagLine" from members where owner_id is null order by created_at`,
+    sql`select steam_id as "steamId", persona_name as name, avatar from steam_members where owner_id is null order by created_at`,
+  ]);
+  return { lol: lol as unknown as LolAccount[], steam: steam as unknown as SteamAccount[] };
+}

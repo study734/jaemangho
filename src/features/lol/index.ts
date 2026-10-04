@@ -4,6 +4,7 @@ export { MasteryShowcase } from './components/MasteryShowcase';
 export { Settings } from './components/Settings';
 export { SquadManager } from './components/SquadManager';
 export { SynergyAnalyzer } from './components/SynergyAnalyzer';
+export { LolAccountBadge } from './components/AccountBadge';
 export { LolHomeSummary } from './components/HomeSummary';
 export { LolProvider, useLol } from './state/LolProvider';
 export { rosterApi } from './api/roster';
