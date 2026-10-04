@@ -120,7 +120,7 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 npx playwright install chromium          # 처음 한 번
 TEST_DATABASE_URL=postgres://... npm run test:e2e
 ```
-- 운영과 같은 방식(마이그레이션 -> `next build` -> `next start`)으로 서버를 띄웁니다. 이미 떠 있는 서버가 있으면(`3200` 포트) 재사용합니다.
+- 운영과 같은 방식(마이그레이션 -> `next build` -> `next start`)으로 서버를 띄웁니다. `3200` 포트가 이미 쓰이고 있으면(개발 서버 등) 재사용하지 않고 멈춥니다. 먼저 그 서버를 끄세요.
 - 디스코드 로그인은 외부 서비스라 쓰지 않습니다. DB에 사용자·세션을 만들고 로그인 라이브러리와 같은 방식으로 서명한 세션 쿠키를 브라우저에 넣습니다. Riot 응답은 브라우저의 `/api/riot` 요청을 가짜로 대체합니다(서버 프록시는 단위 테스트가 다룹니다).
 - 테스트가 만드는 데이터는 `e2e_` 접두사로 시작하고 끝나면 지웁니다. 개발 DB가 아닌 별도 DB를 쓰세요.
 - 실패하면 `test-results/`에 스크린샷과 트레이스가 남습니다 (`npx playwright show-trace <trace.zip>`). CI에서는 실패 시 리포트를 아티팩트로 올립니다.
