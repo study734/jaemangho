@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { TRACKED } from '@/lib/track';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -9,6 +10,7 @@ interface Status {
   errorsByStatus: { status: number; count: number }[];
   recentErrors: { at: string; status: number; path: string }[];
   stats: { day: string; hits: number; misses: number }[];
+  pageViews: { path: string; today: number; week: number }[];
   envProblems: string[];
 }
 interface AdminUser {
@@ -221,6 +223,26 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                 </tr>
               ))}
               {status.stats.length === 0 && <tr><td style={styles.td} colSpan={4}>아직 기록이 없습니다.</td></tr>}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {status && (
+        <section className="card-base" style={styles.panel}>
+          <h3 className="heading-3" style={styles.panelTitle}>화면별 열람 (최근 7일)</h3>
+          <p style={styles.cardLabel}>누가 열었는지는 저장하지 않고 횟수만 셉니다(한국 시간 기준). 어느 화면이 실제로 쓰이는지 보는 용도입니다.</p>
+          <table style={styles.table}>
+            <thead>
+              <tr><th style={styles.th}>화면</th><th style={styles.th}>오늘</th><th style={styles.th}>7일</th></tr>
+            </thead>
+            <tbody>
+              {status.pageViews.map((v) => (
+                <tr key={v.path}>
+                  <td style={styles.td}>{TRACKED[v.path as keyof typeof TRACKED] ?? v.path}</td><td style={styles.td}>{v.today}</td><td style={styles.td}>{v.week}</td>
+                </tr>
+              ))}
+              {status.pageViews.length === 0 && <tr><td style={styles.td} colSpan={3}>아직 기록이 없습니다.</td></tr>}
             </tbody>
           </table>
         </section>
