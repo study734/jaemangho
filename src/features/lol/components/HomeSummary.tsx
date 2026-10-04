@@ -14,6 +14,11 @@ export function LolHomeSummary() {
           <span style={{ color: row.tone === 'live' ? '#00ed64' : row.tone === 'highlight' ? '#ffb703' : '#ffffff', fontWeight: 600 }}>{row.value}</span>
         </div>
       ))}
+      {members.filter((m) => m.activeGame).slice(0, 5).map((m) => (
+        <div key={m.id} style={{ color: '#00ed64', fontSize: '13px' }}>
+          ● {m.gameName} · {m.activeGame?.championName}
+        </div>
+      ))}
     </>
   );
 }
