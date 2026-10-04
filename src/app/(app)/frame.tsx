@@ -1,12 +1,16 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
 export function Frame({ isAdmin, children }: { isAdmin: boolean; children: ReactNode }) {
-  const { members, isLoading, error, dismissError, refreshAll } = useLol();
+  const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
+  // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
+  const onLol = usePathname().startsWith('/lol');
+  const isLoading = onLol && lolLoading;
 
   return (
     <div style={styles.appContainer}>
@@ -20,7 +24,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
           </div>
         )}
 
-        {error && (
+        {onLol && error && (
           <div style={styles.errorBanner}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexGrow: 1 }}>
               <span>⚠️</span>
@@ -32,7 +36,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
           </div>
         )}
 
-        {!isLoading && (
+        {onLol && !lolLoading && (
           <div style={styles.syncRow}>
             <button className="btn btn-secondary" style={styles.syncBtn} onClick={() => refreshAll()}>
               🔄 실시간 데이터 강제 동기화
