@@ -1,9 +1,11 @@
 import { db } from '../db';
+import { recordAwards } from './awards';
 import { DiscordRateLimitedError, fetchMessagePage, findWatchedChannels } from './bot';
+import { recordHighlights } from './highlights';
 
 // 이 표시가 이름에 들어간 채널만 본다. 바꾸려면 여기를 고친다.
 export const WATCH_MARK = '⛵';
-const WINDOW_DAYS = 7; // 반응 수는 시간이 지나며 변하므로 최근 이 기간을 매번 다시 가져온다
+const WINDOW_DAYS = 8; // 반응 수는 시간이 지나며 변하므로 최근 이 기간을 매번 다시 가져온다. 지난주(월~일)를 월요일 새벽에도 빠짐없이 덮도록 7일보다 하루 길게
 const KEEP_DAYS = 60;
 const MAX_PAGES = 60;
 
@@ -56,6 +58,10 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
       rateLimited = true;
     }
   }
+
+  // 개념글 보관함과 지난주 칭호를 갱신한다. 실패해도 동기화 결과는 돌려준다.
+  await recordHighlights().catch((e) => console.error('record highlights failed', e));
+  await recordAwards(now).catch((e) => console.error('record awards failed', e));
 
   await sql`delete from chat_messages where created_at < ${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString()}`;
   return { channels: channels.length, messages: total, rateLimited };

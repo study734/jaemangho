@@ -66,7 +66,7 @@ function ChatPanels({ chat }: { chat: ChatHighlights }) {
               </li>
             ))}
           </ul>
-          <p style={styles.hint}>글 내용은 읽지 않고 반응 수만 집계합니다. 링크를 누르면 디스코드로 이동합니다.</p>
+          <p style={styles.hint}>글 내용은 읽지 않고 반응 수만 집계합니다. 링크를 누르면 디스코드로 이동합니다. <Link href="/community" style={{ color: '#00ed64' }}>개념글 보관함 →</Link></p>
         </Panel>
       )}
       <Panel title="수다 통계 (이번 주)">
