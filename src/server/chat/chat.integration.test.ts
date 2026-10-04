@@ -11,6 +11,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
 
   const cleanup = async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    await pool.query(`delete from chat_highlights where id like 'tcm_%'`); // 동기화가 개념글 보관함에도 넣는다
     await pool.query(`delete from "user" where id like 'tcm_%'`);
   };
   const msg = (id: string, days: number, author: string, reactions: { count: number; emoji: string }[] = []) => ({

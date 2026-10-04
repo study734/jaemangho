@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LolAccountBadge, rosterApi } from '@/features/lol';
 import { steamApi } from '@/features/steam';
+import { TITLES, type TitleKey } from '@/lib/titles';
 
 interface Lol { id: string; gameName: string; tagLine: string }
 interface Steam { steamId: string; name: string; avatar: string | null }
@@ -11,8 +12,9 @@ interface Person { id: string; name: string; image: string | null; lastLogin: st
 
 const hours = (m: number) => `${Math.max(1, Math.round(m / 60)).toLocaleString()}시간`;
 
-export function Profile({ person, unowned, topGames }: {
+export function Profile({ person, unowned, topGames, awards }: {
   person: Person;
+  awards: { title: TitleKey; count: number; lastWeek: string }[];
   unowned: { lol: Lol[]; steam: Steam[] };
   topGames: Record<string, { name: string; minutes: number }[] | null>;
 }) {
@@ -45,6 +47,19 @@ export function Profile({ person, unowned, topGames }: {
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
+
+      <section style={styles.panel}>
+        <h3 className="heading-5" style={styles.panelTitle}>칭호</h3>
+        {awards.length === 0 ? <p style={styles.hint}>아직 받은 칭호가 없습니다. 매주 월요일 시상식에서 나옵니다.</p> : (
+          <ul style={{ ...styles.list, flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
+            {awards.map((a) => (
+              <li key={a.title} style={styles.award} title={TITLES[a.title].blurb}>
+                {TITLES[a.title].label}{a.count > 1 && <span style={styles.awardCount}> ×{a.count}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section style={styles.panel}>
         <h3 className="heading-5" style={styles.panelTitle}>롤</h3>
@@ -129,5 +144,7 @@ const styles = {
   row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', color: '#ffffff', fontSize: '14px' },
   between: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' },
   who: { display: 'flex', alignItems: 'center', gap: '10px', color: '#ffffff' },
+  award: { fontSize: '13px', fontWeight: 700, color: '#ffb703', border: '1px solid rgba(255, 183, 3, 0.5)', borderRadius: '999px', padding: '4px 12px' },
+  awardCount: { color: '#a8b3bc', fontWeight: 400 },
   small: { fontSize: '12px', padding: '4px 10px', whiteSpace: 'nowrap' as const },
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DiscordRateLimitedError, fetchMessagePage, findWatchedChannels } from './bot';
+import { DiscordRateLimitedError, countLaugh, fetchMessagePage, findWatchedChannels } from './bot';
 
 const reply = (body: unknown, status = 200) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
 const msg = (id: string, over: Record<string, unknown> = {}) => ({
@@ -35,8 +35,8 @@ describe('fetchMessagePage', () => {
     ]);
     const page = await fetchMessagePage('c1', 'tok', { before: '99', limit: 50 }, { fetchFn });
     expect(page.messages).toEqual([
-      { id: '30', authorId: 'u1', authorName: '철수', createdAt: '2026-10-04T00:00:00.000Z', reactions: 7, topEmoji: ':ggg:' },
-      { id: '27', authorId: 'u1', authorName: '철수', createdAt: '2026-10-04T00:00:00.000Z', reactions: 0, topEmoji: null },
+      { id: '30', authorId: 'u1', authorName: '철수', createdAt: '2026-10-04T00:00:00.000Z', reactions: 7, topEmoji: ':ggg:', replyTo: null, laugh: 0 },
+      { id: '27', authorId: 'u1', authorName: '철수', createdAt: '2026-10-04T00:00:00.000Z', reactions: 0, topEmoji: null, replyTo: null, laugh: 0 },
     ]);
     expect(page).toMatchObject({ rawCount: 5, oldestId: '27' });
     expect(JSON.stringify(page)).not.toContain('비밀 내용');
@@ -87,5 +87,32 @@ describe('호출 한도(429) 처리', () => {
     const s2 = sleep();
     await fetchMessagePage('c1', 'tok', {}, { fetchFn: vi.fn(async () => ok({ 'x-ratelimit-remaining': '3', 'x-ratelimit-reset-after': '2.5' })), sleep: s2 });
     expect(s2).not.toHaveBeenCalled();
+  });
+});
+
+describe('답글 대상과 웃음 수', () => {
+  const page = (laugh: boolean | undefined, body: unknown[]) => fetchMessagePage('c1', 'tok', { laugh }, { fetchFn: reply(body) });
+
+  it('답글(type 19)은 대상 메시지 ID를 담고, 일반 메시지는 null', async () => {
+    const { messages } = await page(false, [msg('2', { type: 19, message_reference: { message_id: '1' } }), msg('1')]);
+    expect(messages.map((m) => [m.id, m.replyTo])).toEqual([['2', '1'], ['1', null]]);
+  });
+
+  it('웃음 분석을 켜지 않으면 내용이 와도 읽지 않아 laugh는 항상 0', async () => {
+    const { messages } = await page(false, [msg('1', { content: 'ㅋㅋㅋㅋㅋ' })]);
+    expect(messages[0].laugh).toBe(0);
+    expect((await page(undefined, [msg('1', { content: 'ㅋㅋㅋ' })])).messages[0].laugh).toBe(0);
+  });
+
+  it('웃음 분석을 켜면 ㅋ·ㅎ 글자 수만 세고(상한 30), 결과 어디에도 글 내용이 담기지 않는다', async () => {
+    const out = await page(true, [msg('1', { content: '진짜 ㅋㅋㅋㅋ 웃기네 ㅎㅎ 비밀문장' }), msg('2', { content: 'ㅋ'.repeat(100) }), msg('3', {})]);
+    expect(out.messages.map((m) => m.laugh)).toEqual([6, 30, 0]);
+    expect(JSON.stringify(out)).not.toMatch(/비밀문장|웃기네/);
+  });
+
+  it('countLaugh: 내용이 없으면(권한 없음) 0', () => {
+    expect(countLaugh(undefined)).toBe(0);
+    expect(countLaugh('')).toBe(0);
+    expect(countLaugh('abc')).toBe(0);
   });
 });

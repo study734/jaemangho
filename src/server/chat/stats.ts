@@ -5,6 +5,7 @@ export interface Highlight {
   authorName: string;
   authorUserId: string | null; // 우리 앱에 로그인한 멤버면 프로필 id
   reactions: number;
+  replies: number;
   topEmoji: string | null;
   at: string;
 }
@@ -25,10 +26,12 @@ export async function getChatHighlights(guildId = process.env.DISCORD_GUILD_ID ?
   const sql = await db();
   const [summary, fame, talkers, hours] = await Promise.all([
     sql`select count(*)::int as total from chat_messages where created_at > now() - interval '7 days'`,
-    sql`select m.id, m.channel_id as "channelId", m.author_name as "authorName", m.reactions, m.top_emoji as "topEmoji", m.created_at as at, a."userId" as "userId"
-        from chat_messages m left join account a on a."accountId" = m.author_id and a."providerId" = 'discord'
-        where m.created_at > now() - interval '7 days' and m.reactions > 0
-        order by m.reactions desc, m.created_at desc limit 5`,
+    sql`select * from (
+          select m.id, m.channel_id as "channelId", m.author_name as "authorName", m.reactions, m.top_emoji as "topEmoji", m.created_at as at, a."userId" as "userId",
+                 (select count(*) from chat_messages r where r.reply_to = m.id and r.author_id <> m.author_id)::int as replies
+          from chat_messages m left join account a on a."accountId" = m.author_id and a."providerId" = 'discord'
+          where m.created_at > now() - interval '7 days') x
+        where reactions + replies >= 2 order by reactions + replies desc, at desc limit 5`,
     sql`select max(m.author_name) as name, a."userId" as "userId", count(*)::int as count
         from chat_messages m left join account a on a."accountId" = m.author_id and a."providerId" = 'discord'
         where m.created_at > now() - interval '7 days'
@@ -45,6 +48,7 @@ export async function getChatHighlights(guildId = process.env.DISCORD_GUILD_ID ?
       authorName: r.authorName as string,
       authorUserId: (r.userId as string | null) ?? null,
       reactions: r.reactions as number,
+      replies: r.replies as number,
       topEmoji: (r.topEmoji as string | null) ?? null,
       at: new Date(r.at as string | Date).toISOString(),
     })),

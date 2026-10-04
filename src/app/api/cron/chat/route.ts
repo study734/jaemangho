@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   if (auth.status === 'unconfigured') return Response.json({ error: 'Not configured' }, { status: 503 });
   if (auth.status === 'unauthorized') return Response.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    return Response.json(await syncChat({ token: auth.config.token, guildId: auth.config.guildId }));
+    return Response.json(await syncChat({ token: auth.config.token, guildId: auth.config.guildId, laugh: process.env.CHAT_LAUGH === '1' }));
   } catch (e) {
     return serverError(e);
   }
