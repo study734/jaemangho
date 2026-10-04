@@ -19,7 +19,8 @@ export default defineConfig({
   webServer: {
     command: `node scripts/migrate.mjs && npm run build && npm run start -- -p ${PORT}`,
     url: `${BASE_URL}/login`,
-    reuseExistingServer: !process.env.CI,
+    // 이미 떠 있는 서버(예: DEV_LOGIN=1 개발 서버)를 재사용하면 로그인 보호 시험이 거짓으로 실패/통과한다. 포트가 차 있으면 시작 단계에서 멈춘다.
+    reuseExistingServer: false,
     timeout: 240_000,
     env: { ...(process.env as Record<string, string>), ...E2E_ENV, DATABASE_URL: E2E_DATABASE_URL },
   },
