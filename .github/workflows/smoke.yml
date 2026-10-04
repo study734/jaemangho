@@ -1,0 +1,16 @@
+name: Smoke
+
+# Vercel이 운영 배포를 성공으로 알리면 /api/health를 확인한다. 비밀값은 쓰지 않는다.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      - name: /api/health 확인
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 10 --retry-all-errors --max-time 15 https://jaemangho.vercel.app/api/health
