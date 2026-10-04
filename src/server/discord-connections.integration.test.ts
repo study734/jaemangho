@@ -11,6 +11,7 @@ describe.skipIf(!testDbUrl)('디스코드 연결 -> Steam 멤버 자동 연결 (
 
   const cleanup = async () => {
     await pool.query(`delete from steam_members where steam_id like '7656119300000000_'`);
+    await pool.query(`delete from members where game_name like 'TcRiot%'`);
     await pool.query(`delete from "user" where id like 'tc_%'`);
   };
   const addUser = (id: string, name: string) =>
@@ -52,5 +53,24 @@ describe.skipIf(!testDbUrl)('디스코드 연결 -> Steam 멤버 자동 연결 (
     await link.linkSteamAccounts('tc_a', [{ id: A, name: '연결이름' }], async () => ({ name: '바뀐이름', avatar: null }));
     expect(await owner(A)).toMatchObject({ owner_id: 'tc_a', persona_name: 'Steam이름' });
     await expect(link.linkSteamAccounts('tc_a', [])).resolves.toBeUndefined();
+  });
+
+  it('롤 연결: 새로 등록하고, 같은 Riot ID(대소문자 무시)가 주인 없이 있으면 주인만 채우고, 남의 계정은 가로채지 않는다', async () => {
+    const rows = async (name: string) => (await pool.query(`select owner_id, created_by_name from members where lower(game_name) = lower($1)`, [name])).rows;
+
+    await link.linkRiotAccounts('tc_a', [{ gameName: 'TcRiotNew', tagLine: 'KR1' }]);
+    expect(await rows('TcRiotNew')).toEqual([{ owner_id: 'tc_a', created_by_name: '자동철수' }]);
+
+    await pool.query(`insert into members (id, game_name, tag_line) values ('tc_free', 'TcRiotFree', 'KR1')`);
+    await link.linkRiotAccounts('tc_b', [{ gameName: 'tcriotfree', tagLine: 'kr1' }]);
+    expect(await rows('TcRiotFree')).toEqual([{ owner_id: 'tc_b', created_by_name: null }]); // 같은 행, 주인만 채워짐
+
+    await link.linkRiotAccounts('tc_a', [{ gameName: 'TcRiotFree', tagLine: 'KR1' }]); // 이미 tc_b의 것
+    expect((await rows('TcRiotFree'))[0].owner_id).toBe('tc_b');
+  });
+
+  it('linkConnections는 Steam과 롤을 함께 처리한다', async () => {
+    await link.linkConnections('tc_a', { steam: [], riot: [{ gameName: 'TcRiotBoth', tagLine: 'KR1' }] });
+    expect((await pool.query(`select owner_id from members where game_name = 'TcRiotBoth'`)).rows[0].owner_id).toBe('tc_a');
   });
 });
