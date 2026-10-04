@@ -27,8 +27,8 @@ describe.skipIf(!testDbUrl)('Steam 멤버 목록 (DB)', () => {
 
   it('SteamID로 추가하면 프로필 이름과 함께 목록에 나온다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(profile(ID_A, '철수')));
-    expect(await roster.addSteamMember(ID_A, creator)).toEqual({ steamId: ID_A, name: '철수', avatar: 'http://a/x.jpg' });
-    expect(await roster.listSteamMembers()).toContainEqual({ steamId: ID_A, name: '철수', avatar: 'http://a/x.jpg' });
+    expect(await roster.addSteamMember(ID_A, creator)).toEqual({ steamId: ID_A, name: '철수', avatar: 'http://a/x.jpg', ownerId: null });
+    expect(await roster.listSteamMembers()).toContainEqual({ steamId: ID_A, name: '철수', avatar: 'http://a/x.jpg', ownerId: null });
   });
 
   it('같은 계정을 다시 추가하면 중복으로 거부한다', async () => {

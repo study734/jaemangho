@@ -9,6 +9,8 @@ import {
   addSteamMember,
   listSteamMembers,
   removeSteamMember,
+  setOwnerSchema,
+  setSteamOwner,
   steamIdSchema,
 } from '@/server/steam/roster';
 import { requireUser } from '@/server/viewer';
@@ -38,7 +40,21 @@ export async function POST(request: NextRequest) {
   const body = await parseBody(request, addMemberSchema);
   if (!body.ok) return body.response;
   try {
-    return Response.json(await addSteamMember(body.data.input, user));
+    return Response.json(await addSteamMember(body.data.input, user, body.data.ownerId));
+  } catch (e) {
+    return failure(e);
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = await requireUser();
+  if (user instanceof Response) return user;
+  const body = await parseBody(request, setOwnerSchema);
+  if (!body.ok) return body.response;
+  try {
+    return (await setSteamOwner(body.data.steamId, body.data.ownerId))
+      ? new Response(null, { status: 204 })
+      : Response.json({ error: 'Not found' }, { status: 404 });
   } catch (e) {
     return failure(e);
   }

@@ -19,7 +19,7 @@ describe.skipIf(!testDbUrl)('소환사 목록 (DB)', () => {
 
   it('추가하면 목록에 나오고 등록자가 기록된다', async () => {
     await roster.addToRoster(entry('t_1', 'Faker'), creator);
-    expect(await roster.listRoster()).toContainEqual(entry('t_1', 'Faker'));
+    expect(await roster.listRoster()).toContainEqual(expect.objectContaining(entry('t_1', 'Faker')));
     const { rows } = await pool.query(`select created_by, created_by_name from members where id = 't_1'`);
     expect(rows[0]).toEqual({ created_by: 'creator_1', created_by_name: '등록자' });
   });
@@ -31,7 +31,7 @@ describe.skipIf(!testDbUrl)('소환사 목록 (DB)', () => {
   it('수정할 수 있고, 이미 있는 Riot ID로 바꾸면 중복으로 거부한다', async () => {
     await roster.addToRoster(entry('t_3', 'Other'), creator);
     await roster.updateRoster(entry('t_3', 'Renamed', 'KR2'));
-    expect(await roster.listRoster()).toContainEqual(entry('t_3', 'Renamed', 'KR2'));
+    expect(await roster.listRoster()).toContainEqual(expect.objectContaining(entry('t_3', 'Renamed', 'KR2')));
     await expect(roster.updateRoster(entry('t_3', 'Faker'))).rejects.toBeInstanceOf(roster.DuplicateSummonerError);
   });
 
