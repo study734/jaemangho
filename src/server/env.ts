@@ -13,6 +13,8 @@ const schema = z.object({
   DISCORD_CLIENT_SECRET: z.string().min(1, '비어 있습니다'),
   DISCORD_GUILD_ID: snowflake,
   RIOT_API_KEY: z.string().regex(/^RGAPI-/, 'RGAPI- 로 시작하는 Riot 키여야 합니다'),
+  // 선택: Steam 기능을 쓸 때만 필요하다. 설정했다면 형식을 점검한다.
+  STEAM_API_KEY: z.string().regex(/^[0-9A-Fa-f]{32}$/, '32자리 16진수 Steam 키여야 합니다').or(z.literal('')).optional(),
 });
 
 type Env = Record<string, string | undefined>;

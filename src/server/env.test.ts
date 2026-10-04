@@ -43,4 +43,11 @@ describe('envProblems', () => {
     const text = envProblems({ ...good, DISCORD_GUILD_ID: secretish, RIOT_API_KEY: secretish }).join('\n');
     expect(text).not.toContain(secretish);
   });
+
+  it('STEAM_API_KEY는 선택이지만 설정했다면 형식을 점검한다', () => {
+    expect(envProblems({ ...good })).toEqual([]);
+    expect(envProblems({ ...good, STEAM_API_KEY: '' })).toEqual([]);
+    expect(envProblems({ ...good, STEAM_API_KEY: 'a'.repeat(32) })).toEqual([]);
+    expect(envProblems({ ...good, STEAM_API_KEY: 'nope' }).map((p) => p.split(':')[0])).toEqual(['STEAM_API_KEY']);
+  });
 });
