@@ -6,7 +6,7 @@ export interface NavItem {
   icon: ReactNode;
 }
 
-export type SectionId = 'lol' | 'steam' | 'settings';
+export type SectionId = 'home' | 'lol' | 'steam' | 'settings';
 
 // 상단 메뉴바의 큰 주제와, 각 주제의 좌측 상세 메뉴
 export interface Section {
@@ -14,6 +14,18 @@ export interface Section {
   label: string;
   items: NavItem[];
 }
+
+const HOME: NavItem[] = [
+  {
+    href: '/',
+    label: '홈',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V11z" />
+      </svg>
+    ),
+  },
+];
 
 const LOL: NavItem[] = [
   {
@@ -100,17 +112,20 @@ const ADMIN: NavItem = {
 
 export function sectionsFor(isAdmin: boolean): Section[] {
   return [
+    { id: 'home', label: '홈', items: HOME },
     { id: 'lol', label: '롤', items: LOL },
     { id: 'steam', label: 'Steam', items: STEAM },
     { id: 'settings', label: isAdmin ? '설정 · 관리자' : '설정', items: isAdmin ? [...SETTINGS, ADMIN] : SETTINGS },
   ];
 }
 
+// 새 주제를 추가하려면: 위에 메뉴 목록을 만들고 sectionsFor에 한 줄을 넣고, sectionOf에 주소 규칙을 더한다. 홈 카드는 app/(app)/home.tsx에 추가한다.
 // 주소로 지금 주제를 정한다. 설정(/lol/settings)은 주소가 /lol 아래지만 "설정" 주제에 속한다.
 export function sectionOf(pathname: string): SectionId {
+  if (pathname === '/') return 'home';
   if (pathname.startsWith('/admin') || pathname.startsWith('/lol/settings')) return 'settings';
   if (pathname.startsWith('/steam')) return 'steam';
   return 'lol';
 }
 
-export const isActive = (href: string, pathname: string) => (href === '/lol' ? pathname === '/lol' : pathname.startsWith(href));
+export const isActive = (href: string, pathname: string) => (href === '/lol' || href === '/' ? pathname === href : pathname.startsWith(href));

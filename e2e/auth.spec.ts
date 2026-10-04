@@ -53,7 +53,7 @@ test.describe('일반 사용자', () => {
   test('로그인한 사용자가 /login 에 가면 앱으로 간다', async ({ page, context }) => {
     await loginAs(context, await createUser('user2', 'E2E일반2'));
     await page.goto('/login');
-    await expect(page).toHaveURL(/\/lol$/);
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('로그아웃하면 세션이 삭제되고 다시 앱에 들어갈 수 없다', async ({ page, context }) => {
