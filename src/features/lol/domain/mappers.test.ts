@@ -19,10 +19,12 @@ describe('toRankSummary', () => {
 });
 
 describe('toChampionMastery', () => {
-  it('알려진 ID는 이름으로, 모르는 ID는 Ezreal로 대체한다 (기존 동작 유지)', () => {
+  it('알려진 ID는 이름으로 표시하고 모르는 ID를 다른 챔피언으로 오인하지 않는다', () => {
     const base = { championLevel: 7, championPoints: 100, lastPlayTime: 1 };
     expect(toChampionMastery({ championId: 103, ...base }).championName).toBe('Ahri');
-    expect(toChampionMastery({ championId: 999999, ...base }).championName).toBe('Ezreal');
+    expect(toChampionMastery({ championId: 999999, ...base }).championName).toBe('Unknown');
+    expect(toChampionMastery({ championId: 901, ...base }).championName).toBe('Smolder');
+    expect(toChampionMastery({ championId: 233, ...base }).championName).toBe('Briar');
   });
 });
 

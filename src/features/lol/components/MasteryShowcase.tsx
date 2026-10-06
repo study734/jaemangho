@@ -1,6 +1,8 @@
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { RiotImage } from './RiotImage';
+import { VisualImage } from './VisualImage';
 import React, { useState } from 'react';
 import type { Member, ChampionMastery } from '../types';
 import { getTierColor } from '../mockData';
@@ -100,7 +102,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
         {/* Left: Mastery Leaderboard (크루 통합 장인 리더보드) */}
         <section className="card-base" style={styles.leaderboardCard}>
           <h3 className="heading-3 mastery-leaderboard-title" style={{ color: '#00ed64', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🏆</span> 통합 숙련도 리더보드
+            <VisualImage src="/ui/trophy.svg" width={24} height={24} className="ui-icon" /> 통합 숙련도 리더보드
           </h3>
           
           <div style={styles.tableWrapper}>
@@ -128,8 +130,8 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                     </td>
                     <td style={styles.tdChamp}>
                       <div style={styles.champCell}>
-                        <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${item.mastery.championName}.png`}
+                        <RiotImage
+                          kind="champion" asset={item.mastery.championName}
                           alt={item.mastery.championName}
                           style={styles.champTinyIcon}
                         />
@@ -190,9 +192,9 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
               {/* Card Header */}
               <div style={styles.memberHeader}>
                 <div style={styles.memberHeaderLeft}>
-                  <img 
-                    src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${member.profileIconId}.png`}
-                    alt="profile" 
+                  <RiotImage
+                    kind="profileicon" asset={member.profileIconId}
+                    alt={`${member.gameName} 프로필`}
                     style={styles.profileMini} 
                   />
                   <div>
@@ -221,11 +223,10 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                     <div key={idx} style={styles.masteryItem}>
                       <div style={styles.masteryItemLeft}>
                         <div style={styles.champContainer}>
-                          <img 
-                            src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${item.championName}.png`}
+                          <RiotImage
+                            kind="champion" asset={item.championName}
                             alt={item.championName}
                             style={styles.champPortrait}
-                            onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png"; }}
                           />
                           <span style={styles.masteryNumberBadge}>{idx + 1}</span>
                         </div>

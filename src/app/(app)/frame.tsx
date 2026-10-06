@@ -6,6 +6,7 @@ import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
 import { TopBar } from '@/components/TopBar';
+import { UiIcon } from '@/components/VisualImage';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
 export function Frame({ isAdmin, children }: { isAdmin: boolean; children: ReactNode }) {
@@ -39,7 +40,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
         {onLol && error && (
           <div style={styles.errorBanner}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexGrow: 1 }}>
-              <span>⚠️</span>
+              <UiIcon name="exclamation-triangle" />
               <span>{error}</span>
             </div>
             <button className="btn" style={styles.errorCloseBtn} onClick={dismissError}>
@@ -51,7 +52,8 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
         {onLol && !lolLoading && (
           <div style={styles.syncRow}>
             <button className="btn btn-secondary" style={styles.syncBtn} onClick={() => refreshAll()}>
-              🔄 실시간 데이터 강제 동기화
+              <UiIcon name="arrow-repeat" />
+              실시간 데이터 강제 동기화
             </button>
           </div>
         )}

@@ -24,7 +24,7 @@ export function toRankSummary(entries: LeagueEntryDto[] | null) {
 
 export const toChampionMastery = (m: MasteryDto): ChampionMastery => ({
   championId: m.championId,
-  championName: championName(m.championId, 'Ezreal'),
+  championName: championName(m.championId),
   championLevel: m.championLevel,
   championPoints: m.championPoints,
   lastPlayTime: m.lastPlayTime,
