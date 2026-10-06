@@ -21,11 +21,33 @@ test('화면을 열면 그 화면의 오늘 횟수가 늘고, 프로필은 id와
 });
 
 test('관리자 화면의 화면별 열람 표에 횟수가 보인다', async ({ page, context }) => {
+  await loginAs(context, await createUser('analytics_reader', 'E2E열람자'));
+  const steam = await views('/steam');
+  await page.goto('/steam');
+  await expect.poll(() => views('/steam')).toBe(steam + 1);
+
   const admin = await createUser('analytics_admin', 'E2E집계관리자', 'admin');
   await loginAs(context, admin);
-  await page.goto('/steam');
-  await expect.poll(() => views('/steam')).toBeGreaterThan(0);
   await page.goto('/admin');
   await expect(page.getByRole('heading', { name: '화면별 열람 (최근 7일)' })).toBeVisible();
   await expect(page.getByRole('cell', { name: 'Steam 공통 게임' })).toBeVisible();
+});
+
+test('관리자의 화면 방문과 직접 수집 요청은 열람 횟수를 늘리지 않는다', async ({ page, context }) => {
+  await loginAs(context, await createUser('analytics_excluded_admin', 'E2E제외관리자', 'admin'));
+
+  for (const path of ['/steam', '/people/e2e_analytics_excluded_admin', '/admin']) {
+    const key = path.startsWith('/people/') ? '/people/[id]' : path;
+    const before = await views(key);
+    const tracked = page.waitForResponse((response) =>
+      response.url().endsWith('/api/track') && response.request().postDataJSON()?.path === path
+    );
+    await page.goto(path);
+    expect((await tracked).status()).toBe(204);
+    expect(await views(key)).toBe(before);
+
+    const response = await context.request.post('/api/track', { data: { path } });
+    expect(response.status()).toBe(204);
+    expect(await views(key)).toBe(before);
+  }
 });

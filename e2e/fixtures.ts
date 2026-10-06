@@ -8,6 +8,7 @@ import { E2E_DATABASE_URL, E2E_ENV } from './env';
 export const db = new pg.Pool({ connectionString: E2E_DATABASE_URL, max: 2, idleTimeoutMillis: 1000 });
 
 export async function cleanup() {
+  await db.query(`delete from ops_audit where actor_id like 'e2e_%'`);
   await db.query(`delete from members where id like 'e2e_%' or created_by like 'e2e_%'`);
   await db.query(`delete from "user" where id like 'e2e_%'`); // session/account는 cascade
 }

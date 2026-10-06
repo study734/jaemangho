@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { steamCacheGet, steamCachePut, steamStat } from './cache';
 
 // Steam Web API 클라이언트. 키는 서버에서만 쓰고 어디에도 출력하지 않는다.
 const BASE = 'https://api.steampowered.com';
@@ -15,14 +16,38 @@ export class SteamUpstreamError extends Error {
     this.status = status;
   }
 }
+export class SteamPayloadError extends Error {}
 
-async function call(path: string, params: Record<string, string>): Promise<unknown> {
+const inFlight = new Map<string, Promise<unknown>>();
+
+async function call(path: string, params: Record<string, string>, schema: z.ZodType): Promise<unknown> {
   const key = process.env.STEAM_API_KEY;
   if (!key) throw new SteamNotConfiguredError();
-  const url = `${BASE}${path}?${new URLSearchParams({ key, ...params })}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
-  if (!res.ok) throw new SteamUpstreamError(res.status);
-  return res.json();
+  const cacheKey = `${path}?${new URLSearchParams(params)}`; // API 키는 DB에 저장하지 않는다.
+  const pending = inFlight.get(cacheKey);
+  if (pending) return pending;
+  const work = (async () => {
+    const cached = await steamCacheGet(cacheKey);
+    if (cached !== undefined) {
+      await steamStat('hit');
+      return cached;
+    }
+    await steamStat('miss');
+    try {
+      const url = `${BASE}${path}?${new URLSearchParams({ key, ...params })}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
+      if (!res.ok) throw new SteamUpstreamError(res.status);
+      const body: unknown = await res.json();
+      if (!schema.safeParse(body).success) throw new SteamPayloadError('Steam response schema mismatch');
+      await steamCachePut(cacheKey, body, path.includes('GetOwnedGames') ? 300 : 900);
+      return body;
+    } catch (error) {
+      await steamStat('error', path, error instanceof SteamUpstreamError ? String(error.status) : error instanceof SteamPayloadError ? 'invalid_response' : 'network');
+      throw error;
+    }
+  })();
+  inFlight.set(cacheKey, work);
+  try { return await work; } finally { inFlight.delete(cacheKey); }
 }
 
 // 입력: 17자리 SteamID, steamcommunity.com/profiles/<id>, steamcommunity.com/id/<이름>, 또는 이름만
@@ -44,7 +69,7 @@ const vanitySchema = z.object({ response: z.object({ success: z.number(), steami
 
 export async function resolveSteamId(input: SteamInput): Promise<string | null> {
   if (input.kind === 'id') return input.steamId;
-  const parsed = vanitySchema.safeParse(await call('/ISteamUser/ResolveVanityURL/v1/', { vanityurl: input.vanity }));
+  const parsed = vanitySchema.safeParse(await call('/ISteamUser/ResolveVanityURL/v1/', { vanityurl: input.vanity }, vanitySchema));
   return parsed.success && parsed.data.response.success === 1 ? (parsed.data.response.steamid ?? null) : null;
 }
 
@@ -58,7 +83,7 @@ export interface SteamProfile {
 }
 
 export async function getProfile(steamId: string): Promise<SteamProfile | null> {
-  const parsed = playersSchema.safeParse(await call('/ISteamUser/GetPlayerSummaries/v2/', { steamids: steamId }));
+  const parsed = playersSchema.safeParse(await call('/ISteamUser/GetPlayerSummaries/v2/', { steamids: steamId }, playersSchema));
   const p = parsed.success ? parsed.data.response.players[0] : undefined;
   return p ? { steamId: p.steamid, name: p.personaname, avatar: p.avatarfull ?? null } : null;
 }
@@ -78,7 +103,7 @@ export type Library = { ok: true; games: OwnedGame[] } | { ok: false };
 
 export async function getLibrary(steamId: string): Promise<Library> {
   const parsed = ownedSchema.safeParse(
-    await call('/IPlayerService/GetOwnedGames/v1/', { steamid: steamId, include_appinfo: '1', include_played_free_games: '1' })
+    await call('/IPlayerService/GetOwnedGames/v1/', { steamid: steamId, include_appinfo: '1', include_played_free_games: '1' }, ownedSchema)
   );
   const games = parsed.success ? parsed.data.response.games : undefined;
   if (!games?.length) return { ok: false };

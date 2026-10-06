@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs create",
+    "db:verify-restore": "node --env-file-if-exists=.env.local scripts/backup.mjs verify"
   },
   "dependencies": {
     "axios": "^1.16.1",

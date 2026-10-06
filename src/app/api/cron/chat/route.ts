@@ -1,6 +1,6 @@
 import { serverError } from '@/server/http';
 import { authorizeCron } from '@/server/chat/cron';
-import { syncChat } from '@/server/chat/sync';
+import { runChatSync, SyncBusyError } from '@/server/operations/jobs';
 
 export const maxDuration = 60;
 
@@ -11,8 +11,9 @@ export async function GET(request: Request) {
   if (auth.status === 'unconfigured') return Response.json({ error: 'Not configured' }, { status: 503 });
   if (auth.status === 'unauthorized') return Response.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    return Response.json(await syncChat({ token: auth.config.token, guildId: auth.config.guildId, laugh: process.env.CHAT_LAUGH === '1' }));
+    return Response.json(await runChatSync('scheduled', { token: auth.config.token, guildId: auth.config.guildId, laugh: process.env.CHAT_LAUGH === '1' }));
   } catch (e) {
+    if (e instanceof SyncBusyError) return Response.json({ error: '동기화가 이미 실행 중입니다.' }, { status: 409 });
     return serverError(e);
   }
 }
