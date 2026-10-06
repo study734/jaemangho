@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { TRACKED } from '@/lib/track';
+import { OperationsPanel } from './OperationsPanel';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -119,11 +119,11 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <div>
+        <div style={{ flex: '1 1 260px' }}>
           <h2 className="heading-1" style={styles.title}>관리자 대시보드</h2>
           <p className="subtitle">접속자, 등록 소환사 목록, 시스템 상태를 관리합니다.</p>
         </div>
-        <button className="btn btn-secondary" onClick={load}>새로고침</button>
+        <button className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={load}>새로고침</button>
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
@@ -138,6 +138,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
           </ul>
         </div>
       )}
+
+      <OperationsPanel />
 
       {status && (
         <section style={styles.cards}>
@@ -228,25 +230,6 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
         </section>
       )}
 
-      {status && (
-        <section className="card-base" style={styles.panel}>
-          <h3 className="heading-3" style={styles.panelTitle}>화면별 열람 (최근 7일)</h3>
-          <p style={styles.cardLabel}>누가 열었는지는 저장하지 않고 횟수만 셉니다(한국 시간 기준). 어느 화면이 실제로 쓰이는지 보는 용도입니다.</p>
-          <table style={styles.table}>
-            <thead>
-              <tr><th style={styles.th}>화면</th><th style={styles.th}>오늘</th><th style={styles.th}>7일</th></tr>
-            </thead>
-            <tbody>
-              {status.pageViews.map((v) => (
-                <tr key={v.path}>
-                  <td style={styles.td}>{TRACKED[v.path as keyof typeof TRACKED] ?? v.path}</td><td style={styles.td}>{v.today}</td><td style={styles.td}>{v.week}</td>
-                </tr>
-              ))}
-              {status.pageViews.length === 0 && <tr><td style={styles.td} colSpan={3}>아직 기록이 없습니다.</td></tr>}
-            </tbody>
-          </table>
-        </section>
-      )}
 
       <section className="card-base" style={styles.panel}>
         <h3 className="heading-3" style={styles.panelTitle}>무료 한도 확인</h3>
@@ -299,7 +282,7 @@ const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: numbe
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', minHeight: 0 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1c4558', paddingBottom: '20px' },
+  header: { display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
   title: { color: '#ffffff', letterSpacing: '-1px' },
   error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' },

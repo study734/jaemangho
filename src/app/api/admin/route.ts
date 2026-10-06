@@ -4,6 +4,7 @@ import {
 } from '@/server/admin';
 import { parseBody, serverError } from '@/server/http';
 import { requireAdmin } from '@/server/viewer';
+import { audited } from '@/server/operations/audit';
 
 // 관리자 전용 API. 리소스별 파일을 따로 두지 않고 ?resource= 로 나눈다.
 const unknown = () => Response.json({ error: 'Unknown resource' }, { status: 404 });
@@ -37,11 +38,12 @@ export async function PUT(request: NextRequest) {
   if (id === admin.id) return Response.json({ error: '자기 자신은 차단할 수 없습니다.' }, { status: 400 });
 
   try {
-    if (!(await setBlocked(id, blocked))) {
-      return Response.json({ error: '대상을 찾을 수 없거나 관리자입니다.' }, { status: 404 });
-    }
+    await audited(admin, blocked ? 'user.block' : 'user.unblock', id, async () => {
+      if (!(await setBlocked(id, blocked))) throw new MissingUserError();
+    });
     return Response.json({ id, blocked });
   } catch (e) {
+    if (e instanceof MissingUserError) return Response.json({ error: '대상을 찾을 수 없거나 관리자입니다.' }, { status: 404 });
     return serverError(e);
   }
 }
@@ -53,9 +55,10 @@ export async function POST(request: NextRequest) {
   if (resourceOf(request) !== 'cache') return unknown();
 
   try {
-    return Response.json({ deleted: await purgeRiotCache() });
+    return Response.json(await audited(admin, 'cache.riot.purge', 'riot', async () => ({ deleted: await purgeRiotCache() })));
   } catch (e) {
     return serverError(e);
   }
 }
 
+class MissingUserError extends Error {}

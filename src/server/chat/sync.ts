@@ -33,6 +33,8 @@ export interface SyncResult {
   channels: number;
   messages: number;
   rateLimited: boolean;
+  warnings?: string[];
+  truncated?: boolean;
 }
 
 export async function syncChat(o: SyncOptions): Promise<SyncResult> {
@@ -44,6 +46,7 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const cutoff = syncCutoff(now, latest?.at ? new Date(latest.at as string | Date) : null);
   let total = 0;
   let rateLimited = false;
+  let truncated = false;
 
   for (const channel of channels) {
     let before: string | undefined;
@@ -63,6 +66,7 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
         // 마지막 페이지이거나, 이 페이지의 가장 오래된 메시지가 기간 밖이면 끝
         const oldest = messages.at(-1);
         if (rawCount < pageSize || !oldestId || (oldest && new Date(oldest.createdAt).getTime() < cutoff)) break;
+        if (page === MAX_PAGES - 1) truncated = true;
         before = oldestId;
       }
     } catch (e) {
@@ -74,9 +78,10 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   }
 
   // 개념글 보관함과 지난주 칭호를 갱신한다. 실패해도 동기화 결과는 돌려준다.
-  await recordHighlights(now).catch((e) => console.error('record highlights failed', e));
-  await recordAwards(now).catch((e) => console.error('record awards failed', e));
+  const warnings: string[] = [];
+  await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); console.error('record highlights failed', e); });
+  await recordAwards(now).catch((e) => { warnings.push('awards_failed'); console.error('record awards failed', e); });
 
   await sql`delete from chat_messages where created_at < ${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString()}`;
-  return { channels: channels.length, messages: total, rateLimited };
+  return { channels: channels.length, messages: total, rateLimited, ...(warnings.length ? { warnings } : {}), ...(truncated ? { truncated } : {}) };
 }

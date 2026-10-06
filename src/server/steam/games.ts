@@ -14,7 +14,7 @@ export interface GamesResult {
   excluded: string[];
 }
 
-// ponytail: 요청마다 Steam을 다시 부른다(캐시 없음). 사람이 많아지거나 429가 나면 DB 캐시를 둔다.
+// Steam 클라이언트의 공유 DB 캐시로 게임 목록은 5분간 재사용한다.
 export async function compareGames(ids: string[], mode: 'common' | 'unplayed'): Promise<GamesResult | { unknownIds: string[] }> {
   const unique = [...new Set(ids)];
   const known = new Set(await registeredIds(unique));

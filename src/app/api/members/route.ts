@@ -3,6 +3,7 @@ import { parseBody, serverError } from '@/server/http';
 import { DuplicateSummonerError, addToRoster, listRoster, removeFromRoster, rosterEntrySchema, updateRoster } from '@/server/lol/roster';
 import { requireUser } from '@/server/viewer';
 import { z } from 'zod';
+import { audited } from '@/server/operations/audit';
 
 const failure = (e: unknown) =>
   e instanceof DuplicateSummonerError ? Response.json({ error: e.message }, { status: 409 }) : serverError(e);
@@ -49,7 +50,8 @@ export async function DELETE(request: NextRequest) {
   const id = z.string().regex(/^[\w-]{1,32}$/).safeParse(request.nextUrl.searchParams.get('id'));
   if (!id.success) return Response.json({ error: 'Invalid request' }, { status: 400 });
   try {
-    await removeFromRoster(id.data);
+    if (user.isAdmin) await audited(user, 'member.delete', id.data, () => removeFromRoster(id.data));
+    else await removeFromRoster(id.data);
     return new Response(null, { status: 204 });
   } catch (e) {
     return failure(e);

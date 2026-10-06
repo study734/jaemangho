@@ -54,7 +54,7 @@ test('관리자 화면은 등록 소환사 목록과 등록자, 시스템 상태
   const row = page.getByRole('row', { name: /E2E목록#KR1/ });
   await expect(row).toContainText('E2E관리자2'); // 등록자 이름이 사용자 정보에서 해석된다
   await expect(page.getByText('DB 사용량')).toBeVisible();
-  await expect(page.getByRole('button', { name: '캐시 비우기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '캐시 비우기', exact: true })).toBeVisible();
 });
 
 test('관리자가 등록 소환사를 삭제하면 목록에서 사라진다', async ({ page, context }) => {
@@ -68,4 +68,5 @@ test('관리자가 등록 소환사를 삭제하면 목록에서 사라진다', 
   await row.getByRole('button', { name: '삭제' }).click();
   await expect(row).toHaveCount(0);
   expect((await db.query(`select count(*)::int as n from members where id = 'e2e_m2'`)).rows[0].n).toBe(0);
+  expect((await db.query(`select result from ops_audit where actor_id = $1 and action = 'member.delete' and target = 'e2e_m2' order by id desc limit 1`, [admin.id])).rows[0].result).toBe('success');
 });

@@ -32,3 +32,11 @@ next-env.d.ts
 
 /test-results/
 /playwright-report/
+
+# 운영 백업과 감시 상태 (개인정보와 알림 상태를 저장소에 넣지 않는다)
+/backups/
+/.ops-monitor/
+*.dump
+*.backup
+/output/playwright/
+/.playwright-cli/

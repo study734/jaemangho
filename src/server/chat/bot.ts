@@ -45,6 +45,7 @@ const MAX_ATTEMPTS = 4;
 async function get(path: string, token: string, net: Net): Promise<unknown> {
   const { fetchFn = fetch, sleep = realSleep, deadline = Infinity } = net;
   for (let attempt = 1; ; attempt++) {
+    if (Date.now() >= deadline) throw new DiscordRateLimitedError();
     const res = await fetchFn(`${DISCORD}${path}`, { headers: { Authorization: `Bot ${token}` }, signal: AbortSignal.timeout(8000) });
     if (res.status === 429) {
       const body = (await res.json().catch(() => ({}))) as { retry_after?: number };
