@@ -90,7 +90,18 @@ test('모바일에서 메뉴와 주요 행동을 쓸 수 있고 본문이 넘치
   await page.goto('/');
   await expect(page.getByRole('link', { name: '같이 할 게임 찾기', exact: true })).toBeVisible();
   await expect.poll(() => page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' }).evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const width of [320, 390, 768, 1024]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const covers = page.locator('.game-cover-grid');
+    expect(await covers.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const logout = await page.getByRole('button', { name: '로그아웃' }).boundingBox();
+    expect(logout!.height).toBeGreaterThanOrEqual(44);
+    const picture = await page.locator('.jaesuni-visual').boundingBox();
+    const copy = await page.locator('.jaesuni-copy').boundingBox();
+    expect(copy!.y).toBeGreaterThanOrEqual(picture!.y + picture!.height);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await mkdir('output/playwright', { recursive: true });
   await page.screenshot({ path: 'output/playwright/home-option1-mobile.png', fullPage: true });
   const nav = page.getByRole('navigation', { name: '주제' });
@@ -100,10 +111,14 @@ test('모바일에서 메뉴와 주요 행동을 쓸 수 있고 본문이 넘치
 
 test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 수 있다', async ({ page, context }) => {
   await loginAs(context, await createUser('image_design', '오늘도듀오'));
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.route(/\/_next\/image\?.*jaesuni-home/, (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
   await expect(page.getByText('왔네! 마침 보여줄 거 있었는데.')).toBeVisible();
+  const hero = await page.locator('.jaesuni-hero').boundingBox();
+  const title = await page.getByRole('heading', { level: 1 }).boundingBox();
+  expect(title!.y - hero!.y).toBeLessThan(160);
   await page.getByRole('link', { name: '같이 할 게임 찾기', exact: true }).click();
   await expect(page).toHaveURL(/\/steam$/);
 });

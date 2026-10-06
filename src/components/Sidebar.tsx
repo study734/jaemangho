@@ -22,7 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
   const pathname = usePathname();
   const section = sectionsFor(isAdmin).find((s) => s.id === sectionOf(pathname))!;
   return (
-    <aside className="detail-sidebar" style={styles.sidebar}>
+    <aside className={`detail-sidebar${section.items.length === 1 ? ' detail-sidebar-single' : ''}`} style={styles.sidebar}>
       <div style={styles.sectionTitle}>{section.label}</div>
 
       <nav style={styles.nav}>

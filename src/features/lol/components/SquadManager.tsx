@@ -139,7 +139,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
+      <header style={styles.header} className="squad-heading">
         <div>
           <h2 className="heading-1" style={styles.title}>소환사 관리</h2>
           <p className="subtitle">
@@ -167,7 +167,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
             라이엇 소환사 검색 및 추가
           </h3>
           
-          <div style={styles.formRow}>
+          <div style={styles.formRow} className="responsive-form-grid">
             <div style={styles.formGroup}>
               <label style={styles.label}>소환사명</label>
               <input 
@@ -328,7 +328,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
 
           {showAdvanced && (
             <form onSubmit={handleSubmitManual}>
-              <div style={styles.formRow}>
+              <div style={styles.formRow} className="responsive-form-grid">
                 <div style={styles.formGroup}>
                   <label style={styles.label}>소환사 레벨</label>
                   <input 
@@ -364,7 +364,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                 </div>
               </div>
 
-              <div style={styles.formRow}>
+              <div style={styles.formRow} className="responsive-form-grid">
                 <div style={styles.formGroup}>
                   <label style={styles.label}>리그 포인트 (LP)</label>
                   <input 
@@ -565,7 +565,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
 
 const styles = {
   container: {
-    padding: '32px',
+    padding: 'var(--page-padding)',
     flexGrow: 1,
     display: 'flex',
     flexDirection: 'column' as const,
@@ -579,6 +579,7 @@ const styles = {
     alignItems: 'center',
     borderBottom: '1px solid #1c4558',
     paddingBottom: '20px',
+    gap: '16px',
   },
   title: {
     color: '#ffffff',
@@ -612,7 +613,7 @@ const styles = {
   },
   cardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
     gap: '24px',
     alignItems: 'start',
   },

@@ -64,7 +64,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
 }
 
 const styles: { [key: string]: CSSProperties } = {
-  appContainer: { display: 'flex', width: '100%', height: '100vh', overflow: 'hidden' },
+  appContainer: { display: 'flex', width: '100%', height: '100dvh', overflow: 'hidden' },
   body: { display: 'flex', flexGrow: 1, minHeight: 0, minWidth: 0 },
   mainPane: {
     flexGrow: 1,
@@ -87,7 +87,7 @@ const styles: { [key: string]: CSSProperties } = {
     justifyContent: 'center',
     zIndex: 5,
   },
-  syncRow: { padding: '16px 32px 0 32px', display: 'flex', justifyContent: 'flex-end' },
+  syncRow: { padding: '16px var(--page-padding) 0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 },
   syncBtn: { fontSize: '12.5px', padding: '6px 14px' },
   errorBanner: {
     backgroundColor: '#fff8e0',

@@ -394,7 +394,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    padding: '32px',
+    padding: 'var(--page-padding)',
     flexGrow: 1,
     display: 'flex',
     flexDirection: 'column' as const,

@@ -83,8 +83,11 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
       </div>
 
       <section style={styles.panel}>
-        <form onSubmit={add} style={styles.addRow}>
+        <label htmlFor="steam-profile-input" style={styles.hint}>Steam 프로필</label>
+        <form onSubmit={add} style={styles.addRow} className="steam-add-row">
           <input
+            id="steam-profile-input"
+            aria-describedby="steam-profile-help"
             className="text-input"
             style={{ flexGrow: 1 }}
             placeholder="Steam 프로필 주소, 이름 또는 17자리 ID"
@@ -97,6 +100,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
             {busy === 'add' ? '찾는 중...' : '추가'}
           </button>
         </form>
+        <p id="steam-profile-help" style={styles.hint}>프로필 주소나 이름, 17자리 ID를 입력해요.</p>
 
         {members.length === 0 ? (
           <p style={styles.hint}>아직 등록된 사람이 없습니다.</p>
@@ -117,7 +121,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
           </ul>
         )}
 
-        <div style={styles.addRow}>
+        <div style={styles.addRow} className="steam-compare-row">
           <select className="text-input" value={mode} onChange={(e) => setMode(e.target.value as Mode)} aria-label="찾을 게임 종류">
             <option value="common">모두가 가진 게임</option>
             <option value="unplayed">모두 가졌지만 아무도 안 해 본 게임</option>
@@ -162,20 +166,20 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
 }
 
 const styles = {
-  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
+  container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
   header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   hint: { color: 'var(--slate)', fontSize: '13px' },
   warn: { color: 'var(--accent-pink)', fontSize: '13px' },
   error: { backgroundColor: '#fff8e0', color: '#946f3f', border: '1px solid #fa6e39', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
-  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
+  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
   addRow: { display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' as const },
   btn: { padding: '8px 20px' },
   memberList: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const, gap: '8px' },
-  member: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--ink)' },
-  memberLabel: { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' },
+  member: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', color: 'var(--ink)' },
+  memberLabel: { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1, minWidth: 0, overflowWrap: 'anywhere' as const, minHeight: '44px' },
   avatar: { borderRadius: '50%' },
-  removeBtn: { fontSize: '12px', padding: '4px 10px' },
+  removeBtn: { fontSize: '12px', padding: '4px 10px', flexShrink: 0, whiteSpace: 'nowrap' as const, minWidth: '44px' },
   gameList: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const },
   game: { display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--hairline)', color: 'var(--ink)', fontSize: '14px' },
   time: { color: 'var(--slate)', whiteSpace: 'nowrap' as const, marginLeft: '16px' },
