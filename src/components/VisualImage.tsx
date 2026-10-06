@@ -16,6 +16,6 @@ export function ServiceMark({ service, size = 32 }: { service: 'steam' | 'league
   return <VisualImage src={`/brands/${service}.svg`} width={size} height={size} className="service-mark" />;
 }
 
-export function UiIcon({ name, size = 18 }: { name: 'search' | 'arrow-right' | 'controller' | 'people' | 'star' | 'house-door' | 'gear' | 'box-arrow-up-right'; size?: number }) {
+export function UiIcon({ name, size = 18 }: { name: 'search' | 'arrow-right' | 'controller' | 'people' | 'star' | 'house-door' | 'gear' | 'box-arrow-up-right' | 'arrow-repeat' | 'exclamation-triangle'; size?: number }) {
   return <VisualImage src={`/ui/${name}.svg`} width={size} height={size} className="ui-icon" />;
 }

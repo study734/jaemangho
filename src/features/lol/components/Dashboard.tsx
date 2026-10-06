@@ -1,5 +1,6 @@
 'use client';
 
+import { RiotImage } from './RiotImage';
 import React, { useState } from 'react';
 import type { Member } from '../types';
 import { getTierColor, getTierLabelKR, getTierOrder, getRankOrder } from '../mockData';
@@ -96,9 +97,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                     {/* Game Meta */}
                     <div style={styles.activeGameMeta}>
                       <div style={styles.activeGameUser}>
-                        <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${member.profileIconId}.png`} 
-                          alt="profile" 
+                        <RiotImage
+                          kind="profileicon" asset={member.profileIconId}
+                          alt={`${member.gameName} 프로필`}
                           style={styles.profileIconMini} 
                         />
                         <div>
@@ -116,14 +117,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                     {/* Champion & Spec */}
                     <div style={styles.activeGameContent}>
                       <div style={styles.champDisplay}>
-                        <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${game.championName}.png`} 
+                        <RiotImage
+                          kind="champion" asset={game.championName}
                           alt={game.championName} 
-                          style={styles.champPortraitLarge} 
-                          onError={(e) => {
-                            // Fallback if champion name doesn't match Riot CDN perfectly
-                            (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png";
-                          }}
+                          style={styles.champPortraitLarge}
                         />
                         <div style={styles.champInfo}>
                           <span style={styles.champLabel}>플레이 챔피언</span>
@@ -139,11 +136,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                           <div style={styles.teamPlayersList}>
                             {game.teamPlayers.filter(p => p.isAlly).map((p, idx) => (
                               <div key={idx} style={styles.activeTeamPlayer}>
-                                <img 
-                                  src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${p.championName}.png`}
+                                <RiotImage
+                                  kind="champion" asset={p.championName}
                                   alt={p.championName} 
-                                  style={styles.champTiny} 
-                                  onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png"; }}
+                                  style={styles.champTiny}
                                 />
                                 <span style={p.gameName === member.gameName ? styles.highlightedAllyName : styles.teamPlayerName} title={p.gameName}>
                                   {p.gameName}
@@ -158,11 +154,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                           <div style={styles.teamPlayersList}>
                             {game.teamPlayers.filter(p => !p.isAlly).map((p, idx) => (
                               <div key={idx} style={styles.activeTeamPlayer}>
-                                <img 
-                                  src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${p.championName}.png`}
+                                <RiotImage
+                                  kind="champion" asset={p.championName}
                                   alt={p.championName} 
                                   style={styles.champTiny}
-                                  onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png"; }}
                                 />
                                 <span style={styles.teamPlayerName} title={p.gameName}>
                                   {p.gameName}
@@ -226,9 +221,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                       </td>
                       <td>
                         <div style={styles.tableUserCell}>
-                          <img 
-                            src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${member.profileIconId}.png`} 
-                            alt="profile" 
+                          <RiotImage
+                            kind="profileicon" asset={member.profileIconId}
+                            alt={`${member.gameName} 프로필`}
                             style={styles.profileIconTiny} 
                           />
                           <div>
@@ -273,9 +268,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
             {/* Modal Header */}
             <div style={styles.modalHeader}>
               <div style={styles.modalUserBox}>
-                <img 
-                  src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${selectedPlayer.profileIconId}.png`} 
-                  alt="icon" 
+                <RiotImage
+                  kind="profileicon" asset={selectedPlayer.profileIconId}
+                  alt={`${selectedPlayer.gameName} 프로필`}
                   style={styles.modalProfileIcon} 
                 />
                 <div>
@@ -291,8 +286,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                   </div>
                 </div>
               </div>
-              <button style={styles.modalCloseBtn} onClick={() => setSelectedPlayer(null)}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <button style={styles.modalCloseBtn} aria-label="상세 닫기" onClick={() => setSelectedPlayer(null)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
@@ -332,11 +327,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                         {/* Champ & KDA */}
                         <div style={styles.matchChampColumn}>
                           <div style={styles.matchChampPortraitWrapper}>
-                            <img 
-                              src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${match.championName}.png`} 
+                            <RiotImage
+                              kind="champion" asset={match.championName}
                               alt={match.championName} 
                               style={styles.matchChampPortrait}
-                              onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png"; }}
                             />
                             <span style={styles.matchChampNameLabel}>{match.championName}</span>
                           </div>
@@ -365,14 +359,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                             return (
                               <div key={itemIdx} style={styles.matchItemSlot}>
                                 {itemId && itemId > 0 ? (
-                                  <img 
-                                    src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/item/${itemId}.png`} 
-                                    alt="item" 
+                                  <RiotImage
+                                    kind="item" asset={itemId}
+                                    alt={`아이템 ${itemId}`}
                                     style={styles.itemImage}
-                                    onError={(e) => {
-                                      // Render a generic block if item image fails to load
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
                                   />
                                 ) : null}
                               </div>
@@ -587,9 +577,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '6px',
   },
   champTiny: {
-    width: '18px',
-    height: '18px',
-    borderRadius: '3px',
+    width: '24px',
+    height: '24px',
+    borderRadius: '4px',
   },
   teamPlayerName: {
     fontSize: '12px',

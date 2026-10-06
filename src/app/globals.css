@@ -600,6 +600,7 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
 .btn { min-height: 44px; }
 .app-navigation { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 28px 12px 16px; background: var(--canvas-dark); border-right: 1px solid var(--hairline); }
 .app-brand { display: flex; flex-direction: column; padding: 0 12px; color: var(--ink); font-size: 22px; font-weight: 750; text-decoration: none; }
+.app-brand-name { display: flex; align-items: center; gap: 8px; }
 .app-brand span { margin-top: 4px; font-size: 10px; letter-spacing: 2px; color: var(--slate); }
 .app-topic-nav { display: flex; flex-direction: column; gap: 8px; }
 .app-topic { justify-content: flex-start; gap: 12px; border-radius: 8px; padding: 12px 16px; white-space: nowrap; }
