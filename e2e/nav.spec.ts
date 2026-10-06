@@ -10,7 +10,7 @@ test('홈은 사이드바 없이 주제 카드를 보여주고, 카드로 각 �
   await expect(page.getByText('E2E홈님, 오늘은 뭘 같이 할까요?')).toBeVisible();
   await expect(page.locator('aside')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '롤' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Steam' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Steam 공통 게임 찾기' })).toBeVisible();
   await page.getByRole('link', { name: '공통 게임 찾기' }).click();
   await expect(page).toHaveURL(/\/steam$/);
 });

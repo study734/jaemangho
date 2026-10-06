@@ -22,7 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
   const pathname = usePathname();
   const section = sectionsFor(isAdmin).find((s) => s.id === sectionOf(pathname))!;
   return (
-    <aside style={styles.sidebar}>
+    <aside className="detail-sidebar" style={styles.sidebar}>
       <div style={styles.sectionTitle}>{section.label}</div>
 
       <nav style={styles.nav}>
@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
 
       {/* 롤 데이터 요약은 롤 주제에서만 보인다 */}
       {section.id === 'lol' && (
-        <div style={styles.summaryContainer}>
+        <div className="sidebar-summary" style={styles.summaryContainer}>
           <div style={styles.summaryTitle}>요약 정보</div>
           {summary.map((row) => (
             <div key={row.label} style={styles.summaryItem}>
@@ -66,9 +66,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
 
 const styles = {
   sidebar: {
-    width: '260px',
-    backgroundColor: '#001e2b',
-    borderRight: '1px solid #1c4558',
+    width: '220px',
+    backgroundColor: 'var(--canvas-dark)',
+    borderRight: '1px solid var(--hairline)',
     padding: '24px 16px',
     display: 'flex',
     flexDirection: 'column' as const,
@@ -76,7 +76,7 @@ const styles = {
     zIndex: 10,
   },
   sectionTitle: {
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     fontSize: '11px',
     fontWeight: 700,
     textTransform: 'uppercase' as const,
@@ -106,8 +106,8 @@ const styles = {
     fontWeight: 500,
   },
   summaryContainer: {
-    backgroundColor: 'rgba(14, 53, 71, 0.5)',
-    border: '1px solid #143747',
+    backgroundColor: 'var(--surface)',
+    border: '1px solid var(--hairline-soft)',
     borderRadius: '10px',
     padding: '14px',
     marginBottom: '20px',
@@ -117,7 +117,7 @@ const styles = {
     fontWeight: 700,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.8px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     marginBottom: '10px',
   },
   summaryItem: {
@@ -128,21 +128,21 @@ const styles = {
     fontSize: '13px',
   },
   summaryLabel: {
-    color: '#a8b3bc',
+    color: 'var(--slate)',
   },
   summaryValue: {
     fontWeight: 600,
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   summaryValueActive: {
     fontWeight: 600,
-    color: '#00ed64',
+    color: 'var(--primary)',
     display: 'flex',
     alignItems: 'center',
   },
   summaryValueTop: {
     fontWeight: 600,
-    color: '#ffb703',
+    color: 'var(--accent-pink)',
     maxWidth: '120px',
     overflow: 'hidden',
     textOverflow: 'ellipsis',

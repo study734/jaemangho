@@ -38,5 +38,8 @@ describe.skipIf(!testDbUrl)('홈 피드 (DB)', () => {
     ]);
     expect(people.some((p) => p.name === '홈차단')).toBe(false);
     expect(people.some((p) => p.name === '홈철수')).toBe(true);
+    expect(people.find((p) => p.name === '홈철수')?.image).toBeNull();
+    await pool.query(`update "user" set image = 'https://cdn.discordapp.com/avatars/test/avatar.png' where id = 'th_a'`);
+    expect((await home.getHomeFeed()).people.find((p) => p.id === 'th_a')?.image).toBe('https://cdn.discordapp.com/avatars/test/avatar.png');
   });
 });
