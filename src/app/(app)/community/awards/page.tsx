@@ -56,7 +56,7 @@ export default async function AwardsPage() {
 }
 
 const styles = {
-  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
+  container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
   header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
   title: { color: '#ffffff', letterSpacing: '-1px' },
   hint: { color: '#a8b3bc', fontSize: '13px' },

@@ -132,7 +132,7 @@ export function Profile({ person, unowned, topGames, awards }: {
 }
 
 const styles = {
-  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
+  container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
   header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' },
   avatar: { borderRadius: '50%', backgroundColor: '#1c4558', display: 'inline-block' },
   title: { color: '#ffffff', letterSpacing: '-1px' },

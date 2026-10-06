@@ -167,7 +167,7 @@ const styles = {
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   hint: { color: 'var(--slate)', fontSize: '14px' },
   side: { display: 'flex', flexDirection: 'column' as const, gap: '24px', minWidth: 0 },
-  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
+  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
   panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const },
   row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--hairline)', fontSize: '14px', color: 'var(--ink)' },

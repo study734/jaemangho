@@ -13,7 +13,7 @@ export function HomeCard({ title, subtitle, className, icon, href, cta, children
 }
 
 const styles = {
-  card: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
+  card: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
   title: { color: 'var(--ink)' },
   body: { flexGrow: 1, minWidth: 0, color: 'var(--slate)', fontSize: '14px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
   cta: { alignSelf: 'flex-start', padding: '8px 16px', fontSize: '13px' },

@@ -101,7 +101,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
       <div style={styles.topSection}>
         {/* Left: Mastery Leaderboard (크루 통합 장인 리더보드) */}
         <section className="card-base" style={styles.leaderboardCard}>
-          <h3 className="heading-3" style={{ color: '#00ed64', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 className="heading-3 mastery-leaderboard-title" style={{ color: '#00ed64', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <VisualImage src="/ui/trophy.svg" width={24} height={24} className="ui-icon" /> 통합 숙련도 리더보드
           </h3>
           
@@ -182,7 +182,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
       </div>
 
       {/* Grid: Crew Mastery Showdown Cards */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '20px' }}>
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px, 100%), 1fr))', gap: '20px' }}>
         {filteredMembers.map(member => {
           const topChamps = member.championMasteries || [];
           return (
@@ -255,7 +255,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
 
 const styles: { [key: string]: any } = {
   container: {
-    padding: '32px',
+    padding: 'var(--page-padding)',
     flexGrow: 1,
     display: 'flex',
     flexDirection: 'column' as const,
@@ -283,13 +283,17 @@ const styles: { [key: string]: any } = {
   },
   tableWrapper: {
     overflowX: 'auto' as const,
+    minWidth: 0,
+    maxWidth: '100%',
   },
   table: {
     width: '100%',
+    minWidth: '520px',
     borderCollapse: 'collapse' as const,
     textAlign: 'left' as const,
   },
   th: {
+    whiteSpace: 'nowrap',
     color: '#7c8c9a',
     fontSize: '11px',
     fontWeight: 700,
