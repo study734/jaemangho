@@ -34,6 +34,8 @@ npm run db:migrate # migrations/ 적용
 4. 지역: 계정 조회는 `asia`, 나머지는 `kr`.
 
 ## Git 흐름
+- 작업을 시작하기 전에 `git status`로 로컬 변경을 확인하고 반드시 `git fetch origin`을 실행한다. 현재 브랜치의 upstream과 작업 기준인 `origin/main`을 비교해 받을 커밋이 있으면 먼저 pull하여 반영한 뒤 작업한다. upstream이 없는 작업 브랜치는 `origin/main`을 기준으로 확인한다.
+- 단순히 뒤처진 경우 `git pull --ff-only`를 사용한다(upstream이 없으면 `git pull --ff-only origin main`). 로컬 변경은 먼저 보존하고, 이력이 갈라져 fast-forward가 불가능하면 기존 커밋을 보존해 merge/rebase로 통합하고 충돌을 해결한다. fetch/pull 실패를 무시한 채 최신이라고 가정하거나 작업을 시작하지 않는다. 다른 작업의 worktree나 보호된 main에 직접 변경을 가하지 않는다.
 - `main`은 보호돼 있다. 브랜치에서 작업하고 PR을 올리며, CI(`check`, `e2e`)가 통과해야 머지된다. main에 직접 푸시하지 않는다.
 - PR은 하나의 주제만 담는다. 커밋 메시지는 `feat:`, `fix:`, `chore:`, `test:`, `refactor:` 접두사를 쓴다.
 - 비밀 값(`.env*`, 키, 토큰)을 커밋하거나 대화·PR 본문에 적지 않는다.
