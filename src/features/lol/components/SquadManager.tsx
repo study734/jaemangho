@@ -1,5 +1,6 @@
 'use client';
 
+import { RiotImage } from './RiotImage';
 import React, { useState } from 'react';
 import type { Member } from '../types';
 import { getTierColor, getTierLabelKR } from '../mockData';
@@ -240,9 +241,9 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
               </h4>
               
               <div style={styles.previewContainer}>
-                <img 
-                  src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${searchedProfile.profileIconId}.png`} 
-                  alt="icon" 
+                <RiotImage
+                  kind="profileicon" asset={searchedProfile.profileIconId}
+                  alt={`${searchedProfile.gameName} 프로필`}
                   style={styles.previewIcon} 
                 />
                 <div style={styles.previewMainInfo}>
@@ -281,11 +282,10 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                   <div style={{ display: 'flex', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
                     {searchedProfile.championMasteries.map((m, idx) => (
                       <div key={idx} style={styles.previewMasteryItem}>
-                        <img 
-                          src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/${m.championName}.png`}
+                        <RiotImage
+                          kind="champion" asset={m.championName}
                           alt={m.championName}
                           style={styles.previewMasteryIcon}
-                          onError={(e) => { (e.target as HTMLImageElement).src = "https://ddragon.leagueoflegends.com/cdn/13.24.1/img/champion/Ezreal.png"; }}
                         />
                         <div style={{ fontSize: '11.5px', color: '#ffffff', fontWeight: 600 }}>{m.championName}</div>
                         <div style={{ fontSize: '10px', color: '#7c8c9a' }}>Lvl {m.championLevel}</div>
@@ -415,9 +415,9 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
               {/* Member Profile Card Title */}
               <div style={styles.cardHeader}>
                 <div style={styles.userBox}>
-                  <img 
-                    src={`https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${member.profileIconId}.png`} 
-                    alt="icon" 
+                  <RiotImage
+                    kind="profileicon" asset={member.profileIconId}
+                    alt={`${member.gameName} 프로필`}
                     style={styles.profileIcon} 
                   />
                   <div>

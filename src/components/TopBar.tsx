@@ -12,7 +12,10 @@ export function TopBar({ isAdmin }: { isAdmin: boolean }) {
   const current = sectionOf(pathname);
   return (
     <header className="app-navigation">
-      <Link href="/" className="app-brand">재망호<span>JAEMANGHO</span></Link>
+      <Link href="/" className="app-brand">
+        <div className="app-brand-name"><img src="/favicon.svg" width="24" height="24" alt="" aria-hidden="true" />재망호</div>
+        <span>JAEMANGHO</span>
+      </Link>
       <nav className="app-topic-nav" aria-label="주제">
         {sectionsFor(isAdmin).map((s) => (
           <Link key={s.id} href={s.items[0].href} className={`btn btn-ghost app-topic ${s.id === current ? 'btn-ghost-active' : ''}`} aria-current={s.id === current ? 'page' : undefined}>
