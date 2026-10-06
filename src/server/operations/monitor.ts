@@ -26,13 +26,13 @@ export function findings(input: MonitorInput, now = Date.now()): Finding[] {
       result.push({ key: 'chat.interrupted', title: '채팅 동기화 실행이 중단된 것으로 보입니다. 재실행하세요.', severity: 'warning' });
   }
   if (input.riot.some((r) => [401, 403].includes(r.status) && r.count > 0))
-    result.push({ key: 'riot.key', title: '최근 15분간 Riot 인증 오류가 발생했습니다. 키를 확인하세요.', severity: 'critical' });
+    result.push({ key: 'riot.key', title: '최근 30분간 Riot 인증 오류가 발생했습니다. 키를 확인하세요.', severity: 'critical' });
   if (input.riot.filter((r) => r.status === 429).reduce((n, r) => n + r.count, 0) >= 5)
-    result.push({ key: 'riot.limit', title: '최근 15분간 Riot 호출 제한이 반복되었습니다.', severity: 'warning' });
+    result.push({ key: 'riot.limit', title: '최근 30분간 Riot 호출 제한이 반복되었습니다.', severity: 'warning' });
   if (input.riot.filter((r) => r.status >= 500).reduce((n, r) => n + r.count, 0) >= 3)
-    result.push({ key: 'riot.upstream', title: '최근 15분간 Riot 서버 오류가 반복되었습니다.', severity: 'warning' });
+    result.push({ key: 'riot.upstream', title: '최근 30분간 Riot 서버 오류가 반복되었습니다.', severity: 'warning' });
   if (input.steamErrors >= 3)
-    result.push({ key: 'steam.upstream', title: '최근 15분간 Steam 요청 오류가 반복되었습니다.', severity: 'warning' });
+    result.push({ key: 'steam.upstream', title: '최근 30분간 Steam 요청 오류가 반복되었습니다.', severity: 'warning' });
   return result;
 }
 
@@ -75,8 +75,8 @@ export async function checkOperations() {
     const [lastSuccess, latest, riot, steam] = await Promise.all([
       sql`select max(finished_at) as at from ops_jobs where job = 'chat' and status = 'success'`,
       sql`select status, started_at as "startedAt" from ops_jobs where job = 'chat' order by started_at desc limit 1`,
-      sql`select status, count(*)::int as count from riot_errors where at > now() - interval '15 minutes' group by status`,
-      sql`select count(*)::int as count from steam_errors where at > now() - interval '15 minutes'`,
+      sql`select status, count(*)::int as count from riot_errors where at > now() - interval '30 minutes' group by status`,
+      sql`select count(*)::int as count from steam_errors where at > now() - interval '30 minutes'`,
     ]);
     const current = findings({
       envProblems: envProblems().length, chatEnabled: chatConfigured(),
