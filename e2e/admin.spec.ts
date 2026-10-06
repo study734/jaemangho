@@ -16,6 +16,7 @@ test('관리자는 대시보드에서 접속자를 보고 차단/해제할 수 �
   await expect(page.getByRole('heading', { name: '관리자 대시보드' })).toBeVisible();
 
   // 접속자 목록: 관리자 배지, 디스코드 핸들
+  await page.getByRole('tab', { name: '사용자' }).click();
   const adminRow = page.getByRole('row', { name: /E2E관리자/ });
   await expect(adminRow).toContainText('관리자');
   await expect(adminRow.getByRole('button')).toHaveCount(0); // 관리자는 차단 버튼이 없다
@@ -51,9 +52,11 @@ test('관리자 화면은 등록 소환사 목록과 등록자, 시스템 상태
   await loginAs(context, admin);
 
   await page.goto('/admin');
+  await expect(page.getByText('DB 사용량')).toBeVisible(); // 개요 탭
+  await page.getByRole('tab', { name: '사용자' }).click();
   const row = page.getByRole('row', { name: /E2E목록#KR1/ });
   await expect(row).toContainText('E2E관리자2'); // 등록자 이름이 사용자 정보에서 해석된다
-  await expect(page.getByText('DB 사용량')).toBeVisible();
+  await page.getByRole('tab', { name: '연동' }).click();
   await expect(page.getByRole('button', { name: '캐시 비우기', exact: true })).toBeVisible();
 });
 
@@ -64,6 +67,7 @@ test('관리자가 등록 소환사를 삭제하면 목록에서 사라진다', 
   page.on('dialog', (dialog) => dialog.accept());
 
   await page.goto('/admin');
+  await page.getByRole('tab', { name: '사용자' }).click();
   const row = page.getByRole('row', { name: /E2E삭제대상#KR2/ });
   await row.getByRole('button', { name: '삭제' }).click();
   await expect(row).toHaveCount(0);

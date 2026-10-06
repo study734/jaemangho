@@ -29,6 +29,7 @@ test('관리자 화면의 화면별 열람 표에 횟수가 보인다', async ({
   const admin = await createUser('analytics_admin', 'E2E집계관리자', 'admin');
   await loginAs(context, admin);
   await page.goto('/admin');
+  await page.getByRole('tab', { name: '기록' }).click();
   await expect(page.getByRole('heading', { name: '화면별 열람 (최근 7일)' })).toBeVisible();
   await expect(page.getByRole('cell', { name: 'Steam 공통 게임' })).toBeVisible();
 });

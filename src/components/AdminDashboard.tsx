@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { OperationsPanel } from './OperationsPanel';
+import { adminStyles, Panel, ScrollTable } from './AdminUi';
+import { AuditPanel, BackupNote, ChatSyncPanel, OpsNotice, OpsStatusPanel, SteamPanel, ViewAnalytics, useOperations } from './OperationsPanel';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -38,6 +39,14 @@ interface Props {
 
 // Neon 무료 플랜 저장 용량: 프로젝트당 1GB (neon.com/docs/introduction/plans, neon.com/faqs/free-plan-limits-and-quotas 에서 확인).
 const DB_LIMIT_BYTES = 1024 * 1024 * 1024;
+
+type TabId = 'overview' | 'people' | 'integrations' | 'records';
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'overview', label: '개요' },
+  { id: 'people', label: '사용자' },
+  { id: 'integrations', label: '연동' },
+  { id: 'records', label: '기록' },
+];
 
 const hitRate = (d: { hits: number; misses: number }) =>
   d.hits + d.misses === 0 ? '-' : `${Math.round((d.hits / (d.hits + d.misses)) * 100)}%`;
@@ -116,6 +125,20 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
     }
   };
 
+  const ops = useOperations();
+  const [tab, setTab] = useState<TabId>('overview');
+  const activeAlerts = ops.data?.alerts.filter((a) => a.active).length ?? 0;
+  const attention = activeAlerts + (status?.envProblems.length ?? 0);
+
+  const onTabKey = (e: React.KeyboardEvent, index: number) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = TABS[(index + step + TABS.length) % TABS.length].id;
+    setTab(next);
+    document.getElementById(`admin-tab-${next}`)?.focus();
+  };
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -127,145 +150,162 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       </header>
 
       {error && <div style={styles.error}>{error}</div>}
+      <OpsNotice ops={ops} />
 
-      {status && status.envProblems.length > 0 && (
-        <div style={styles.error}>
-          <strong>환경변수 점검에서 문제가 발견되었습니다</strong> (값은 표시하지 않습니다)
-          <ul style={{ margin: '8px 0 0 18px' }}>
-            {status.envProblems.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div role="tablist" aria-label="관리자 메뉴" style={styles.tabs}>
+        {TABS.map((t, i) => (
+          <button
+            key={t.id}
+            role="tab"
+            id={`admin-tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`admin-panel-${t.id}`}
+            tabIndex={tab === t.id ? 0 : -1}
+            className={`segmented-tab${tab === t.id ? ' segmented-tab-active' : ''}`}
+            onClick={() => setTab(t.id)}
+            onKeyDown={(e) => onTabKey(e, i)}
+          >
+            {t.label}{t.id === 'overview' && attention > 0 && <span style={styles.count}> {attention}</span>}
+          </button>
+        ))}
+      </div>
 
-      <OperationsPanel />
+      <div role="tabpanel" id={`admin-panel-${tab}`} aria-labelledby={`admin-tab-${tab}`} style={styles.tabPanel}>
+        {tab === 'overview' && (
+          <>
+            {status && status.envProblems.length > 0 && (
+              <div style={styles.error}>
+                <strong>환경변수 점검에서 문제가 발견되었습니다</strong> (값은 표시하지 않습니다)
+                <ul style={{ margin: '8px 0 0 18px' }}>
+                  {status.envProblems.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <OpsStatusPanel ops={ops} />
+            {status && (
+              <section style={styles.cards}>
+                <Card label="등록 소환사" value={`${status.counts.members}명`} />
+                <Card label="접속자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
+                <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
+                <Card
+                  label="DB 사용량 (Neon 무료 한도 대비)"
+                  value={`${mb(status.database.bytes)} / ${mb(DB_LIMIT_BYTES)}`}
+                  ratio={status.database.bytes / DB_LIMIT_BYTES}
+                />
+                {status.stats[0] && <Card label="Riot 호출 (오늘)" value={`Riot ${status.stats[0].misses}회`} sub={`캐시 응답 ${status.stats[0].hits}회 · 적중률 ${hitRate(status.stats[0])}`} />}
+                <Card
+                  label="Riot 오류 (24시간)"
+                  value={status.errorsByStatus.length ? status.errorsByStatus.map((e) => `${e.status}: ${e.count}`).join(', ') : '없음'}
+                />
+              </section>
+            )}
+            <Panel
+              title="무료 한도 확인"
+              actions={
+                <div style={styles.links}>
+                  <a className="btn btn-secondary" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">Vercel 대시보드</a>
+                  <a className="btn btn-secondary" href="https://console.neon.tech" target="_blank" rel="noreferrer">Neon 콘솔</a>
+                </div>
+              }
+            >
+              <p style={styles.cardLabel}>
+                Vercel(함수 호출 월 100만 회, 전송량 100GB)과 Neon(연산 월 100 CU-시간)의 사용량은 각 서비스 화면에서 확인하세요.
+              </p>
+            </Panel>
+          </>
+        )}
 
-      {status && (
-        <section style={styles.cards}>
-          <Card label="등록 소환사" value={`${status.counts.members}명`} />
-          <Card label="접속자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
-          <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
-          <Card
-            label="DB 사용량 (Neon 무료 한도 대비)"
-            value={`${mb(status.database.bytes)} / ${mb(DB_LIMIT_BYTES)}`}
-            ratio={status.database.bytes / DB_LIMIT_BYTES}
-          />
-          {status.stats[0] && <Card label="Riot 호출 (오늘)" value={`Riot ${status.stats[0].misses}회`} sub={`캐시 응답 ${status.stats[0].hits}회 · 적중률 ${hitRate(status.stats[0])}`} />}
-          <Card
-            label="Riot 오류 (24시간)"
-            value={status.errorsByStatus.length ? status.errorsByStatus.map((e) => `${e.status}: ${e.count}`).join(', ') : '없음'}
-          />
-        </section>
-      )}
+        {tab === 'people' && (
+          <>
+            <Panel title={`접속자 (${users.length})`}>
+              <ScrollTable head={['이름', '접속 횟수', '마지막 접속', '']}>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td style={styles.td}>
+                      {u.name}{u.username && <span style={styles.handle}> @{u.username}</span>} {u.isAdmin && <span className="badge-green-soft" style={{ whiteSpace: 'nowrap' }}>관리자</span>}{' '}
+                      {u.blocked && <span style={styles.blocked}>차단됨</span>}
+                    </td>
+                    <td style={styles.td}>{u.loginCount}</td>
+                    <td style={styles.td}>{when(u.lastLogin)}</td>
+                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                      {!u.isAdmin && (
+                        <button className="btn btn-secondary" onClick={() => toggleBlock(u)}>
+                          {u.blocked ? '차단 해제' : '차단'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </ScrollTable>
+            </Panel>
+            <Panel title={`등록 소환사 목록 (${members.length})`}>
+              <ScrollTable head={['Riot ID', '등록자', '등록일', '']}>
+                {members.map((m) => (
+                  <tr key={m.id}>
+                    <td style={styles.td}>{m.gameName}#{m.tagLine}</td>
+                    <td style={styles.td}>{m.createdByName ?? (m.createdBy ? `디스코드 ID ${m.createdBy}` : '-')}</td>
+                    <td style={styles.td}>{when(m.createdAt)}</td>
+                    <td style={{ ...styles.td, textAlign: 'right' }}>
+                      <button className="btn btn-secondary" style={styles.danger} onClick={() => deleteMember(m)}>삭제</button>
+                    </td>
+                  </tr>
+                ))}
+              </ScrollTable>
+            </Panel>
+          </>
+        )}
 
-      <section className="card-base" style={styles.panel}>
-        <h3 className="heading-3" style={styles.panelTitle}>접속자 ({users.length})</h3>
-        <table style={styles.table}>
-          <thead>
-            <tr><th style={styles.th}>이름</th><th style={styles.th}>접속 횟수</th><th style={styles.th}>마지막 접속</th><th style={styles.th} /></tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td style={styles.td}>
-                  {u.name}{u.username && <span style={styles.handle}> @{u.username}</span>} {u.isAdmin && <span className="badge-green-soft">관리자</span>}{' '}
-                  {u.blocked && <span style={styles.blocked}>차단됨</span>}
-                </td>
-                <td style={styles.td}>{u.loginCount}</td>
-                <td style={styles.td}>{when(u.lastLogin)}</td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
-                  {!u.isAdmin && (
-                    <button className="btn btn-secondary" onClick={() => toggleBlock(u)}>
-                      {u.blocked ? '차단 해제' : '차단'}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        {tab === 'integrations' && (
+          <>
+            {status && (
+              <Panel title="Riot 호출 통계 (최근 7일)" actions={<button className="btn btn-secondary" style={styles.danger} onClick={purgeCache}>캐시 비우기</button>}>
+                <ScrollTable head={['날짜', '캐시 응답', 'Riot 호출', '적중률']}>
+                  {status.stats.map((d) => (
+                    <tr key={d.day}>
+                      <td style={styles.td}>{d.day}</td><td style={styles.td}>{d.hits}</td><td style={styles.td}>{d.misses}</td><td style={styles.td}>{hitRate(d)}</td>
+                    </tr>
+                  ))}
+                  {status.stats.length === 0 && <tr><td style={styles.td} colSpan={4}>아직 기록이 없습니다.</td></tr>}
+                </ScrollTable>
+                {status.recentErrors.length > 0 && (
+                  <details>
+                    <summary>최근 Riot 오류 ({status.recentErrors.length})</summary>
+                    <ScrollTable head={['시각', '상태', '경로']}>
+                      {status.recentErrors.map((e) => (
+                        <tr key={`${e.at}${e.path}`}>
+                          <td style={styles.td}>{when(e.at)}</td>
+                          <td style={styles.td}>{e.status}</td>
+                          <td style={{ ...styles.td, wordBreak: 'break-all' }}>{e.path}</td>
+                        </tr>
+                      ))}
+                    </ScrollTable>
+                  </details>
+                )}
+              </Panel>
+            )}
+            <SteamPanel ops={ops} />
+            <ChatSyncPanel ops={ops} />
+          </>
+        )}
 
-      <section className="card-base" style={styles.panel}>
-        <h3 className="heading-3" style={styles.panelTitle}>등록 소환사 목록 ({members.length})</h3>
-        <table style={styles.table}>
-          <thead>
-            <tr><th style={styles.th}>Riot ID</th><th style={styles.th}>등록자</th><th style={styles.th}>등록일</th><th style={styles.th} /></tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.id}>
-                <td style={styles.td}>{m.gameName}#{m.tagLine}</td>
-                <td style={styles.td}>{m.createdByName ?? (m.createdBy ? `디스코드 ID ${m.createdBy}` : '-')}</td>
-                <td style={styles.td}>{when(m.createdAt)}</td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
-                  <button className="btn btn-secondary" style={styles.danger} onClick={() => deleteMember(m)}>삭제</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {status && (
-        <section className="card-base" style={styles.panel}>
-          <div style={styles.panelHeader}>
-            <h3 className="heading-3" style={{ ...styles.panelTitle, marginBottom: 0 }}>Riot 호출 통계 (최근 7일)</h3>
-            <button className="btn btn-secondary" style={styles.danger} onClick={purgeCache}>캐시 비우기</button>
-          </div>
-          <table style={styles.table}>
-            <thead>
-              <tr><th style={styles.th}>날짜</th><th style={styles.th}>캐시 응답</th><th style={styles.th}>Riot 호출</th><th style={styles.th}>적중률</th></tr>
-            </thead>
-            <tbody>
-              {status.stats.map((d) => (
-                <tr key={d.day}>
-                  <td style={styles.td}>{d.day}</td><td style={styles.td}>{d.hits}</td><td style={styles.td}>{d.misses}</td><td style={styles.td}>{hitRate(d)}</td>
-                </tr>
-              ))}
-              {status.stats.length === 0 && <tr><td style={styles.td} colSpan={4}>아직 기록이 없습니다.</td></tr>}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-
-      <section className="card-base" style={styles.panel}>
-        <h3 className="heading-3" style={styles.panelTitle}>무료 한도 확인</h3>
-        <p style={styles.cardLabel}>
-          Vercel(함수 호출 월 100만 회, 전송량 100GB)과 Neon(연산 월 100 CU-시간)의 사용량은 각 서비스 화면에서 확인하세요.
-        </p>
-        <div style={styles.links}>
-          <a className="btn btn-secondary" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">Vercel 대시보드</a>
-          <a className="btn btn-secondary" href="https://console.neon.tech" target="_blank" rel="noreferrer">Neon 콘솔</a>
-        </div>
-      </section>
-
-      {status && status.recentErrors.length > 0 && (
-        <section className="card-base" style={styles.panel}>
-          <h3 className="heading-3" style={styles.panelTitle}>최근 Riot 오류</h3>
-          <table style={styles.table}>
-            <tbody>
-              {status.recentErrors.map((e) => (
-                <tr key={`${e.at}${e.path}`}>
-                  <td style={styles.td}>{when(e.at)}</td>
-                  <td style={styles.td}>{e.status}</td>
-                  <td style={{ ...styles.td, wordBreak: 'break-all' }}>{e.path}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+        {tab === 'records' && (
+          <>
+            <ViewAnalytics />
+            <AuditPanel ops={ops} />
+            <BackupNote />
+          </>
+        )}
+      </div>
     </div>
   );
 };
 
-const gaugeColor = (ratio: number) => (ratio >= 0.9 ? '#ff4a4a' : ratio >= 0.7 ? '#ffb703' : '#00ed64');
+const gaugeColor = (ratio: number) => (ratio >= 0.9 ? '#ff4a4a' : ratio >= 0.7 ? '#ffb703' : 'var(--primary)');
 
 const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: number }> = ({ label, value, sub, ratio }) => (
-  <div className="card-base" style={styles.card}>
+  <div style={styles.card}>
     <div style={styles.cardLabel}>{label}</div>
     <div style={styles.cardValue}>{value}</div>
     {ratio !== undefined && (
@@ -281,24 +321,22 @@ const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: numbe
 );
 
 const styles: { [key: string]: React.CSSProperties } = {
-  container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', minHeight: 0 },
-  header: { display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
+  container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', minHeight: 0 },
+  header: { flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
   error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
+  tabs: { flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', borderBottom: '1px solid var(--hairline)' },
+  tabPanel: { flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 },
+  count: { color: 'var(--accent-pink)', fontWeight: 700 },
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' },
-  card: { backgroundColor: '#001e2b', border: '1px solid #1c4558', padding: '16px' },
-  cardLabel: { fontSize: '12px', color: '#7c8c9a' },
-  cardValue: { fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: '6px 0' },
-  panel: { backgroundColor: '#001e2b', border: '1px solid #1c4558', padding: '24px' },
-  panelTitle: { color: '#ffffff', marginBottom: '16px' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', color: '#e1e5e8' },
-  th: { textAlign: 'left', padding: '8px 12px', color: '#7c8c9a', fontWeight: 600, borderBottom: '1px solid #1c4558' },
-  td: { padding: '10px 12px', borderBottom: '1px solid #143747' },
-  panelHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
-  links: { display: 'flex', gap: '12px', marginTop: '16px' },
-  gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: '#143747', margin: '8px 0', overflow: 'hidden' },
+  card: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '16px' },
+  cardLabel: { fontSize: '12px', color: 'var(--slate)' },
+  cardValue: { fontSize: '20px', fontWeight: 700, color: 'var(--ink)', margin: '6px 0' },
+  td: { padding: '12px', borderBottom: '1px solid var(--hairline)', overflowWrap: 'anywhere' },
+  links: { display: 'flex', flexWrap: 'wrap', gap: '12px' },
+  gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: 'var(--surface-soft)', margin: '8px 0', overflow: 'hidden' },
   gaugeFill: { height: '100%', borderRadius: '3px' },
-  handle: { color: '#7c8c9a', fontSize: '12px' },
+  handle: { color: 'var(--slate)', fontSize: '12px' },
   blocked: { color: '#ff4a4a', fontSize: '12px', fontWeight: 600 },
-  danger: { borderColor: '#ff4a4a', color: '#ff4a4a' },
+  danger: adminStyles.danger,
 };
