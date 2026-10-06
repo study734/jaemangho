@@ -66,9 +66,10 @@ export async function sendNotification(content: string, webhook = process.env.OP
 
 export async function checkOperations() {
   const client = await pool.connect();
-  // 동시에 점검해도 같은 장애 알림을 중복 발송하지 않는다. 트랜잭션이 아닌 연결 단위 락.
+  // 풀링 DB에서도 트랜잭션 동안 같은 백엔드에 고정되며, 종료하면 락이 자동 해제된다.
   try {
-    const [lock] = (await client.query('select pg_try_advisory_lock($1) as acquired', [727276])).rows;
+    await client.query('begin');
+    const [lock] = (await client.query('select pg_try_advisory_xact_lock($1) as acquired', [727276])).rows;
     if (!lock.acquired) return { skipped: true, active: 0 };
     const sql = await db();
     const [lastSuccess, latest, riot, steam] = await Promise.all([
@@ -109,7 +110,7 @@ export async function checkOperations() {
     await sql`delete from riot_stats where day < (now() at time zone 'Asia/Seoul')::date - 365`;
     return { skipped: false, active: current.length };
   } finally {
-    await client.query('select pg_advisory_unlock($1)', [727276]).catch(() => {});
+    await client.query('rollback').catch(() => {});
     client.release();
   }
 }

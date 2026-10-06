@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { monitor } from '../../../scripts/monitor.mjs';
-import { connectionEnv, sameDatabase, verifyRestore } from '../../../scripts/backup.mjs';
+import { connectionEnv, createBackup, sameDatabase, verifyRestore } from '../../../scripts/backup.mjs';
 
 describe('독립 운영 감시', () => {
   it('지속 장애는 한번만 알리고 복구를 알린다', async () => {
@@ -55,5 +55,9 @@ describe('백업과 격리 복구 보호', () => {
   it('확인되지 않은 대상과 원본 DB에는 연결하기 전에 중단한다', async () => {
     await expect(verifyRestore({ sourceUrl: 'postgres://a@host/main', targetUrl: 'postgres://b@host/main', file: 'no-file', confirmIsolated: true })).rejects.toThrow('원본과 다른');
     await expect(verifyRestore({ sourceUrl: 'postgres://a@host/main', targetUrl: 'postgres://a@host/test', file: 'no-file', confirmIsolated: false })).rejects.toThrow('--confirm-isolated');
+  });
+  it('풀링 주소로 백업이나 복구를 실행하지 않는다', async () => {
+    await expect(createBackup({ url: 'postgres://user@ep-example-pooler.neon.tech/main', file: 'no-file' })).rejects.toThrow('직접 연결');
+    await expect(verifyRestore({ sourceUrl: 'postgres://user@ep-example.neon.tech/main', targetUrl: 'postgres://user@ep-example-pooler.neon.tech/test', file: 'no-file', confirmIsolated: true })).rejects.toThrow('직접 연결');
   });
 });

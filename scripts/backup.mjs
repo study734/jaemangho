@@ -21,6 +21,10 @@ export function sameDatabase(a, b) {
   return identity(a) === identity(b);
 }
 
+function requireDirect(url) {
+  if (new URL(url).hostname.includes('-pooler')) throw new Error('DB 백업/복구에는 풀링 주소 대신 직접 연결 주소가 필요합니다');
+}
+
 const runTool = (name, args, env) => new Promise((resolve, reject) => {
   const child = spawn(name, args, { env, stdio: ['ignore', 'ignore', 'ignore'] });
   child.once('error', () => reject(new Error(`${name}: 실행 도구를 찾을 수 없거나 시작하지 못했습니다`)));
@@ -35,6 +39,7 @@ const checksum = async (file) => {
 
 export async function createBackup({ url, file }) {
   if (!url) throw new Error('DB 주소가 설정되지 않았습니다');
+  requireDirect(url);
   const env = connectionEnv(url);
   file = path.resolve(file);
   await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -58,6 +63,7 @@ export async function createBackup({ url, file }) {
 export async function verifyRestore({ sourceUrl, targetUrl, file, confirmIsolated }) {
   if (!confirmIsolated) throw new Error('--confirm-isolated 로 격리된 빈 테스트 DB임을 확인해야 합니다');
   if (!sourceUrl || !targetUrl || sameDatabase(sourceUrl, targetUrl)) throw new Error('원본과 다른 TEST_DATABASE_URL이 필요합니다');
+  requireDirect(targetUrl);
   file = path.resolve(file);
   const expected = (await readFile(`${file}.sha256`, 'utf8')).trim();
   if (!/^[a-f0-9]{64}$/.test(expected) || expected !== await checksum(file)) throw new Error('백업 체크섬이 일치하지 않습니다');

@@ -60,6 +60,8 @@ GitHub Actions는 약 15분마다 앱 바깥에서 `/api/health`를 검사하고
 
 Postgres 클라이언트의 `pg_dump`, `pg_restore`가 PATH에 있어야 한다. `pg_dump`는 서버와 같은 메이저 버전 또는 더 최신 버전을 사용한다. 연결 정보는 명령 인수가 아니라 PG 환경으로 전달한다. 원본은 기존 `DATABASE_URL_UNPOOLED` > `DATABASE_URL` > `POSTGRES_URL` 순서로 선택한다.
 
+Neon의 `-pooler` 주소는 백업·복구 도구에서 거부한다. 직접 연결 주소를 사용한다. 앱의 운영 점검은 트랜잭션 단위 advisory lock을 사용해 풀링 연결에서도 종료 시 락이 남지 않도록 한다.
+
 ```bash
 npm run db:backup -- backups/jaemangho-YYYYMMDD.dump
 ```

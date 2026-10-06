@@ -89,4 +89,15 @@ describe.skipIf(!testDbUrl)('운영 기능 (DB)', () => {
     expect(analytics.viewReportSchema.safeParse({ days: '8' }).success).toBe(false);
     expect(analytics.viewReportSchema.safeParse({ end: '2026-02-31' }).success).toBe(false);
   });
+
+  it('다른 점검 트랜잭션이 실행 중이면 건너뛰고 종료 후에는 락이 남지 않는다', async () => {
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('select pg_advisory_xact_lock($1)', [727276]);
+      expect(await monitor.checkOperations()).toMatchObject({ skipped: true });
+    } finally { await client.query('rollback'); client.release(); }
+    expect(await monitor.checkOperations()).toMatchObject({ skipped: false });
+    expect((await pool.query(`select count(*)::int as n from pg_locks where locktype = 'advisory' and objid = 727276`)).rows[0].n).toBe(0);
+  });
 });
