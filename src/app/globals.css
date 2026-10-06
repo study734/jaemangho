@@ -403,6 +403,7 @@ body {
 
 /* Tabs Navigation */
 .pill-tab {
+  min-height: 44px;
   background-color: transparent;
   color: var(--slate);
   font-size: 13.5px;
@@ -426,6 +427,7 @@ body {
 }
 
 .segmented-tab {
+  min-height: 44px;
   background-color: transparent;
   color: var(--slate);
   font-size: 13.5px;
@@ -598,7 +600,7 @@ body {
 
 /* 함께 놀기 중심 홈과 공용 탐색 */
 a { text-underline-offset: 3px; }
-a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
 .btn { min-height: 44px; }
 .app-navigation { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 28px 12px 16px; background: var(--canvas-dark); border-right: 1px solid var(--hairline); }
 .app-brand { display: flex; flex-direction: column; padding: 0 12px; color: var(--ink); font-size: 22px; font-weight: 750; text-decoration: none; }
@@ -829,4 +831,18 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   .responsive-form-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .responsive-form-grid > * { min-width: 0; }
   .mastery-leaderboard-title { font-size: 20px; }
+}
+
+/* 글자 위계는 기존 한국어 글꼴과 색상 토큰으로 만든다. */
+.hero-display, .display-lg, .heading-1, .heading-2, .heading-3,
+.home-card-heading h3, .home-section-heading h2 {
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.code-md, .comparison-table {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 768px) {
+  /* 좁은 화면에서 입력 글자를 읽기 쉽게 하고 iOS의 자동 확대를 피한다. */
+  .text-input, .search-pill, .game-search input { font-size: 16px; }
 }
