@@ -1,47 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
-
+/* 재망호 다크 아지트 토큰 — DESIGN.md 참고 */
 :root {
-  /* MongoDB Color Palette */
-  --primary: #00ed64;
-  --primary-deep: #00b545;
-  --primary-pressed: #008c34;
-  --on-primary: #001e2b;
-  --brand-green: #00ed64;
-  --brand-green-dark: #00684a;
-  --brand-green-mid: #00a35c;
-  --brand-green-soft: #c3f0d2;
-  --brand-teal-deep: #001e2b;
-  --brand-teal: #003d4f;
-  --brand-teal-mid: #00684a;
-  --accent-purple: #7b3ff2;
+  color-scheme: dark;
+  --primary: #b9aaff;
+  --primary-hover: #cbbfff;
+  --primary-deep: #a190eb;
+  --primary-pressed: #9582dc;
+  --on-primary: #171824;
+  --brand-green: var(--primary);
+  --brand-green-dark: #352c58;
+  --brand-green-mid: var(--primary-deep);
+  --brand-green-soft: #ded6ff;
+  --brand-teal-deep: #171824;
+  --brand-teal: #202233;
+  --brand-teal-mid: #292c42;
+  --accent-purple: #a190eb;
   --accent-orange: #fa6e39;
-  --accent-pink: #f06bb8;
-  --accent-blue: #3d4f9f;
-  
-  --canvas-dark: #001e2b;
-  --canvas: #0b2a38;
-  --surface: #0e3547;
-  --surface-soft: #123e52;
-  --surface-feature: rgba(195, 240, 210, 0.08);
-  --hairline: #1c4558;
-  --hairline-soft: #143747;
-  --hairline-strong: #255a73;
-  --hairline-dark: #123340;
-  
-  --ink: #ffffff;
-  --charcoal: #f4f7f6;
-  --slate: #a8b3bc;
-  --steel: #7c8c9a;
-  --stone: #5c6c7a;
-  --muted: #4e5f6e;
-  
-  --font-sans: 'Euclid Circular A', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Source Code Pro', 'SF Mono', Menlo, Consolas, monospace;
-  
-  --shadow-subtle: rgba(0, 0, 0, 0.2) 0px 1px 3px 0px;
-  --shadow-card: rgba(0, 30, 43, 0.3) 0px 4px 16px 0px;
-  --shadow-glow: 0 0 15px rgba(0, 237, 100, 0.2);
-  --shadow-glow-active: 0 0 25px rgba(0, 237, 100, 0.45);
+  --accent-pink: #f2a7d2;
+  --accent-blue: #798bd4;
+  --canvas-dark: #171824;
+  --canvas: #202233;
+  --surface: #202233;
+  --surface-soft: #292c42;
+  --surface-feature: #292c42;
+  --hairline: #383b52;
+  --hairline-soft: #303349;
+  --hairline-strong: #72758d;
+  --hairline-dark: #303349;
+  --ink: #f4f2fa;
+  --charcoal: #f4f2fa;
+  --slate: #b3b5c9;
+  --steel: #a4a7bd;
+  --stone: #8c90a8;
+  --muted: #8c90a8;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --font-mono: 'SF Mono', Menlo, Consolas, monospace;
+  --shadow-subtle: 0 1px 3px rgba(0,0,0,.15);
+  --shadow-card: 0 4px 16px rgba(0,0,0,.2);
+  --shadow-glow: none;
+  --shadow-glow-active: none;
 }
 
 * {
@@ -212,7 +208,7 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: #39ff8d;
+  background-color: var(--primary-hover);
   box-shadow: var(--shadow-glow-active);
 }
 
@@ -269,7 +265,7 @@ body {
 }
 
 .btn-link:hover {
-  color: #39ff8d;
+  color: var(--primary-hover);
   text-decoration: underline;
 }
 
@@ -547,13 +543,28 @@ body {
 }
 
 /* Responsive Grid Utility Classes */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr);
   gap: 32px;
   align-items: start;
 }
+.dashboard-grid > section {
+  min-width: 0;
+}
+.dashboard-grid .comparison-table th,
+.dashboard-grid .comparison-table td {
+  padding: 16px 8px;
+  white-space: nowrap;
+}
 @media (max-width: 1024px) {
+  .home-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -582,3 +593,198 @@ body {
   }
 }
 
+
+/* 함께 놀기 중심 홈과 공용 탐색 */
+a { text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+.btn { min-height: 44px; }
+.app-navigation { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 28px 12px 16px; background: var(--canvas-dark); border-right: 1px solid var(--hairline); }
+.app-brand { display: flex; flex-direction: column; padding: 0 12px; color: var(--ink); font-size: 22px; font-weight: 750; text-decoration: none; }
+.app-brand span { margin-top: 4px; font-size: 10px; letter-spacing: 2px; color: var(--slate); }
+.app-topic-nav { display: flex; flex-direction: column; gap: 8px; }
+.app-topic { justify-content: flex-start; gap: 12px; border-radius: 8px; padding: 12px 16px; white-space: nowrap; }
+.app-topic svg { width: 20px; height: 20px; flex-shrink: 0; }
+.app-topic.btn-ghost-active { background: var(--primary); color: var(--on-primary); }
+.app-logout { margin-top: auto; }
+.home-page { padding: 24px; }
+.home-page > * { flex-shrink: 0; }
+.home-eyebrow { font-size: 12px; font-weight: 650; letter-spacing: 1.4px; color: var(--primary); margin-bottom: 8px; }
+.jaesuni-hero { position: relative; isolation: isolate; overflow: hidden; border-radius: 12px; background: var(--surface); min-height: 360px; }
+.jaesuni-art { object-fit: cover; object-position: center; z-index: -1; }
+.jaesuni-copy { position: relative; width: 48%; padding: 32px; }
+.jaesuni-copy h1 { font-size: clamp(26px, 2.55vw, 38px); line-height: 1.28; font-weight: 750; letter-spacing: -1px; }
+.jaesuni-copy h1 span { color: var(--accent-pink); }
+.jaesuni-description { margin-top: 16px; color: var(--slate); font-size: 14px; line-height: 1.7; }
+.jaesuni-welcome { margin-top: 12px; font-size: 13px; color: var(--ink); }
+.jaesuni-copy .btn { margin-top: 20px; padding: 12px 24px; }
+.jaesuni-greeting { position: absolute; right: 20px; bottom: 20px; max-width: 43%; background: var(--canvas-dark); border: 1px solid var(--hairline); border-radius: 12px; padding: 12px 16px; }
+.jaesuni-greeting p { color: var(--accent-pink); font-size: 14px; font-weight: 600; }
+.jaesuni-greeting span { color: var(--slate); font-size: 12px; }
+.home-steam { display: flex; align-items: center; gap: 24px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px; padding: 24px; }
+.home-steam h2, .home-section-heading h2 { font-size: 20px; font-weight: 650; line-height: 1.4; }
+.home-steam h2 { margin-bottom: 8px; }
+.home-steam > div:first-child { flex: 1.2; }
+.home-steam-summary { flex: 1; display: flex; flex-direction: column; gap: 8px; color: var(--slate); font-size: 13px; }
+.home-steam > a { flex-shrink: 0; }
+.home-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.home-community > section { padding: 0 !important; border: none !important; background: transparent !important; }
+.home-community .btn-link { align-self: flex-start; }
+.home-lower-grid { gap: 24px; }
+.home-page li:last-child { border-bottom: none !important; }
+.home-page li > a, .home-page li > span { overflow-wrap: anywhere; }
+.home-page h3 { font-size: 18px; }
+.home-roster { overflow-x: auto; }
+.home-lol-stats { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 12px; padding-bottom: 8px; font-size: 13px; }
+.home-grid > * { min-width: 0; }
+.home-roster { min-width: 0; max-width: 100%; }
+.home-roster table { width: 100%; min-width: 380px; border-collapse: collapse; text-align: left; font-size: 13px; }
+.home-roster th { color: var(--slate); font-size: 12px; font-weight: 500; }
+.home-roster th, .home-roster td { padding: 10px 8px; border-bottom: 1px solid var(--hairline); }
+.home-roster tr:last-child td { border-bottom: 0; }
+.home-roster td:first-child { max-width: 160px; overflow-wrap: anywhere; color: var(--ink); }
+.home-roster small { display: block; color: var(--slate); }
+@media (max-width: 1100px) {
+  .jaesuni-copy { width: 53%; padding: 24px; }
+  .home-steam { flex-wrap: wrap; }
+  .home-steam-summary { min-width: 220px; }
+}
+@media (max-width: 768px) {
+  .app-frame { flex-direction: column; }
+  .app-navigation { width: 100%; padding: 12px 16px 0; gap: 8px; border-right: none; border-bottom: 1px solid var(--hairline); display: grid; grid-template-columns: 1fr auto; }
+  .app-brand { padding: 0; font-size: 18px; }
+  .app-brand span { display: none; }
+  .app-logout { grid-column: 2; grid-row: 1; margin: 0; min-height: 32px; font-size: 12px; }
+  .app-topic-nav { grid-column: 1 / -1; flex-direction: row; overflow-x: auto; padding: 4px 0 12px; }
+  .app-topic { padding: 10px 12px; flex-shrink: 0; font-size: 13px; }
+  .app-topic svg { display: none; }
+  .detail-sidebar { width: 168px !important; padding: 16px 8px !important; }
+  .home-page { padding: 16px; gap: 16px !important; }
+  .jaesuni-hero { min-height: 410px; }
+  .jaesuni-art { object-position: 62% top; height: 180px !important; }
+  .jaesuni-copy { width: 100%; padding: 180px 20px 20px; }
+  .jaesuni-copy h1 { font-size: 26px; }
+  .jaesuni-copy .home-eyebrow { margin-top: 12px; font-size: 10px; }
+  .jaesuni-description { margin-top: 12px; }
+  .jaesuni-greeting { right: 12px; top: 120px; bottom: auto; max-width: calc(100% - 24px); padding: 8px 12px; }
+  .jaesuni-greeting p { font-size: 12px; }
+  .jaesuni-greeting span { font-size: 10px; }
+  .home-steam { padding: 20px; gap: 16px; flex-direction: column; align-items: stretch; }
+  .home-steam-summary { min-width: 0; }
+  .home-section-heading { flex-wrap: wrap; }
+  .home-grid { gap: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* 서비스 로고·프로필·게임 표지는 같은 이미지 실패 규칙을 사용한다. */
+.visual-image { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; flex-shrink: 0; overflow: hidden; }
+.visual-image > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.visual-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--primary); font-size: 13px; }
+.service-mark > img, .ui-icon > img { filter: invert(1); }
+.btn-primary .service-mark > img, .btn-primary .ui-icon > img, .btn-ghost-active .service-mark > img, .btn-ghost-active .ui-icon > img { filter: none; }
+.visual-heading { display: flex; align-items: center; gap: 12px; }
+.member-avatar { border-radius: 50%; }
+.member-avatar > img { object-fit: cover; }
+.steam-avatar-strip { display: flex; gap: 6px; }
+.home-steam { display: block; }
+.home-steam-top { display: flex; align-items: center; gap: 24px; }
+.home-steam-top > div:first-child { flex: 1.8; }
+.home-steam-top > a { flex-shrink: 0; }
+.steam-discovery { margin-top: 20px; min-width: 0; }
+.game-search { display: flex; align-items: center; gap: 12px; min-height: 48px; border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 4px 4px 4px 16px; background: var(--canvas-dark); }
+.game-search:focus-within { border-color: var(--primary); }
+.game-search input { width: 100%; flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; outline: none; font-size: 14px; padding: 8px 0; }
+.game-search input::placeholder { color: var(--slate); }
+.game-search .btn { flex-shrink: 0; min-height: 40px; }
+.game-search-hint { margin-top: 8px; color: var(--slate); font-size: 12px; }
+.game-picks-heading { display: flex; justify-content: space-between; gap: 12px; margin: 16px 0 10px; font-size: 13px; color: var(--ink); }
+.game-picks-heading > span:last-child { color: var(--slate); font-size: 12px; }
+.game-cover-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.game-cover-link { min-width: 0; color: var(--ink); text-decoration: none; }
+.game-cover { width: 100% !important; height: 104px !important; display: block; border-radius: 8px; }
+.game-cover > img { object-fit: cover; transition: opacity 150ms ease; }
+.game-cover-link:hover .game-cover > img { opacity: .8; }
+.game-cover-link strong { display: block; margin-top: 8px; font-size: 14px; }
+.game-cover-link > span:last-child { display: block; color: var(--slate); font-size: 12px; }
+.summoner-identity { display: inline-flex; align-items: center; gap: 8px; }
+/* Riot 원본은 1280×720 투명 캔버스 중앙에 엠블럼이 있다. 파일을 변형하지 않고 확대 표시한다. */
+.rank-emblem > img { width: 160px; height: 90px; max-width: none; flex-shrink: 0; object-fit: contain; }
+.home-roster table { min-width: 460px; }
+.steam-query-area { display: flex; flex-direction: column; gap: 8px; }
+.steam-query-area label { font-size: 14px; color: var(--ink); }
+.result-game-cover { border-radius: 8px; }
+.result-game-cover > img { object-fit: cover; }
+.result-game-info { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.result-game-info > span:last-child { margin-left: 0 !important; }
+
+/* 검색 입력과 행동은 각각 독립된 경계를 가진다. */
+.game-search { border: 0; background: transparent; padding: 0; gap: 12px; min-height: 54px; }
+.game-search-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 8px 16px; border: 1px solid var(--hairline-strong); border-radius: 8px; background: var(--canvas-dark); }
+.game-search-field:focus-within { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.game-search > .btn { min-height: 54px; min-width: 112px; border-radius: 999px; font-size: 14px; }
+.home-steam { overflow: hidden; border-color: var(--primary-deep); }
+.home-steam-top { min-height: 160px; margin: -24px -24px 0; padding: 24px; background: var(--canvas-dark) url('/images/steam-section.webp') right center / auto 100% no-repeat; }
+.home-steam-top > div:first-child { flex: 0 1 62%; }
+.home-steam-top .home-eyebrow { color: var(--accent-pink); }
+.home-steam-top h2 { font-size: 24px; }
+.home-steam-top .visual-heading > .visual-image { width: 44px !important; height: 44px !important; }
+.home-steam-meta { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-top: 16px; }
+.home-steam-meta .home-steam-summary { flex: 0 1 300px; }
+.steam-discovery { margin-top: 14px; }
+.home-lol-card { overflow: hidden; }
+.home-card-heading { margin: -24px -24px 0; padding: 24px; min-height: 136px; display: flex; flex-direction: column; justify-content: center; gap: 8px; background: var(--canvas-dark) url('/images/lol-section.webp') right center / auto 100% no-repeat; }
+.home-card-heading h3 { max-width: 60%; font-size: 24px; }
+.home-card-heading p { color: var(--slate); font-size: 13px; max-width: 60%; }
+.home-community { overflow: hidden; }
+.community-graphic-heading { margin: -24px -24px 0; min-height: 136px; padding: 20px 24px; align-items: center; background: var(--canvas-dark) url('/images/community-section.webp') right center / auto 100% no-repeat; }
+.community-graphic-heading > div { max-width: 68%; }
+.community-graphic-heading .btn-link { font-size: 12px; }
+.community-graphic-heading h2 { font-size: 20px; }
+.game-cover-grid { gap: 16px; }
+.game-cover-link { padding: 0 0 12px; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; background: var(--canvas-dark); transition: border-color 150ms ease, transform 150ms ease; }
+.game-cover-link:hover { border-color: var(--primary); transform: translateY(-3px); }
+.game-cover-link strong, .game-cover-link > span:last-child { margin-left: 12px; margin-right: 12px; }
+.game-cover { height: auto !important; aspect-ratio: 460 / 215; border-radius: 0; }
+.game-cover > img { object-fit: contain; }
+@media (max-width: 768px) {
+  .home-steam-top { flex-wrap: wrap; align-items: flex-start; gap: 16px; }
+  .home-steam-top > div:first-child { flex: 1 1 100%; }
+  .home-steam-top .home-steam-summary { flex: 1; }
+  .home-steam-top .visual-heading { font-size: 18px; gap: 8px; }
+  .game-cover-grid { gap: 12px; grid-template-columns: repeat(3, minmax(140px, 1fr)); overflow-x: auto; padding-bottom: 8px; }
+  .game-cover { height: 80px !important; }
+  .game-cover-link strong { font-size: 12px; }
+  .game-cover-link > span:last-child { font-size: 11px; }
+  .game-picks-heading { flex-wrap: wrap; gap: 4px; }
+  .game-search { padding-left: 10px; gap: 8px; }
+  .game-search .btn { padding: 10px 14px; }
+  .game-search .btn .ui-icon { display: none; }
+  .home-section-heading .visual-heading { font-size: 18px; gap: 8px; }
+  .app-topic .visual-image { width: 18px !important; height: 18px !important; }
+  .app-topic { gap: 6px; }
+  .app-frame > .app-body { flex-direction: column; }
+  .detail-sidebar { width: 100% !important; padding: 8px 16px !important; border-right: none !important; border-bottom: 1px solid var(--hairline); }
+  .detail-sidebar > nav { flex-direction: row !important; overflow-x: auto; }
+  .detail-sidebar > nav a { width: auto !important; flex-shrink: 0; white-space: nowrap; }
+  .detail-sidebar .sidebar-summary, .detail-sidebar > div:first-child { display: none; }
+  .result-game-cover { width: 88px !important; height: 42px !important; }
+  .game-search { gap: 10px; padding: 0; }
+  .game-search-field { padding: 8px 12px; gap: 8px; }
+  .game-search > .btn { min-width: 72px; min-height: 54px; }
+  .home-steam-top { position: relative; margin: -20px -20px 0; padding: 20px; min-height: 150px; background-image: none; }
+  .home-steam-top::before { content: ''; position: absolute; right: 0; top: 50%; width: 130px; height: 100px; transform: translateY(-50%); background: url('/images/steam-section.webp') right center / auto 100px no-repeat; pointer-events: none; }
+  .home-steam-top > div:first-child { flex: 0 1 58%; }
+  .home-steam-top h2 { font-size: 20px !important; }
+  .home-steam-top h2 .visual-image { width: 28px !important; height: 28px !important; }
+  .home-steam-top .home-eyebrow { font-size: 11px; }
+  .home-steam-top p:last-child { font-size: 12px !important; }
+  .home-steam-meta { gap: 12px; }
+  .home-steam-meta .home-steam-summary { flex: 1; }
+  .home-steam-meta > a { flex-shrink: 0; font-size: 12px; }
+  .home-card-heading h3 { font-size: 22px; }
+  .home-card-heading, .community-graphic-heading { background-size: auto 100px; }
+  .community-graphic-heading > div { max-width: 62%; }
+  .community-graphic-heading h2 { flex-wrap: wrap; gap: 8px; font-size: 18px; }
+  .game-cover { height: auto !important; }
+}

@@ -23,9 +23,9 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
   const isLoading = onLol && lolLoading;
 
   return (
-    <div style={styles.appContainer}>
+    <div className="app-frame" style={styles.appContainer}>
       <TopBar isAdmin={isAdmin} />
-      <div style={styles.body}>
+      <div className="app-body" style={styles.body}>
       {sectionOf(pathname) !== 'home' && <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />}
 
       <main style={styles.mainPane}>
@@ -64,19 +64,20 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
 }
 
 const styles: { [key: string]: CSSProperties } = {
-  appContainer: { display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', overflow: 'hidden' },
-  body: { display: 'flex', flexGrow: 1, minHeight: 0 },
+  appContainer: { display: 'flex', width: '100%', height: '100vh', overflow: 'hidden' },
+  body: { display: 'flex', flexGrow: 1, minHeight: 0, minWidth: 0 },
   mainPane: {
     flexGrow: 1,
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#0b2a38',
+    backgroundColor: 'var(--canvas-dark)',
     position: 'relative',
     overflow: 'hidden',
   },
   loadingBanner: {
-    backgroundColor: '#ffb703',
-    color: '#001e2b',
+    backgroundColor: 'var(--accent-pink)',
+    color: 'var(--canvas-dark)',
     padding: '8px 24px',
     textAlign: 'center',
     fontSize: '13px',

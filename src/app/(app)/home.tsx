@@ -2,12 +2,14 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { JaesuniHero } from '@/components/JaesuniHero';
 import { HomeCard } from '@/components/HomeCard';
+import { ServiceMark, UiIcon, VisualImage } from '@/components/VisualImage';
 import { LolHomeSummary } from '@/features/lol';
 import { scoreLabel } from '@/lib/chat-format';
 import type { HotMoment } from '@/server/chat/moments';
 import type { ChatHighlights } from '@/server/chat/stats';
-import { SteamHomeSummary } from '@/features/steam';
+import { SteamHomeSearch, SteamHomeSummary } from '@/features/steam';
 
 interface Activity {
   kind: 'lol' | 'steam' | 'login';
@@ -19,6 +21,7 @@ interface Person {
   id: string;
   name: string;
   at: string;
+  image: string | null;
 }
 
 const sentence = (a: Activity) => {
@@ -61,14 +64,14 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
             {chat.hallOfFame.map((h) => (
               <li key={h.url} style={styles.row}>
                 <span style={styles.tag}>{scoreLabel(h.topEmoji, h.reactions, h.replies)}</span>
-                <a href={h.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: '#ffffff' }}>
+                <a href={h.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: 'var(--ink)' }}>
                   {h.authorName}님의 메시지 보러 가기
                 </a>
                 <Ago iso={h.at} />
               </li>
             ))}
           </ul>
-          <p style={styles.hint}>{notice} 링크를 누르면 디스코드로 이동합니다. <Link href="/community" style={{ color: '#00ed64' }}>개념글 보관함 →</Link></p>
+          <p style={styles.hint}>{notice} 링크를 누르면 디스코드로 이동합니다. <Link href="/community" style={{ color: 'var(--primary)' }}>개념글 보관함 →</Link></p>
         </Panel>
       )}
       {moments.length > 0 && (
@@ -77,19 +80,19 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
             {moments.map((m) => (
               <li key={m.url} style={styles.row}>
                 <span style={styles.tag}>🔥 {m.messages}개</span>
-                <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: '#ffffff' }}>{m.people}명이 10분 동안 몰려서 말했어요</a>
+                <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ ...styles.text, color: 'var(--ink)' }}>{m.people}명이 10분 동안 몰려서 말했어요</a>
                 <Ago iso={m.at} />
               </li>
             ))}
           </ul>
         </Panel>
       )}
-      <Panel title="수다 통계 (이번 주)">
+      {chat.hallOfFame.length === 0 && <Panel title="수다 통계 (이번 주)">
         <ul style={styles.list}>
           {chat.talkers.map((t, i) => (
             <li key={t.userId ?? t.name} style={styles.row}>
               <span style={styles.rank}>{i + 1}</span>
-              {t.userId ? <Link href={`/people/${t.userId}`} style={{ ...styles.text, color: '#ffffff' }}>{t.name}</Link> : <span style={styles.text}>{t.name}</span>}
+              {t.userId ? <Link href={`/people/${t.userId}`} style={{ ...styles.text, color: 'var(--ink)' }}>{t.name}</Link> : <span style={styles.text}>{t.name}</span>}
               <span style={styles.ago}>{t.count.toLocaleString()}개</span>
             </li>
           ))}
@@ -97,75 +100,79 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
         <p style={styles.hint}>
           메시지 {chat.total.toLocaleString()}개{chat.peakHour !== null && <> · 가장 활발한 시간 {hourLabel(chat.peakHour)}</>}
         </p>
-      </Panel>
+      </Panel>}
+      {chat.hallOfFame.length > 0 && <p style={styles.hint}>이번 주 메시지 {chat.total.toLocaleString()}개{chat.peakHour !== null && <> · 가장 활발한 시간 {hourLabel(chat.peakHour)}</>}</p>}
     </>
   );
 }
 
 export function Home({ name, activity, people, chat, moments, notice }: { name: string; activity: Activity[]; people: Person[]; chat: ChatHighlights | null; moments: HotMoment[]; notice: string }) {
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h2 className="heading-3" style={styles.title}>재망호</h2>
-        <p style={styles.hint}>{name}님, 오늘은 뭘 같이 할까요?</p>
-      </header>
+    <div className="home-page" style={styles.container}>
+      <JaesuniHero name={name} />
 
-      <div style={styles.grid}>
-        <div style={styles.side}>
+      <section className="home-steam" aria-labelledby="steam-title">
+        <div className="home-steam-top">
+        <div>
+          <p className="home-eyebrow">함께 놀기</p>
+          <h2 id="steam-title" className="visual-heading"><ServiceMark service="steam" size={36} />Steam 공통 게임 찾기</h2>
+          <p style={styles.hint}>같이 할 사람을 고르면, 모두가 가진 게임을 찾아볼 수 있어요.</p>
+        </div>
+        </div>
+        <div className="home-steam-meta"><div className="home-steam-summary"><SteamHomeSummary /></div><Link href="/steam" className="btn btn-link">공통 게임 찾기<UiIcon name="arrow-right" /></Link></div>
+        <SteamHomeSearch />
+      </section>
+
+      <div className="home-grid">
+        <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card" icon={<ServiceMark service="leagueoflegends" size={40} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+        <section className="home-community" style={styles.panel} aria-labelledby="community-title">
+          <div className="home-section-heading community-graphic-heading"><div>
+            <h2 id="community-title" className="visual-heading"><ServiceMark service="discord" size={32} />이번 주 디스코드 활동</h2>
+            <Link href="/community" className="btn btn-link">커뮤 보기</Link>
+          </div></div>
+          {chat ? <ChatPanels chat={chat} moments={moments} notice={notice} /> : <p style={styles.hint}>아직 모아 둔 활동이 없어요. 커뮤니티에서 소식을 확인해 보세요.</p>}
+        </section>
+      </div>
+
+      <div className="home-grid home-lower-grid">
         <Panel title="최근 활동">
-          {activity.length === 0 ? (
-            <p style={styles.hint}>아직 활동이 없습니다.</p>
-          ) : (
-            <ul style={styles.list}>
-              {activity.map((a, i) => (
-                <li key={i} style={styles.row}>
-                  <span style={styles.tag}>{TAG[a.kind]}</span>
-                  <span style={styles.text}>{sentence(a)}</span>
-                  <Ago iso={a.at} />
-                </li>
-              ))}
-            </ul>
+          {activity.length === 0 ? <p style={styles.hint}>아직 활동이 없습니다.</p> : (
+            <ul style={styles.list}>{activity.map((a, i) => (
+              <li key={i} style={styles.row}>
+                <span style={styles.tag}>{TAG[a.kind]}</span>
+                <span style={styles.text}>{sentence(a)}</span><Ago iso={a.at} />
+              </li>
+            ))}</ul>
           )}
         </Panel>
-        {chat && <ChatPanels chat={chat} moments={moments} notice={notice} />}
-        </div>
-
-        <div style={styles.side}>
-          <HomeCard title="롤" href="/lol" cta="롤 대시보드">
-            <LolHomeSummary />
-          </HomeCard>
-          <HomeCard title="Steam" href="/steam" cta="공통 게임 찾기">
-            <SteamHomeSummary />
-          </HomeCard>
-          <Panel title="멤버">
-            <ul style={styles.list}>
-              {people.map((p) => (
-                <li key={p.id} style={styles.row}>
-                  <Link href={`/people/${p.id}`} style={{ ...styles.text, color: '#ffffff' }}>{p.name}</Link>
-                  <Ago iso={p.at} />
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        </div>
+        <Panel title="최근 접속한 멤버">
+          {people.length === 0 ? <p style={styles.hint}>아직 접속 기록이 없어요.</p> : (
+            <ul style={styles.list}>{people.map((p) => (
+              <li key={p.id} style={styles.row}>
+                <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={32} height={32} className="member-avatar" />
+                <Link href={`/people/${p.id}`} style={{ ...styles.text, color: 'var(--ink)' }}>{p.name}</Link><Ago iso={p.at} />
+              </li>
+            ))}</ul>
+          )}
+          <Link href="/people" className="btn btn-link"><UiIcon name="people" />전체 멤버 보기</Link>
+        </Panel>
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { padding: '32px', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
-  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
-  hint: { color: '#a8b3bc', fontSize: '14px' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'start' },
-  side: { display: 'flex', flexDirection: 'column' as const, gap: '24px' },
-  panel: { backgroundColor: '#001e2b', border: '1px solid #1c4558', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
-  panelTitle: { color: '#ffffff' },
+  container: { flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
+  header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
+  hint: { color: 'var(--slate)', fontSize: '14px' },
+  side: { display: 'flex', flexDirection: 'column' as const, gap: '24px', minWidth: 0 },
+  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
+  panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const },
-  row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #1c4558', fontSize: '14px', color: '#ffffff' },
-  rank: { color: '#7c8c9a', width: '16px', fontSize: '12px' },
-  tag: { fontSize: '11px', fontWeight: 700, color: '#00ed64', border: '1px solid rgba(0, 237, 100, 0.4)', borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap' as const },
+  row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--hairline)', fontSize: '14px', color: 'var(--ink)' },
+  rank: { color: 'var(--steel)', width: '16px', fontSize: '12px' },
+  tag: { fontSize: '11px', fontWeight: 700, color: 'var(--primary)', border: '1px solid var(--hairline)', borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap' as const },
   text: { flexGrow: 1, minWidth: 0 },
-  ago: { color: '#7c8c9a', fontSize: '12px', whiteSpace: 'nowrap' as const },
+  ago: { color: 'var(--steel)', fontSize: '12px', whiteSpace: 'nowrap' as const },
 };
