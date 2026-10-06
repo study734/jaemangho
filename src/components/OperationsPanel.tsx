@@ -10,8 +10,9 @@ const warnings: Record<string, string> = { highlights_failed: '개념글 갱신 
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: 'no-store' });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? `요청 실패 (${response.status})`);
+  const body = await response.json().catch(() => null); // 504 등 JSON이 아닌 응답
+  if (!response.ok) throw new Error(body?.error ?? `요청 실패 (${response.status})`);
+  if (body === null) throw new Error('응답을 해석하지 못했습니다.');
   return body;
 }
 

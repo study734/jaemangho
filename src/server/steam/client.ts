@@ -16,7 +16,13 @@ export class SteamUpstreamError extends Error {
     this.status = status;
   }
 }
-export class SteamPayloadError extends Error {}
+// 200인데 본문 형식이 깨진 경우. 라우트에서는 외부 서비스 오류(502)로 처리한다.
+export class SteamPayloadError extends SteamUpstreamError {
+  constructor() {
+    super(200);
+    this.message = 'Steam response schema mismatch';
+  }
+}
 
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -38,11 +44,11 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
       if (!res.ok) throw new SteamUpstreamError(res.status);
       const body: unknown = await res.json();
-      if (!schema.safeParse(body).success) throw new SteamPayloadError('Steam response schema mismatch');
+      if (!schema.safeParse(body).success) throw new SteamPayloadError();
       await steamCachePut(cacheKey, body, path.includes('GetOwnedGames') ? 300 : 900);
       return body;
     } catch (error) {
-      await steamStat('error', path, error instanceof SteamUpstreamError ? String(error.status) : error instanceof SteamPayloadError ? 'invalid_response' : 'network');
+      await steamStat('error', path, error instanceof SteamPayloadError ? 'invalid_response' : error instanceof SteamUpstreamError ? String(error.status) : 'network');
       throw error;
     }
   })();
