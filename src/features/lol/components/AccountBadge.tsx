@@ -13,7 +13,7 @@ export function LolAccountBadge({ id, gameName, tagLine }: { id: string; gameNam
       {m && m.tier !== 'UNRANKED' && (
         <RankLabel tier={m.tier} rank={m.rank} style={{ fontWeight: 600, fontSize: '13px' }}>
           {' '}{m.leaguePoints}LP
-          {total > 0 && <span style={{ color: '#a8b3bc', fontWeight: 400 }}> · {m.wins}승 {m.losses}패 ({Math.round((m.wins / total) * 100)}%)</span>}
+          {total > 0 && <span style={{ color: 'var(--slate)', fontWeight: 400 }}> · {m.wins}승 {m.losses}패 ({Math.round((m.wins / total) * 100)}%)</span>}
         </RankLabel>
       )}
     </span>

@@ -72,7 +72,7 @@ export function AddSummonerForm({ onAddMember, onSearchMember, onComplete }: {
     setSearchedProfile(null);
   };
   return (<div className="card-feature" style={styles.addForm}>
-    <h3 className="heading-3" style={{ marginBottom: '20px', color: '#00ed64' }}>
+    <h3 className="heading-3" style={{ marginBottom: '20px', color: 'var(--primary)' }}>
       라이엇 소환사 검색 및 추가
     </h3>
 
@@ -101,12 +101,12 @@ export function AddSummonerForm({ onAddMember, onSearchMember, onComplete }: {
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
-          borderColor: '#00ed64',
-          color: '#00ed64',
+          borderColor: 'var(--primary)',
+          color: 'var(--primary)',
           backgroundColor: 'transparent'
         }} disabled={isSearching}>
           {isSearching ? (<>
-            <span className="pulse-indicator" style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#00ed64', marginRight: '4px' }} />
+            <span className="pulse-indicator" style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary)', marginRight: '4px' }} />
             조회 중...
           </>) : (<>🔍 소환사 검색 및 검증</>)}
         </button>
@@ -138,8 +138,8 @@ export function AddSummonerForm({ onAddMember, onSearchMember, onComplete }: {
 }
 const styles = {
   addForm: {
-    backgroundColor: '#0b2a38',
-    border: '1px solid #1c4558',
+    backgroundColor: 'var(--surface)',
+    border: '1px solid var(--hairline)',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '16px',
@@ -158,6 +158,6 @@ const styles = {
   label: {
     fontSize: '12.5px',
     fontWeight: 600,
-    color: '#a8b3bc',
+    color: 'var(--slate)',
   }
 } satisfies Record<string, React.CSSProperties>;

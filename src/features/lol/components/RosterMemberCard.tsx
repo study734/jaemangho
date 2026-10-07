@@ -55,7 +55,7 @@ export function RosterMemberCard({ member, onEdit, onRemove, children }: {
 }
 const styles = {
   memberCard: {
-    backgroundColor: '#001e2b',
+    backgroundColor: 'var(--canvas-dark)',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '20px',
@@ -64,7 +64,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid #143747',
+    borderBottom: '1px solid var(--hairline)',
     paddingBottom: '12px',
   },
   userBox: {
@@ -76,16 +76,16 @@ const styles = {
     width: '38px',
     height: '38px',
     borderRadius: '50%',
-    border: '1.5px solid #00ed64',
+    border: '1.5px solid var(--primary)',
   },
   userName: {
     fontSize: '15px',
     fontWeight: 600,
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   userTag: {
     fontSize: '12px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
   },
   removeBtn: {
     background: 'none',
@@ -104,14 +104,14 @@ const styles = {
   statBox: {
     display: 'flex',
     flexDirection: 'column' as const,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'var(--surface)',
     padding: '8px 12px',
     borderRadius: '6px',
-    border: '1px solid #143747',
+    border: '1px solid var(--hairline)',
   },
   statLabel: {
     fontSize: '11px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     textTransform: 'uppercase' as const,
   },
   statValue: {
@@ -127,19 +127,19 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'var(--surface)',
     padding: '6px',
     borderRadius: '4px',
-    border: '1px solid #143747',
+    border: '1px solid var(--hairline)',
   },
   statLabelMini: {
     fontSize: '10px',
-    color: '#5c6c7a',
+    color: 'var(--steel)',
   },
   statValueMini: {
     fontSize: '12.5px',
     fontWeight: 600,
-    color: '#ffffff',
+    color: 'var(--ink)',
     marginTop: '2px',
   },
   editBtn: {

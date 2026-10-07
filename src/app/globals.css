@@ -322,7 +322,7 @@ body {
   padding: 32px;
   border: 2px solid var(--brand-green);
   position: relative;
-  box-shadow: 0 8px 32px rgba(0, 237, 100, 0.1);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 /* Badges & Status */
@@ -502,7 +502,7 @@ body {
   height: 8px;
   border-radius: 50%;
   background-color: var(--brand-green);
-  box-shadow: 0 0 0 0 rgba(0, 237, 100, 0.7);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 70%, transparent);
   animation: pulse-green 2s infinite;
 }
 
@@ -519,15 +519,15 @@ body {
 @keyframes pulse-green {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 237, 100, 0.7);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 70%, transparent);
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 8px rgba(0, 237, 100, 0);
+    box-shadow: 0 0 0 8px transparent;
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(0, 237, 100, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -553,7 +553,7 @@ body {
   left: -20%;
   width: 140%;
   height: 140%;
-  background: radial-gradient(circle, rgba(0, 237, 100, 0.05) 0%, rgba(0, 30, 43, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary) 5%, transparent) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -621,15 +621,16 @@ body {
 a { text-underline-offset: 3px; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
 .btn { min-height: 44px; }
-.app-navigation { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; gap: 24px; padding: 28px 12px 16px; background: var(--canvas-dark); border-right: 1px solid var(--hairline); }
+.app-frame { flex-direction: column; }
+.app-navigation { flex-shrink: 0; display: flex; align-items: center; gap: 24px; padding: 12px 24px; background: var(--canvas-dark); border-bottom: 1px solid var(--hairline); }
 .app-brand { display: flex; flex-direction: column; padding: 0 12px; color: var(--ink); font-size: 22px; font-weight: 750; text-decoration: none; }
 .app-brand-name { display: flex; align-items: center; gap: 8px; }
 .app-brand span { margin-top: 4px; font-size: 10px; letter-spacing: 2px; color: var(--slate); }
-.app-topic-nav { display: flex; flex-direction: column; gap: 8px; }
-.app-topic { justify-content: flex-start; gap: 12px; border-radius: 8px; padding: 12px 16px; white-space: nowrap; }
+.app-topic-nav { display: flex; flex: 1; min-width: 0; gap: 8px; overflow-x: auto; }
+.app-topic { justify-content: flex-start; flex-shrink: 0; gap: 12px; border-radius: 999px; padding: 12px 16px; white-space: nowrap; }
 .app-topic svg { width: 20px; height: 20px; flex-shrink: 0; }
 .app-topic.btn-ghost-active { background: var(--primary); color: var(--on-primary); }
-.app-logout { margin-top: auto; }
+.app-logout { flex-shrink: 0; }
 .home-page { padding: 24px; }
 .home-page > * { flex-shrink: 0; }
 .home-eyebrow { font-size: 12px; font-weight: 650; letter-spacing: 1.4px; color: var(--primary); margin-bottom: 8px; }
@@ -704,8 +705,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .visual-image { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; flex-shrink: 0; overflow: hidden; }
 .visual-image > img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .visual-fallback { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--surface-soft); color: var(--primary); font-size: 13px; }
-.service-mark > img, .ui-icon > img { filter: invert(1); }
-.btn-primary .service-mark > img, .btn-primary .ui-icon > img, .btn-ghost-active .service-mark > img, .btn-ghost-active .ui-icon > img { filter: none; }
+.service-mark > img, .ui-icon > img { filter: brightness(0) invert(1); }
+.btn-primary .service-mark > img, .btn-primary .ui-icon > img, .btn-ghost-active .service-mark > img, .btn-ghost-active .ui-icon > img { filter: brightness(0); }
 .visual-heading { display: flex; align-items: center; gap: 12px; }
 .member-avatar { border-radius: 50%; }
 .member-avatar > img { object-fit: cover; }

@@ -9,7 +9,7 @@ export function MatchHistoryCard({ match, now }: {
   const kda = getKdaRatio(match.kills, match.deaths, match.assists);
   const cardStyle = match.win ? styles.winMatchCard : styles.lossMatchCard;
   const statusText = match.win ? '승리' : '패배';
-  const statusColor = match.win ? '#00ed64' : '#ff4a4a';
+  const statusColor = match.win ? 'var(--primary)' : '#ff4a4a';
   return (<div className="player-match-card" style={cardStyle}>
 
     {/* Game Status */}
@@ -58,9 +58,9 @@ export function MatchHistoryCard({ match, now }: {
 const styles = {
   winMatchCard: {
     display: 'flex',
-    backgroundColor: 'rgba(0, 237, 100, 0.04)',
-    border: '1px solid rgba(0, 237, 100, 0.2)',
-    borderLeft: '5px solid #00ed64',
+    backgroundColor: 'color-mix(in srgb, var(--primary) 4%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
+    borderLeft: '5px solid var(--primary)',
     borderRadius: '8px',
     padding: '16px',
     gap: '24px',
@@ -87,17 +87,17 @@ const styles = {
   },
   matchModeLabel: {
     fontSize: '11px',
-    color: '#a8b3bc',
+    color: 'var(--slate)',
     marginTop: '2px',
   },
   matchTimeAgo: {
     fontSize: '11px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     marginTop: '4px',
   },
   matchDuration: {
     fontSize: '11px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     fontFamily: 'monospace',
   },
   matchChampColumn: {
@@ -119,7 +119,7 @@ const styles = {
   },
   matchChampNameLabel: {
     fontSize: '10px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
   },
   matchKdaWrapper: {
     display: 'flex',
@@ -130,24 +130,24 @@ const styles = {
     gap: '4px',
     fontWeight: 600,
     fontSize: '14.5px',
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   kdaKills: {
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   kdaDivider: {
-    color: '#4e5f6e',
+    color: 'var(--steel)',
     fontWeight: 400,
   },
   kdaDeaths: {
     color: '#ff4a4a',
   },
   kdaAssists: {
-    color: '#7c8c9a',
+    color: 'var(--steel)',
   },
   kdaRatioText: {
     fontSize: '11.5px',
-    color: '#a8b3bc',
+    color: 'var(--slate)',
     marginTop: '2px',
   },
   matchStatsColumn: {
@@ -156,7 +156,7 @@ const styles = {
     gap: '4px',
     width: '100px',
     fontSize: '12.5px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
   },
   matchStatRow: {
     display: 'flex',
@@ -172,8 +172,8 @@ const styles = {
     width: '28px',
     height: '28px',
     borderRadius: '4px',
-    backgroundColor: '#001e2b',
-    border: '1px solid #1c4558',
+    backgroundColor: 'var(--canvas-dark)',
+    border: '1px solid var(--hairline)',
     overflow: 'hidden',
     display: 'flex',
     alignItems: 'center',

@@ -33,7 +33,7 @@ export const Settings: React.FC = () => {
 
       <div style={styles.content}>
         <section className="card-base" style={styles.apiForm}>
-          <h3 className="heading-3" style={{ marginBottom: '20px', color: '#ffffff' }}>Riot 연결 상태</h3>
+          <h3 className="heading-3" style={{ marginBottom: '20px', color: 'var(--ink)' }}>Riot 연결 상태</h3>
           <p className="body-sm" style={{ marginBottom: '16px' }}>
             Riot API 키는 서버에서 관리되므로 크루원이 따로 입력할 필요가 없습니다.
             아래 버튼으로 서버의 Riot 연결을 확인할 수 있습니다.
@@ -72,9 +72,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     overflowY: 'auto',
     minHeight: 0,
   },
-  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
+  header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
   content: { display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '800px' },
-  apiForm: { backgroundColor: '#001e2b', border: '1px solid #1c4558', padding: '24px' },
+  apiForm: { backgroundColor: 'var(--canvas-dark)', border: '1px solid var(--hairline)', padding: '24px' },
   testSection: { display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' },
 };

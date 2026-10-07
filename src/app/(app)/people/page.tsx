@@ -26,12 +26,12 @@ export default async function PeoplePage() {
 
 const styles = {
   container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
-  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
-  hint: { color: '#a8b3bc', fontSize: '14px' },
+  header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
+  hint: { color: 'var(--slate)', fontSize: '14px' },
   grid: { listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' },
-  card: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '8px', padding: '20px', backgroundColor: '#001e2b', border: '1px solid #1c4558', borderRadius: '12px', textDecoration: 'none' },
-  avatar: { borderRadius: '50%', backgroundColor: '#1c4558', display: 'inline-block' },
-  name: { color: '#ffffff', fontWeight: 600 },
-  meta: { color: '#a8b3bc', fontSize: '12px' },
+  card: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '8px', padding: '20px', backgroundColor: 'var(--canvas-dark)', border: '1px solid var(--hairline)', borderRadius: '12px', textDecoration: 'none' },
+  avatar: { borderRadius: '50%', backgroundColor: 'var(--hairline)', display: 'inline-block' },
+  name: { color: 'var(--ink)', fontWeight: 600 },
+  meta: { color: 'var(--slate)', fontSize: '12px' },
 };

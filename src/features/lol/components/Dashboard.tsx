@@ -50,11 +50,11 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid #1c4558',
+    borderBottom: '1px solid var(--hairline)',
     paddingBottom: '20px',
   },
   title: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     letterSpacing: '-1px',
   },
   subtitleText: {

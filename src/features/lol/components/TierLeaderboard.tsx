@@ -24,7 +24,7 @@ export function TierLeaderboard({ members, onSelectMember }: {
   };
   return (<section style={styles.rightColumn}>
     <div style={styles.sectionHeader}>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ed64" strokeWidth="2" style={{ marginRight: '8px' }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" style={{ marginRight: '8px' }}>
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
       </svg>
       <h3 className="heading-3">티어 랭킹</h3>
@@ -55,7 +55,7 @@ export function TierLeaderboard({ members, onSelectMember }: {
             const rankBadgeStyle = isTop3 ? {
               ...styles.rankBadge,
               backgroundColor: index === 0 ? '#ffb703' : index === 1 ? '#adb5bd' : '#fa6e39',
-              color: '#001e2b'
+              color: 'var(--canvas-dark)'
             } : styles.rankBadge;
             return (<tr key={member.id} onClick={() => onSelectMember(member)} style={{ cursor: 'pointer' }}>
               <td style={{ textAlign: 'center' }}>
@@ -80,7 +80,7 @@ export function TierLeaderboard({ members, onSelectMember }: {
                   <span style={styles.winLossLabel}>{member.wins}승 {member.losses}패</span>
                 </div>
               </td>
-              <td style={{ textAlign: 'right', fontWeight: 600, color: '#ffffff' }}>
+              <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ink)' }}>
                 {member.leaguePoints} LP
               </td>
             </tr>);
@@ -106,8 +106,8 @@ const styles = {
     width: '26px',
     height: '26px',
     borderRadius: '50%',
-    backgroundColor: '#1c4558',
-    color: '#a8b3bc',
+    backgroundColor: 'var(--hairline)',
+    color: 'var(--slate)',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '12px',
@@ -123,7 +123,7 @@ const styles = {
     width: '26px',
     height: '26px',
     borderRadius: '50%',
-    border: '1px solid #1c4558',
+    border: '1px solid var(--hairline)',
   },
   tableUserName: {
     width: '100%',
@@ -139,7 +139,7 @@ const styles = {
   },
   tableUserTag: {
     display: 'block',
-    color: '#5c6c7a',
+    color: 'var(--steel)',
     fontSize: '11.5px',
   },
   winRateContainer: {
@@ -149,11 +149,11 @@ const styles = {
   },
   winRateText: {
     fontWeight: 600,
-    color: '#ffffff',
+    color: 'var(--ink)',
     fontSize: '13.5px',
   },
   winLossLabel: {
     fontSize: '11px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
   }
 } satisfies Record<string, React.CSSProperties>;

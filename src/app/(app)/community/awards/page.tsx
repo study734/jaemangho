@@ -57,15 +57,15 @@ export default async function AwardsPage() {
 
 const styles = {
   container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
-  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
-  hint: { color: '#a8b3bc', fontSize: '13px' },
-  panel: { backgroundColor: '#001e2b', border: '1px solid #1c4558', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
-  panelTitle: { color: '#ffffff' },
+  header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
+  hint: { color: 'var(--slate)', fontSize: '13px' },
+  panel: { backgroundColor: 'var(--canvas-dark)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
+  panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const },
-  row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid #1c4558', fontSize: '14px', color: '#ffffff' },
+  row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--hairline)', fontSize: '14px', color: 'var(--ink)' },
   badge: { fontSize: '12px', fontWeight: 700, color: '#ffb703', border: '1px solid rgba(255, 183, 3, 0.5)', borderRadius: '999px', padding: '2px 10px', whiteSpace: 'nowrap' as const, minWidth: '72px', textAlign: 'center' as const },
   who: { flexGrow: 1 },
-  link: { color: '#ffffff' },
-  ago: { color: '#7c8c9a', fontSize: '12px', textAlign: 'right' as const },
+  link: { color: 'var(--ink)' },
+  ago: { color: 'var(--steel)', fontSize: '12px', textAlign: 'right' as const },
 };

@@ -3,6 +3,31 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('주제 메뉴는 상단에, 상세 메뉴는 데스크톱 좌측과 모바일 두 번째 줄에 표시된다', async ({ page, context }) => {
+  await loginAs(context, await createUser('top_navigation', 'E2E상단메뉴'));
+  await mockRiot(page);
+  await page.goto('/lol');
+  const topics = page.getByRole('navigation', { name: '주제', exact: true });
+  const details = page.getByRole('navigation', { name: '롤 상세 메뉴' });
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const header = await page.getByRole('banner').boundingBox();
+    const sidebar = await details.boundingBox();
+    expect(header!.x).toBe(0);
+    expect(header!.width).toBe(width);
+    expect(sidebar!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(topics.getByRole('link', { name: '롤', exact: true })).toHaveAttribute('aria-current', 'page');
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const main = await page.getByRole('main').boundingBox();
+  const sidebar = await details.boundingBox();
+  expect(main!.x).toBeGreaterThan(sidebar!.x);
+  await topics.getByRole('link', { name: '커뮤', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '개념글', exact: true })).toBeVisible();
+  await expect(topics.getByRole('link', { name: '커뮤', exact: true })).toHaveAttribute('aria-current', 'page');
+});
+
 test('티어 랭킹은 데스크톱에서 LP까지 보이고 긴 이름도 줄바꿈한다', async ({ page, context }) => {
   await loginAs(context, await createUser('ranking_width', 'E2E랭킹너비'));
   const name = '아주긴소환사이름도잘리지않도록';

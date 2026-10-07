@@ -28,7 +28,7 @@ export function PlayerDetailsDialog({ member, loading, now, onClose }: {
         <div>
           <h3 id={titleId} className="heading-2" style={{ color: 'var(--ink)' }}>
             {member.gameName}
-            <span style={{ color: '#7c8c9a', fontSize: '18px', fontWeight: 400 }}>#{member.tagLine}</span>
+            <span style={{ color: 'var(--steel)', fontSize: '18px', fontWeight: 400 }}>#{member.tagLine}</span>
           </h3>
           <div style={styles.modalUserSub}>
             <span className="badge-green-soft">레벨 {member.summonerLevel}</span>
@@ -52,7 +52,7 @@ export function PlayerDetailsDialog({ member, loading, now, onClose }: {
 
       {loading ? (<div style={{ textAlign: 'center', padding: '40px' }}>
         <span className="pulse-indicator" style={{ display: 'inline-block', width: '16px', height: '16px', marginBottom: '12px' }} />
-        <p className="body-sm" style={{ color: '#7c8c9a' }}>상세 전적을 불러오는 중...</p>
+        <p className="body-sm" style={{ color: 'var(--steel)' }}>상세 전적을 불러오는 중...</p>
       </div>) : member.matches && member.matches.length === 0 ? (<p className="body-sm" style={{ textAlign: 'center', padding: '24px' }}>매치 내역이 없습니다.</p>) : member.matches && (<div style={styles.matchesList}>
         {member.matches.map(match => <MatchHistoryCard key={match.matchId} match={match} now={now} />)}
       </div>)}
@@ -79,7 +79,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '24px',
-    borderBottom: '1px solid #1c4558',
+    borderBottom: '1px solid var(--hairline)',
   },
   modalUserBox: {
     display: 'flex',
@@ -91,7 +91,7 @@ const styles = {
     width: '56px',
     height: '56px',
     borderRadius: '50%',
-    border: '2px solid #00ed64',
+    border: '2px solid var(--primary)',
   },
   modalUserSub: {
     display: 'flex',
@@ -103,7 +103,7 @@ const styles = {
     flexShrink: 0,
     background: 'none',
     border: 'none',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     cursor: 'pointer',
   },
   modalBody: {
@@ -116,7 +116,7 @@ const styles = {
     fontWeight: 700,
     textTransform: 'uppercase' as const,
     letterSpacing: '1px',
-    color: '#00ed64',
+    color: 'var(--primary)',
     marginBottom: '16px',
   },
   matchesList: {
