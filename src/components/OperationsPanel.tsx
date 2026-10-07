@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
+import { operationsLog, type LogLevel } from '@/lib/operations-log';
 import { adminStyles as styles, Panel, ScrollTable } from './AdminUi';
 
 const when = (value: string | null) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
 const labels: Record<string, string> = { running: '실행 중', success: '완료', partial: '부분 완료', failed: '실패', started: '진행 또는 결과 확인 필요' };
 const warnings: Record<string, string> = { highlights_failed: '개념글 갱신 실패', awards_failed: '시상식 갱신 실패' };
+const levels = { error: 'Error · 오류', warning: 'Warning · 경고', info: 'Info · 정보' };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: 'no-store' });
@@ -22,7 +24,7 @@ export function useOperations() {
   const [data, setData] = useState<OperationsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ level: LogLevel; message: string } | null>(null);
   const [now, setNow] = useState(0);
   const load = useCallback(async () => {
     try {
@@ -42,39 +44,61 @@ export function useOperations() {
   const command = async (action: string) => {
     if (action === 'purge-steam' && !confirm('Steam 캐시를 비우시겠습니까? 다음 조회부터 Steam을 다시 호출합니다.')) return;
     if (action === 'sync' && !confirm('채팅 동기화를 다시 실행하시겠습니까? Discord에서 최근 메시지의 집계 정보를 가져옵니다.')) return;
-    setBusy(true); setMessage(null);
+    setBusy(true); setNotice(null);
     try {
-      const result = await json<{ status?: string }>('/api/admin/operations?action=' + action, { method: 'POST' });
-      setMessage(result.status === 'partial' ? '일부만 완료되었습니다. 실행 기록의 사유를 확인하세요.' : '작업을 완료했습니다.');
-    } catch (e) { setMessage((e as Error).message); }
+      const result = await json<{ status?: string; skipped?: boolean }>('/api/admin/operations?action=' + action, { method: 'POST' });
+      setNotice({
+        level: result.skipped || result.status === 'partial' ? 'warning' : 'info',
+        message: result.skipped ? '다른 점검이 진행 중이라 이번 요청은 실행하지 않았습니다. 잠시 후 현황을 확인하세요.'
+          : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' : '작업을 완료했습니다.',
+      });
+    } catch (e) { setNotice({ level: 'error', message: (e as Error).message }); }
     finally { setBusy(false); await load(); }
   };
-  return { data, error, busy, message, now, command };
+  return { data, error, busy, notice, now, command, refresh: load };
 }
 export type Operations = ReturnType<typeof useOperations>;
 
 // 작업 결과와 조회 실패는 탭과 관계없이 같은 자리에 보인다.
 export function OpsNotice({ ops }: { ops: Operations }) {
   return <>
-    {ops.error && <p role="alert" style={styles.muted}>{ops.error}</p>}
-    {ops.message && <p role="status" style={styles.muted}>{ops.message}</p>}
+    {ops.error && <p role="alert" className="ops-log-notice"><strong className="ops-log-level ops-log-error">Error · 오류</strong> {ops.error}</p>}
+    {ops.notice && <p role={ops.notice.level === 'error' ? 'alert' : 'status'} className="ops-log-notice">
+      <strong className={`ops-log-level ops-log-${ops.notice.level}`}>{levels[ops.notice.level]}</strong> {ops.notice.message}
+    </p>}
   </>;
 }
 
-export function OpsStatusPanel({ ops }: { ops: Operations }) {
+export function OpsStatusPanel({ ops, onOpenIntegrations }: { ops: Operations; onOpenIntegrations?: () => void }) {
   const { data, error, busy, now, command } = ops;
+  const [filter, setFilter] = useState<LogLevel | 'all'>('all');
+  const entries = data ? operationsLog(data, now) : [];
+  const visible = entries.filter((entry) => filter === 'all' || entry.level === filter);
   return <Panel title="운영 상태와 알림" actions={<button className="btn btn-secondary" disabled={busy} onClick={() => command('check')}>지금 점검</button>}>
     {!data && !error && <p>운영 현황을 불러오는 중입니다.</p>}
     {data && <>
-      <p style={styles.muted}>마지막 점검: {when(data.checkedAt)} · Discord 알림: {data.notificationsConfigured ? '설정됨' : '미설정'}</p>
-      {(!data.checkedAt || now - new Date(data.checkedAt).getTime() > 60 * 60_000) &&
-        <p>자동 점검 기록이 없거나 1시간 이상 지났습니다. 감시 워크플로 설정을 확인하세요.</p>}
-      {data.alerts.filter((a) => a.active).length === 0 && <p>{data.checkedAt ? '마지막 점검에서 감지된 장애가 없습니다.' : '아직 점검하지 않았습니다.'}</p>}
-      <ul style={styles.list}>{data.alerts.map((a) => <li key={a.key}>
-        <strong>{a.active ? (a.severity === 'critical' ? '긴급' : '확인 필요') : '복구'}</strong> · {a.title}
-        <span style={styles.muted}> · {when(a.active ? a.firstSeen : a.resolvedAt)}</span>
-        {a.notificationError && <span> · 외부 알림 전송 실패: 수신 설정을 확인하세요.</span>}
-      </li>)}</ul>
+      <p style={styles.muted}>마지막 점검: {when(data.checkedAt)} · Discord 알림 주소: {data.notificationsConfigured ? '설정됨' : '미설정'}</p>
+      <p style={styles.muted}>현황 조회: {when(new Date(now).toISOString())} · 30초마다 자동 갱신 · 한국 시간</p>
+      <p style={styles.muted}>Error: 긴급 오류 · Warning: 확인이 필요한 경고 · Info: 점검 결과와 복구 기록</p>
+      <div style={styles.controls} role="group" aria-label="운영 로그 수준 필터">
+        {(['all', 'error', 'warning', 'info'] as const).map((level) => <button key={level}
+          className={`btn ${filter === level ? 'btn-primary' : 'btn-secondary'}`}
+          aria-pressed={filter === level} onClick={() => setFilter(level)}>
+          {level === 'all' ? '전체' : levels[level]} {level === 'all' ? entries.length : entries.filter((entry) => entry.level === level).length}
+        </button>)}
+      </div>
+      {onOpenIntegrations && <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={onOpenIntegrations}>연동 상태와 실행 기록 보기</button>}
+      <ul className="ops-log-list" aria-label="운영 로그">
+        {visible.map((entry) => <li key={entry.id} className={`ops-log-row ops-log-${entry.level}`}>
+          <strong className="ops-log-level">{levels[entry.level]}</strong>
+          <div className="ops-log-content">
+            <p className="ops-log-title"><strong>{entry.state}</strong> · {entry.title}</p>
+            {entry.detail && <p className="ops-log-detail">{entry.detail}</p>}
+            <p className="ops-log-detail">{entry.id} · {when(entry.at)}</p>
+          </div>
+        </li>)}
+      </ul>
+      {visible.length === 0 && <p role="status">선택한 수준의 로그가 없습니다.</p>}
     </>}
   </Panel>;
 }
