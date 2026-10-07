@@ -3,6 +3,37 @@ import { cleanup, createUser, db, expect, loginAs, test } from './fixtures';
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('운영 로그는 오류·경고·복구를 구분하고 수준별로 필터링한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ops_levels', 'E2E운영로그', 'admin'));
+  const snapshot = await (await context.request.get('/api/admin/operations')).json();
+  const at = new Date().toISOString();
+  const alert = { firstSeen: at, resolvedAt: null, notificationError: null, active: true };
+  await page.route('**/api/admin/operations', (route) => route.fulfill({ json: {
+    ...snapshot, checkedAt: at, alerts: [
+      { ...alert, key: 'riot.key', title: 'Riot 인증 오류', severity: 'critical' },
+      { ...alert, key: 'chat.failed', title: '채팅 동기화 부분 완료', severity: 'warning' },
+      { ...alert, key: 'chat.stale', title: '채팅 동기화 지연', severity: 'warning', active: false, resolvedAt: at },
+    ],
+  } }));
+  await page.goto('/admin');
+  const logs = page.getByRole('list', { name: '운영 로그', exact: true });
+  await expect(logs.getByRole('listitem')).toHaveCount(3);
+  await expect(logs.getByRole('listitem').nth(0)).toContainText('Error · 오류');
+  await expect(logs.getByRole('listitem').nth(2)).toContainText('Info · 정보');
+  await expect(logs).toContainText('이전 경고가 해소');
+  await page.getByRole('button', { name: 'Warning · 경고 1', exact: true }).click();
+  await expect(logs.getByRole('listitem')).toHaveCount(1);
+  await expect(logs).toContainText('채팅 동기화 부분 완료');
+  await page.getByRole('button', { name: 'Info · 정보 1', exact: true }).click();
+  await expect(logs).toContainText('복구');
+  await page.getByRole('button', { name: '전체 3', exact: true }).click();
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(logs).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+});
+
 test('운영 API는 관리자만 조회·조작할 수 있다', async ({ context }) => {
   expect((await context.request.get('/api/admin/operations')).status()).toBe(401);
   await loginAs(context, await createUser('ops_user', 'E2E일반사용자'));

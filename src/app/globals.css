@@ -1,5 +1,8 @@
 /* 재망호 다크 아지트 토큰 — DESIGN.md 참고 */
 :root {
+  --status-error: #ff4a4a;
+  --status-warning: var(--accent-orange);
+  --status-info: var(--primary);
   --page-padding: 24px;
   --panel-padding: 24px;
   color-scheme: dark;
@@ -845,4 +848,19 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 768px) {
   /* 좁은 화면에서 입력 글자를 읽기 쉽게 하고 iOS의 자동 확대를 피한다. */
   .text-input, .search-pill, .game-search input { font-size: 16px; }
+}
+
+/* 운영 로그: 색과 문구로 수준을 함께 표시하고 목록 안에 카드를 중첩하지 않는다. */
+.ops-log-list { list-style: none; padding: 0; margin: 16px 0 0; }
+.ops-log-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; line-height: 1.6; }
+.ops-log-level { color: var(--log-color); font-family: var(--font-mono); font-size: 13px; flex-shrink: 0; }
+.ops-log-error { --log-color: var(--status-error); }
+.ops-log-warning { --log-color: var(--status-warning); }
+.ops-log-info { --log-color: var(--status-info); }
+.ops-log-content { min-width: 0; overflow-wrap: anywhere; }
+.ops-log-title { margin: 0; color: var(--ink); }
+.ops-log-detail { margin: 4px 0 0; color: var(--slate); font-size: 13px; }
+.ops-log-notice { line-height: 1.6; overflow-wrap: anywhere; }
+@media (max-width: 768px) {
+  .ops-log-row { flex-direction: column; gap: 8px; }
 }

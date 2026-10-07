@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
+import { operationsLog, type LogLevel } from '@/lib/operations-log';
 import { adminStyles as styles, Panel, ScrollTable } from './AdminUi';
 
 const when = (value: string | null) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
@@ -56,25 +57,40 @@ export type Operations = ReturnType<typeof useOperations>;
 // 작업 결과와 조회 실패는 탭과 관계없이 같은 자리에 보인다.
 export function OpsNotice({ ops }: { ops: Operations }) {
   return <>
-    {ops.error && <p role="alert" style={styles.muted}>{ops.error}</p>}
+    {ops.error && <p role="alert" className="ops-log-notice"><strong className="ops-log-level ops-log-error">Error · 오류</strong> {ops.error}</p>}
     {ops.message && <p role="status" style={styles.muted}>{ops.message}</p>}
   </>;
 }
 
 export function OpsStatusPanel({ ops }: { ops: Operations }) {
   const { data, error, busy, now, command } = ops;
+  const [filter, setFilter] = useState<LogLevel | 'all'>('all');
+  const entries = data ? operationsLog(data, now) : [];
+  const levels = { error: 'Error · 오류', warning: 'Warning · 경고', info: 'Info · 정보' };
+  const visible = entries.filter((entry) => filter === 'all' || entry.level === filter);
   return <Panel title="운영 상태와 알림" actions={<button className="btn btn-secondary" disabled={busy} onClick={() => command('check')}>지금 점검</button>}>
     {!data && !error && <p>운영 현황을 불러오는 중입니다.</p>}
     {data && <>
       <p style={styles.muted}>마지막 점검: {when(data.checkedAt)} · Discord 알림: {data.notificationsConfigured ? '설정됨' : '미설정'}</p>
-      {(!data.checkedAt || now - new Date(data.checkedAt).getTime() > 60 * 60_000) &&
-        <p>자동 점검 기록이 없거나 1시간 이상 지났습니다. 감시 워크플로 설정을 확인하세요.</p>}
-      {data.alerts.filter((a) => a.active).length === 0 && <p>{data.checkedAt ? '마지막 점검에서 감지된 장애가 없습니다.' : '아직 점검하지 않았습니다.'}</p>}
-      <ul style={styles.list}>{data.alerts.map((a) => <li key={a.key}>
-        <strong>{a.active ? (a.severity === 'critical' ? '긴급' : '확인 필요') : '복구'}</strong> · {a.title}
-        <span style={styles.muted}> · {when(a.active ? a.firstSeen : a.resolvedAt)}</span>
-        {a.notificationError && <span> · 외부 알림 전송 실패: 수신 설정을 확인하세요.</span>}
-      </li>)}</ul>
+      <p style={styles.muted}>Error: 긴급 오류 · Warning: 확인이 필요한 경고 · Info: 점검 결과와 복구 기록</p>
+      <div style={styles.controls} role="group" aria-label="운영 로그 수준 필터">
+        {(['all', 'error', 'warning', 'info'] as const).map((level) => <button key={level}
+          className={`btn ${filter === level ? 'btn-primary' : 'btn-secondary'}`}
+          aria-pressed={filter === level} onClick={() => setFilter(level)}>
+          {level === 'all' ? '전체' : levels[level]} {level === 'all' ? entries.length : entries.filter((entry) => entry.level === level).length}
+        </button>)}
+      </div>
+      <ul className="ops-log-list" aria-label="운영 로그">
+        {visible.map((entry) => <li key={entry.id} className={`ops-log-row ops-log-${entry.level}`}>
+          <strong className="ops-log-level">{levels[entry.level]}</strong>
+          <div className="ops-log-content">
+            <p className="ops-log-title"><strong>{entry.state}</strong> · {entry.title}</p>
+            {entry.detail && <p className="ops-log-detail">{entry.detail}</p>}
+            <p className="ops-log-detail">{entry.id} · {when(entry.at)}</p>
+          </div>
+        </li>)}
+      </ul>
+      {visible.length === 0 && <p role="status">선택한 수준의 로그가 없습니다.</p>}
     </>}
   </Panel>;
 }
