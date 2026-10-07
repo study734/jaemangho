@@ -3,6 +3,41 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('직접 등록과 편집은 같은 입력 규칙을 쓰고 편집 취소는 다른 소환사에 영향을 주지 않는다', async ({ page, context }) => {
+  await loginAs(context, await createUser('form_reuse', 'E2E폼재사용'));
+  await page.route(/\/api\/riot\?/, route => route.fulfill({ status: 404, json: {} }));
+  await page.goto('/lol/squad');
+  for (const name of ['E2E폼A', 'E2E폼B']) {
+    await page.getByRole('button', { name: '소환사 추가' }).click();
+    await page.getByLabel('소환사명', { exact: true }).fill(name);
+    await page.getByLabel('태그라인', { exact: true }).fill('KR1');
+    await page.getByRole('button', { name: /상세 정보 직접 입력/ }).click();
+    await page.getByLabel('초기 티어', { exact: true }).selectOption('MASTER');
+    await page.getByLabel('소환사 레벨', { exact: true }).fill('222');
+    await page.getByLabel('리그 포인트 (LP)', { exact: true }).fill('88');
+    await page.getByRole('button', { name: '직접 입력한 정보로 추가' }).click();
+    await expect.poll(async () => (await db.query('select count(*)::int as n from members where game_name = $1', [name])).rows[0].n).toBe(1);
+  }
+  const first = page.locator('.card-base').filter({ has: page.getByRole('heading', { name: 'E2E폼A', exact: true }) });
+  const second = page.locator('.card-base').filter({ has: page.getByRole('heading', { name: 'E2E폼B', exact: true }) });
+  await expect(first.getByText('마스터', { exact: true })).toBeVisible();
+  await expect(first.getByText('88 LP')).toBeVisible();
+  await first.getByRole('button', { name: '정보 편집' }).click();
+  await first.getByLabel('LP', { exact: true }).fill('999');
+  await second.getByRole('button', { name: '정보 편집' }).click();
+  await expect(first.getByRole('button', { name: '정보 편집' })).toBeVisible();
+  await expect(second.getByLabel('LP', { exact: true })).toHaveValue('88');
+  await second.getByRole('button', { name: '취소', exact: true }).click();
+  await first.getByRole('button', { name: '정보 편집' }).click();
+  await expect(first.getByLabel('LP', { exact: true })).toHaveValue('88');
+  await first.getByLabel('LP', { exact: true }).fill('123');
+  await first.getByLabel('승리', { exact: true }).fill('70');
+  await first.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(first.getByText('123 LP')).toBeVisible();
+  await expect(first.getByText('70승 50패')).toBeVisible();
+  await expect(second.getByText('88 LP')).toBeVisible();
+});
+
 test('소환사를 검색해 추가하면 목록에 나오고, 새로고침해도 남고, 삭제하면 사라진다', async ({ page, context }) => {
   await loginAs(context, await createUser('roster', 'E2E등록자'));
   await mockRiot(page);

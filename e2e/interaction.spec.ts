@@ -14,6 +14,14 @@ test('본문 건너뛰기와 소환사 상세의 키보드 동작, 새 상세 �
       gameCreation: Date.now(), gameDuration: 1200,
       participants: [{ puuid: 'E2EPUUID', championName: 'Ahri', win: true, kills: 9, deaths: 1, assists: 3 }],
     } } });
+    if (path.includes('/spectator/')) return route.fulfill({ json: {
+      gameId: 1, gameLength: 1200, gameStartTime: Date.now() - 1200000, mapId: 11, gameMode: 'CLASSIC',
+      participants: [
+        { puuid: 'E2EPUUID', riotId: 'E2E키보드#KR1', teamId: 100, championId: 103 },
+        { puuid: 'ALLY', riotId: '아군이름#KR1', teamId: 100, championId: 22 },
+        { puuid: 'ENEMY', riotId: '적군이름#KR1', teamId: 200, championId: 86 },
+      ],
+    } });
     return route.fallback();
   });
   await page.goto('/lol');
@@ -36,6 +44,12 @@ test('본문 건너뛰기와 소환사 상세의 키보드 동작, 새 상세 �
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(open).toBeFocused();
+  const allies = page.getByText('아군 팀', { exact: true }).locator('..');
+  const enemies = page.getByText('적군 팀', { exact: true }).locator('..');
+  await expect(allies).toContainText('아군이름');
+  await expect(allies).not.toContainText('적군이름');
+  await expect(enemies).toContainText('적군이름');
+  await expect(enemies).not.toContainText('아군이름');
   await open.click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dialog.getByText('12.00')).toBeVisible();
