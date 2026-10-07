@@ -14,6 +14,23 @@ export interface GamesResult {
   excluded: string[];
 }
 export type Mode = 'common' | 'unplayed';
+export type Preference = 'balanced' | 'familiar' | 'fresh';
+export interface Recommendation extends GameEntry {
+  playedBy: number;
+  beginnerCount: number;
+  minMinutes: number;
+  maxMinutes: number;
+  score: number;
+  reasons: string[];
+  support: 'coop' | 'multiplayer';
+}
+export interface RecommendationsResult {
+  games: Recommendation[];
+  excluded: string[];
+  totalCommon: number;
+  checked: number;
+  unverified: number;
+}
 
 export class SteamApiError extends Error {
   status: number;
@@ -45,6 +62,8 @@ export const steamApi = {
     }),
   remove: (steamId: string) => call<null>(`/api/steam/members?id=${encodeURIComponent(steamId)}`, { method: 'DELETE' }),
   games: (ids: string[], mode: Mode) => call<GamesResult>(`/api/steam/games?ids=${ids.join(',')}&mode=${mode}`),
+  recommendations: (ids: string[], preference: Preference) =>
+    call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference })}`),
 };
 
 const MESSAGES: Record<number, string> = {
