@@ -745,6 +745,17 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .result-game-info { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
 .result-game-info > span:last-child { margin-left: 0 !important; }
 .result-game-info + .btn { min-width: 44px; }
+.steam-recommendations { counter-reset: recommendation; }
+.steam-recommendation { counter-increment: recommendation; flex-wrap: wrap; }
+.steam-recommendation strong { overflow-wrap: anywhere; }
+.steam-recommendation strong::before { content: counter(recommendation) '. '; color: var(--primary); }
+.steam-recommendation .result-game-info { flex-basis: 240px; }
+.steam-recommend-reasons { padding-left: 20px; color: var(--slate); font-size: 13px; line-height: 1.6; }
+@media (max-width: 640px) {
+  .steam-recommendation { align-items: flex-start !important; }
+  .steam-recommendation .result-game-info { flex-basis: calc(100% - 104px); }
+  .steam-recommendation > .btn { margin-left: auto; white-space: normal; }
+}
 
 /* 검색 입력과 행동은 각각 독립된 경계를 가진다. */
 .game-search { border: 0; background: transparent; padding: 0; gap: 12px; min-height: 54px; }
