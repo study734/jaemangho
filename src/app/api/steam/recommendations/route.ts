@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const query = parseQuery(request.nextUrl.searchParams, recommendationsQuerySchema);
   if (!query.ok) return query.response;
   try {
-    const result = await recommendGames(query.data.ids, query.data.preference);
+    const result = await recommendGames(query.data.ids, query.data.preference, query.data.scope);
     if ('unknownIds' in result) return Response.json({ error: 'Unknown members' }, { status: 400 });
     return Response.json(result);
   } catch (error) {

@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { type GamesResult, type Mode, type Preference, type RecommendationsResult, type SteamMember, steamApi, steamErrorMessage } from './api';
+import { type GamesResult, type Mode, type OwnershipScope, type Preference, type RecommendationsResult, type SteamMember, steamApi, steamErrorMessage } from './api';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
 const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, Math.round(minutes / 60)).toLocaleString()}시간`);
 const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60).toLocaleString()}시간${minutes % 60 ? ` ${minutes % 60}분` : ''}`;
+const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
 
 export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
@@ -15,7 +16,8 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
   const [mode, setMode] = useState<Mode>('common');
   const [result, setResult] = useState<{ mode: Mode; ids: string[]; data: GamesResult } | null>(null);
   const [preference, setPreference] = useState<Preference>('balanced');
-  const [recommendations, setRecommendations] = useState<{ ids: string[]; preference: Preference; data: RecommendationsResult } | null>(null);
+  const [scope, setScope] = useState<OwnershipScope>('all');
+  const [recommendations, setRecommendations] = useState<{ ids: string[]; preference: Preference; scope: OwnershipScope; data: RecommendationsResult } | null>(null);
   const [busy, setBusy] = useState<'add' | 'compare' | 'recommend' | 'remove' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
     setResult(null);
     setRecommendations(null);
     try {
-      setRecommendations({ ids: [...selected], preference, data: await steamApi.recommendations(selected, preference) });
+      setRecommendations({ ids: [...selected], preference, scope, data: await steamApi.recommendations(selected, preference, scope) });
     } catch (err) {
       setError(steamErrorMessage(err));
     } finally { setBusy(null); }
@@ -101,7 +103,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
     <div style={styles.container}>
       <header style={styles.header}>
         <h2 className="heading-3 visual-heading" style={styles.title}><ServiceMark service="steam" size={36} />같이 할 Steam 게임</h2>
-        <p style={styles.hint}>함께할 사람을 고르면 공통 보유 게임과 각자의 플레이 경험을 바탕으로 추천해요. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보입니다.</p>
+        <p style={styles.hint}>함께할 사람을 고르고 보유 범위를 선택해 게임을 찾아요. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보유 여부를 확인할 수 있습니다.</p>
       </header>
 
       {error && <div style={styles.error} role="alert">{error}
@@ -154,8 +156,15 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
         )}
 
         <div style={styles.addRow} className="steam-compare-row">
+          <label htmlFor="steam-recommend-scope" style={styles.hint}>추천 범위</label>
+          <select id="steam-recommend-scope" className="text-input" value={scope} disabled={busy !== null} onChange={e => { setScope(e.target.value as OwnershipScope); setRecommendations(null); }}>
+            <option value="all">모두 보유</option>
+            <option value="any">일부 보유 포함</option>
+            <option value="unowned">아무도 미보유</option>
+          </select>
           <label htmlFor="steam-recommend-preference" style={styles.hint}>오늘은 어떤 게임?</label>
-          <select id="steam-recommend-preference" className="text-input" value={preference} disabled={busy !== null} onChange={e => { setPreference(e.target.value as Preference); setRecommendations(null); }}>
+          <select id="steam-recommend-preference" className="text-input" value={scope === 'unowned' ? 'discovery' : preference} disabled={busy !== null || scope === 'unowned'} onChange={e => { setPreference(e.target.value as Preference); setRecommendations(null); }}>
+            {scope === 'unowned' && <option value="discovery">Steam 인기·신규 목록 순</option>}
             <option value="balanced">경험이 비슷한 게임</option>
             <option value="familiar">익숙한 게임</option>
             <option value="fresh">새로 해 볼 게임</option>
@@ -164,7 +173,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
             {busy === 'recommend' ? '추천 찾는 중...' : `추천받기 (${selected.length}명)`}
           </button>
         </div>
-        <p style={styles.hint}>2~20명을 선택해 주세요. 추천은 전원의 보유 여부와 Steam의 멀티플레이·협동 지원을 확인해요.</p>
+        <p style={styles.hint}>2~20명을 선택해 주세요. {scope === 'all' ? '모두 보유한 게임만 추천해요.' : scope === 'any' ? '한 명 이상 보유한 게임을 포함하고, 보유 목록에 없는 멤버를 표시해요.' : 'Steam 인기·신규 목록에서 전원의 보유 목록에 없는 게임을 찾아요. 플레이 경험 기준은 적용하지 않아요.'} 멀티플레이·협동 지원을 확인해요.</p>
 
         <div style={styles.addRow} className="steam-compare-row">
           <select className="text-input" value={mode} disabled={busy !== null} onChange={(e) => { setMode(e.target.value as Mode); setResult(null); }} aria-label="찾을 게임 종류">
@@ -180,17 +189,19 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
       {recommendations && (
         <section style={styles.panel} aria-labelledby="steam-recommend-title">
           <h3 id="steam-recommend-title" style={styles.recommendTitle}>오늘 같이 할 게임</h3>
-          <p style={styles.hint}>추천 기준: {({ balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임' })[recommendations.preference]} · {recommendations.ids.map(nameOf).join(', ')}</p>
+          <p style={styles.hint}>추천 범위: {scopeLabels[recommendations.scope]} · {recommendations.ids.map(nameOf).join(', ')}</p>
+          <p style={styles.hint}>추천 기준: {recommendations.scope === 'unowned' ? 'Steam 인기·신규 목록 순' : ({ balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임' })[recommendations.preference]}</p>
           {recommendations.data.excluded.length > 0 ? (
-            <p style={styles.warn} role="status">게임 목록을 확인할 수 없는 사람: {recommendations.data.excluded.map(nameOf).join(', ')}. 전원의 보유 여부를 확인할 수 없어 추천을 보류했어요. 게임 세부 정보를 공개하거나 선택을 바꿔 주세요.</p>
+            <p style={styles.warn} role="status">게임 목록을 확인할 수 없는 사람: {recommendations.data.excluded.map(nameOf).join(', ')}. 전원의 보유 목록을 확인할 수 없어 추천을 보류했어요. 게임 세부 정보를 공개하거나 선택을 바꿔 주세요.</p>
           ) : (
             <>
-              <p style={styles.hint}>공통 보유 {recommendations.data.totalCommon.toLocaleString()}개 중 플레이 경험 기준 상위 {recommendations.data.checked}개의 지원 방식을 확인했어요. 최대 12개를 추천해요.</p>
+              <p style={styles.hint}>{recommendations.scope === 'all' ? '공통 보유' : recommendations.scope === 'any' ? '한 명 이상 보유한 후보' : 'Steam 인기·신규 미보유 후보'} {recommendations.data.totalCandidates.toLocaleString()}개 중 {recommendations.scope === 'unowned' ? '목록 순' : '플레이 경험 기준 상위'} {recommendations.data.checked}개의 지원 방식을 확인했어요. 최대 12개를 추천해요.</p>
               {recommendations.data.unverified > 0 && <p style={styles.warn} role="status">스토어 정보를 확인하지 못한 {recommendations.data.unverified}개는 추천에서 제외했어요. 잠시 후 다시 추천받아 보세요.</p>}
               <p style={styles.hint}>최대 인원과 온라인 플레이 방식은 Steam에서 확인해 주세요. 플레이 시간은 실력을 뜻하지 않아요.</p>
-              <details style={styles.hint}><summary>추천 점수는 어떻게 정하나요?</summary><p>각자의 플레이 경험, 경험 차이, 새로움에 선택한 기준의 가중치를 적용해요. 플레이 경험은 8시간까지 반영하고, 점수는 후보 비교용이며 만족 확률이 아니에요. 경험이 비슷한 게임은 경험 40%·균형 40%·새로움 20%, 익숙한 게임은 70%·20%·10%, 새로 해 볼 게임은 10%·20%·70%예요.</p></details>
+              {recommendations.scope === 'unowned' ? <p style={styles.hint}>Steam 전체 게임을 검색한 결과는 아니에요. 플레이 기록이 없는 후보에는 경험 점수를 표시하지 않아요. 무료 게임은 보유 목록에 없어도 시작할 수 있으니 Steam에서 확인해 주세요.</p> :
+                <details style={styles.hint}><summary>추천 점수는 어떻게 정하나요?</summary><p>보유자의 플레이 경험, 경험 차이, 새로움에 선택한 기준의 가중치를 적용하고 선택한 멤버의 보유 비율을 반영해요. 미보유자의 경험은 추측하지 않아요. 플레이 경험은 8시간까지 반영하고, 점수는 후보 비교용이며 만족 확률이 아니에요. 경험이 비슷한 게임은 경험 40%·균형 40%·새로움 20%, 익숙한 게임은 70%·20%·10%, 새로 해 볼 게임은 10%·20%·70%예요.</p></details>}
               <p style={styles.hint} role="status">추천 {visibleRecommendations.length}개{query.trim() && ` / 전체 ${recommendations.data.games.length}개`}</p>
-              {recommendations.data.games.length === 0 ? <p style={styles.hint}>{recommendations.data.totalCommon === 0 ? '선택한 모두가 가진 게임이 없어요. 멤버 선택을 바꿔 보세요.' : '검사한 후보에서 멀티플레이·협동 지원을 확인한 게임이 없어요. 추천 기준을 바꾸거나 공통 게임을 비교해 보세요.'}</p>
+              {recommendations.data.games.length === 0 ? <p style={styles.hint}>{recommendations.data.totalCandidates === 0 ? (recommendations.scope === 'all' ? '선택한 모두가 가진 게임이 없어요. 멤버 선택을 바꿔 보세요.' : recommendations.scope === 'any' ? '선택한 멤버의 보유 게임 후보가 없어요.' : '현재 Steam 인기·신규 목록에 전원의 보유 목록에 없는 후보가 없어요.') : '검사한 후보에서 멀티플레이·협동 지원을 확인한 게임이 없어요. 추천 범위나 기준을 바꾸거나 공통 게임을 비교해 보세요.'}</p>
                 : visibleRecommendations.length === 0 && <p style={styles.hint}>검색한 이름과 일치하는 추천이 없습니다. 검색어를 바꿔 보세요.</p>}
               <ol className="steam-recommendations" style={styles.gameList}>
                 {visibleRecommendations.map(g => (
@@ -198,9 +209,10 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
                     <VisualImage src={`https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${g.appId}/header.jpg`} fallback={g.name} width={160} height={75} className="result-game-cover" />
                     <div className="result-game-info">
                       <strong>{g.name}</strong>
-                      <span style={styles.recommendScore}>{g.support === 'coop' ? '협동 지원' : '멀티플레이 지원'} · 추천 점수 {g.score}</span>
+                      <span style={styles.recommendScore}>{g.support === 'coop' ? '협동 지원' : '멀티플레이 지원'}{g.score !== null && ` · 추천 점수 ${g.score}`}</span>
                       <ul className="steam-recommend-reasons">{g.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
-                      <span style={styles.hint}>개인별 플레이 {duration(g.minMinutes)} ~ {duration(g.maxMinutes)} · 합계 {duration(g.totalMinutes)}</span>
+                      {g.missingIds.length > 0 && <span style={styles.warn}>보유 목록에 없는 멤버: {g.missingIds.map(nameOf).join(', ')}</span>}
+                      {g.owners > 0 && <span style={styles.hint}>{g.owners === recommendations.ids.length ? '개인별' : '보유자별'} 플레이 {duration(g.minMinutes)} ~ {duration(g.maxMinutes)} · 합계 {duration(g.totalMinutes)}</span>}
                     </div>
                     <a href={`https://store.steampowered.com/app/${g.appId}/`} target="_blank" rel="noopener noreferrer" className="btn btn-link" aria-label={`${g.name} 인원과 플레이 방식 확인`}>Steam에서 확인 <UiIcon name="box-arrow-up-right" /></a>
                   </li>

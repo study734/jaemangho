@@ -15,12 +15,15 @@ export interface GamesResult {
 }
 export type Mode = 'common' | 'unplayed';
 export type Preference = 'balanced' | 'familiar' | 'fresh';
+export type OwnershipScope = 'all' | 'any' | 'unowned';
 export interface Recommendation extends GameEntry {
   playedBy: number;
   beginnerCount: number;
   minMinutes: number;
   maxMinutes: number;
-  score: number;
+  score: number | null;
+  owners: number;
+  missingIds: string[];
   reasons: string[];
   support: 'coop' | 'multiplayer';
 }
@@ -28,6 +31,7 @@ export interface RecommendationsResult {
   games: Recommendation[];
   excluded: string[];
   totalCommon: number;
+  totalCandidates: number;
   checked: number;
   unverified: number;
 }
@@ -62,8 +66,8 @@ export const steamApi = {
     }),
   remove: (steamId: string) => call<null>(`/api/steam/members?id=${encodeURIComponent(steamId)}`, { method: 'DELETE' }),
   games: (ids: string[], mode: Mode) => call<GamesResult>(`/api/steam/games?ids=${ids.join(',')}&mode=${mode}`),
-  recommendations: (ids: string[], preference: Preference) =>
-    call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference })}`),
+  recommendations: (ids: string[], preference: Preference, scope: OwnershipScope = 'all') =>
+    call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference, scope })}`),
 };
 
 const MESSAGES: Record<number, string> = {

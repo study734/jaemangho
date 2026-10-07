@@ -94,10 +94,11 @@ test('Steam 추천은 2명 이상 선택하고 기준·근거를 보여주며 �
     const query = new URL(route.request().url()).searchParams;
     expect(query.get('ids')).toBe('76561190000000001,76561190000000002');
     expect(query.get('preference')).toBe('fresh');
+    expect(query.get('scope')).toBe('all');
     await responseReady;
     return route.fulfill({ json: { games: [{ appId: 620, name: 'Portal 2', totalMinutes: 120, playedBy: 2, beginnerCount: 0,
-      minMinutes: 60, maxMinutes: 60, score: 78, reasons: ['선택한 2명 모두 보유', '모두 플레이 경험이 있어요'], support: 'coop' }],
-      excluded: [], totalCommon: 50, checked: 40, unverified: 2 } });
+      minMinutes: 60, maxMinutes: 60, score: 78, owners: 2, missingIds: [], reasons: ['선택한 2명 모두 보유', '모두 플레이 경험이 있어요'], support: 'coop' }],
+      excluded: [], totalCommon: 50, totalCandidates: 50, checked: 40, unverified: 2 } });
   });
   await page.goto('/steam');
   await expect(page.getByRole('button', { name: '추천받기 (0명)' })).toBeDisabled();
@@ -108,6 +109,7 @@ test('Steam 추천은 2명 이상 선택하고 기준·근거를 보여주며 �
   await page.getByRole('button', { name: '추천받기 (2명)' }).click();
   await expect(page.getByRole('checkbox').first()).toBeDisabled();
   await expect(page.getByLabel('오늘은 어떤 게임?')).toBeDisabled();
+  await expect(page.getByLabel('추천 범위', { exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: '추천 찾는 중...' })).toBeDisabled();
   finish();
   await expect(page.getByRole('heading', { name: '오늘 같이 할 게임' })).toBeVisible();
@@ -130,6 +132,7 @@ test('Steam 추천 API는 잘못된 인원·기준과 미등록 계정을 거부
     'ids=76561190000000001,76561190000000001',
     'ids=invalid,76561190000000002',
     'ids=76561190000000001,76561190000000002&preference=invalid',
+    'ids=76561190000000001,76561190000000002&scope=invalid',
     'ids=76561190000000991,76561190000000992',
   ]) {
     const status = await page.evaluate(async query => (await fetch(`/api/steam/recommendations?${query}`)).status, query);
@@ -146,7 +149,8 @@ test('Steam 추천은 비공개 목록과 스토어 장애, 결과 없음 상태
   let state: 'private' | 'unavailable' | 'empty' = 'private';
   await page.route('**/api/steam/recommendations**', route => route.fulfill({ json: {
     games: [], excluded: state === 'private' ? ['76561190000000002'] : [],
-    totalCommon: state === 'unavailable' ? 2 : 0, checked: state === 'unavailable' ? 2 : 0, unverified: state === 'unavailable' ? 2 : 0,
+    totalCommon: state === 'unavailable' ? 2 : 0, totalCandidates: state === 'unavailable' ? 2 : 0,
+    checked: state === 'unavailable' ? 2 : 0, unverified: state === 'unavailable' ? 2 : 0,
   } }));
   await page.goto('/steam');
   await expect(page.getByRole('checkbox')).toHaveCount(2);
@@ -171,8 +175,8 @@ test('Steam 추천은 PC·전환점·모바일에서 긴 이름과 이미지 실
   const gameName = '함께하는 아주 긴 이름의 협동 게임 Deluxe Edition';
   await page.route('**/api/steam/recommendations**', route => route.fulfill({ json: {
     games: [{ appId: 620, name: gameName, totalMinutes: 0, playedBy: 0, beginnerCount: 2, minMinutes: 0, maxMinutes: 0,
-      score: 90, reasons: ['선택한 2명 모두 보유', '모두 아직 플레이하지 않은 게임'], support: 'coop' }],
-    excluded: [], totalCommon: 1, checked: 1, unverified: 0,
+      score: 90, owners: 2, missingIds: [], reasons: ['선택한 2명 모두 보유', '모두 아직 플레이하지 않은 게임'], support: 'coop' }],
+    excluded: [], totalCommon: 1, totalCandidates: 1, checked: 1, unverified: 0,
   } }));
   await page.goto('/steam');
   await expect(page.getByRole('checkbox')).toHaveCount(2);
@@ -187,4 +191,51 @@ test('Steam 추천은 PC·전환점·모바일에서 긴 이름과 이미지 실
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `output/playwright/steam-recommend-${width}.png`, fullPage: true });
   }
+});
+
+test('추천 범위를 바꾸면 일부 보유·전원 미보유 후보와 안내가 바뀐다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_scope', 'E2E추천범위'));
+  const ids = ['76561190000000001', '76561190000000002'];
+  await page.route('**/api/steam/members', route => route.fulfill({ json: [
+    { steamId: ids[0], name: '철수', avatar: null }, { steamId: ids[1], name: '영희', avatar: null },
+  ] }));
+  await page.route('**/store_item_assets/**', route => route.abort());
+  await page.route('**/api/steam/recommendations**', route => {
+    const scope = new URL(route.request().url()).searchParams.get('scope');
+    const owners = scope === 'all' ? 2 : scope === 'any' ? 1 : 0;
+    return route.fulfill({ json: {
+      games: [{ appId: 620, name: '범위별 추천 게임', totalMinutes: owners * 60, playedBy: owners, beginnerCount: 0,
+        minMinutes: owners ? 60 : 0, maxMinutes: owners ? 60 : 0, owners, missingIds: ids.slice(owners),
+        score: owners ? 70 : null, reasons: [owners ? `선택한 2명 중 ${owners}명 보유` : '선택한 2명 모두 보유 목록에 없음'], support: 'coop' }],
+      excluded: [], totalCommon: 1, totalCandidates: 1, checked: 1, unverified: 0,
+    } });
+  });
+  await page.goto('/steam');
+  await expect(page.getByRole('checkbox')).toHaveCount(2);
+  for (const checkbox of await page.getByRole('checkbox').all()) await checkbox.check();
+  const scopeInput = page.getByLabel('추천 범위', { exact: true });
+  await expect(scopeInput).toHaveValue('all');
+  await scopeInput.selectOption('any');
+  await page.getByRole('button', { name: '추천받기 (2명)' }).click();
+  await expect(page.getByText('보유 목록에 없는 멤버: 영희', { exact: true })).toBeVisible();
+  await expect(page.getByText(/보유자별 플레이/)).toBeVisible();
+  await scopeInput.selectOption('unowned');
+  await expect(page.getByRole('heading', { name: '오늘 같이 할 게임' })).toHaveCount(0);
+  await expect(page.getByLabel('오늘은 어떤 게임?')).toBeDisabled();
+  await expect(page.getByLabel('오늘은 어떤 게임?')).toHaveValue('discovery');
+  await page.getByRole('button', { name: '추천받기 (2명)' }).click();
+  await expect(page.getByText('보유 목록에 없는 멤버: 철수, 영희', { exact: true })).toBeVisible();
+  await expect(page.getByText('추천 기준: Steam 인기·신규 목록 순', { exact: true })).toBeVisible();
+  await expect(page.getByText(/추천 점수 70/)).toHaveCount(0);
+  await expect(page.getByText(/개인별 플레이|보유자별 플레이/)).toHaveCount(0);
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.getByRole('region', { name: '오늘 같이 할 게임' }).scrollIntoViewIfNeeded();
+    await expect(page.getByText('선택한 2명 모두 보유 목록에 없음', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `output/playwright/steam-scope-${width}.png`, fullPage: true });
+  }
+  await scopeInput.selectOption('all');
+  await expect(page.getByLabel('오늘은 어떤 게임?')).toBeEnabled();
+  await expect(page.getByRole('heading', { name: '오늘 같이 할 게임' })).toHaveCount(0);
 });
