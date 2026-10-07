@@ -10,12 +10,13 @@ test('Steam 목록 실패는 빈 목록과 구분하고 비교 중에는 조건�
     json: [{ steamId: '76561190000000001', name: '철수', avatar: null }],
   }));
   let finish!: () => void;
+  const responseReady = new Promise<void>(resolve => { finish = resolve; });
   await page.route('**/api/steam/games**', async route => {
-    await new Promise<void>(resolve => { finish = resolve; });
+    await responseReady;
     await route.fulfill({ json: { games: [{ appId: 730, name: 'Counter-Strike 2', totalMinutes: 60 }], excluded: [] } });
   });
   await page.goto('/steam');
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Steam 키가 설정되지 않았습니다.' })).toBeVisible();
   await expect(page.getByText('아직 등록된 사람이 없습니다.')).toHaveCount(0);
   failed = false;
   await page.getByRole('button', { name: '목록 다시 불러오기' }).click();
