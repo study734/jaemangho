@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { LolAccountBadge, rosterApi } from '@/features/lol';
 import { steamApi } from '@/features/steam';
@@ -20,16 +20,17 @@ export function Profile({ person, unowned, topGames, awards }: {
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
 
   // 주인 지정/해제 후 서버 데이터를 다시 불러온다
-  const run = async (job: () => Promise<unknown>) => {
-    setError(null);
-    try {
-      await job();
-      router.refresh();
-    } catch {
-      setError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-    }
+  const run = (job: () => Promise<unknown>) => {
+    if (saving) return;
+    setError(null); setMessage(null);
+    startSaving(async () => {
+      try { await job(); setMessage('계정 연결 정보를 저장했습니다.'); router.refresh(); }
+      catch { setError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'); }
+    });
   };
   const setLolOwner = (a: Lol, ownerId: string | null) => run(() => rosterApi.update({ id: a.id, gameName: a.gameName, tagLine: a.tagLine, ownerId }));
   const setSteamOwner = (a: Steam, ownerId: string | null) => run(() => steamApi.setOwner(a.steamId, ownerId));
@@ -42,11 +43,12 @@ export function Profile({ person, unowned, topGames, awards }: {
         {person.image ? <img src={person.image} alt="" width={64} height={64} style={styles.avatar} /> : <span style={{ ...styles.avatar, width: 64, height: 64 }} />}
         <div>
           <h2 className="heading-3" style={styles.title}>{person.name}</h2>
-          <p style={styles.hint} suppressHydrationWarning>마지막 접속 {new Date(person.lastLogin).toLocaleString('ko-KR')}</p>
+          <p style={styles.hint} suppressHydrationWarning>마지막 로그인 {new Date(person.lastLogin).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} · 한국 시간</p>
         </div>
       </header>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {error && <div style={styles.error} role="alert">{error}</div>}
+      {(saving || message) && <p style={styles.hint} role="status">{saving ? '계정 연결 정보를 저장하는 중입니다.' : message}</p>}
 
       <section style={styles.panel}>
         <h3 className="heading-5" style={styles.panelTitle}>칭호</h3>
@@ -68,7 +70,7 @@ export function Profile({ person, unowned, topGames, awards }: {
             {person.lol.map((a) => (
               <li key={a.id} style={styles.row}>
                 <LolAccountBadge id={a.id} gameName={a.gameName} tagLine={a.tagLine} />
-                <button className="btn btn-ghost" style={styles.small} onClick={() => setLolOwner(a, null)}>연결 해제</button>
+                <button className="btn btn-ghost" style={styles.small} disabled={saving} onClick={() => setLolOwner(a, null)}>연결 해제</button>
               </li>
             ))}
           </ul>
@@ -88,7 +90,7 @@ export function Profile({ person, unowned, topGames, awards }: {
                     {a.avatar && <img src={a.avatar} alt="" width={28} height={28} style={styles.avatar} />}
                     {a.name}
                   </span>
-                  <button className="btn btn-ghost" style={styles.small} onClick={() => setSteamOwner(a, null)}>연결 해제</button>
+                  <button className="btn btn-ghost" style={styles.small} disabled={saving} onClick={() => setSteamOwner(a, null)}>연결 해제</button>
                 </div>
                 {top === null ? (
                   <span style={styles.hint}>게임 목록을 볼 수 없습니다 (비공개이거나 불러오지 못함)</span>
@@ -115,13 +117,13 @@ export function Profile({ person, unowned, topGames, awards }: {
             {unowned.lol.map((a) => (
               <li key={a.id} style={styles.row}>
                 <span>롤 · {a.gameName}#{a.tagLine}</span>
-                <button className="btn btn-secondary" style={styles.small} onClick={() => setLolOwner(a, person.id)}>이 사람 것으로</button>
+                <button className="btn btn-secondary" style={styles.small} disabled={saving} onClick={() => setLolOwner(a, person.id)}>이 사람 것으로</button>
               </li>
             ))}
             {unowned.steam.map((a) => (
               <li key={a.steamId} style={styles.row}>
                 <span>Steam · {a.name}</span>
-                <button className="btn btn-secondary" style={styles.small} onClick={() => setSteamOwner(a, person.id)}>이 사람 것으로</button>
+                <button className="btn btn-secondary" style={styles.small} disabled={saving} onClick={() => setSteamOwner(a, person.id)}>이 사람 것으로</button>
               </li>
             ))}
           </ul>
@@ -133,18 +135,18 @@ export function Profile({ person, unowned, topGames, awards }: {
 
 const styles = {
   container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
-  header: { borderBottom: '1px solid #1c4558', paddingBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' },
-  avatar: { borderRadius: '50%', backgroundColor: '#1c4558', display: 'inline-block' },
-  title: { color: '#ffffff', letterSpacing: '-1px' },
-  hint: { color: '#a8b3bc', fontSize: '13px' },
+  header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' },
+  avatar: { borderRadius: '50%', backgroundColor: 'var(--hairline)', display: 'inline-block' },
+  title: { color: 'var(--ink)', letterSpacing: '-1px' },
+  hint: { color: 'var(--slate)', fontSize: '13px' },
   error: { backgroundColor: '#fff8e0', color: '#946f3f', border: '1px solid #fa6e39', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
-  panel: { backgroundColor: '#001e2b', border: '1px solid #1c4558', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
-  panelTitle: { color: '#ffffff' },
+  panel: { backgroundColor: 'var(--canvas-dark)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
+  panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const, gap: '10px' },
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', color: '#ffffff', fontSize: '14px' },
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', color: 'var(--ink)', fontSize: '14px' },
   between: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' },
-  who: { display: 'flex', alignItems: 'center', gap: '10px', color: '#ffffff' },
+  who: { display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ink)' },
   award: { fontSize: '13px', fontWeight: 700, color: '#ffb703', border: '1px solid rgba(255, 183, 3, 0.5)', borderRadius: '999px', padding: '4px 12px' },
-  awardCount: { color: '#a8b3bc', fontWeight: 400 },
+  awardCount: { color: 'var(--slate)', fontWeight: 400 },
   small: { fontSize: '12px', padding: '4px 10px', whiteSpace: 'nowrap' as const },
 };

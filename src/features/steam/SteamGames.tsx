@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { type GamesResult, type Mode, type SteamMember, steamApi, steamErrorMessage } from './api';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
@@ -12,19 +12,27 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<Mode>('common');
-  const [result, setResult] = useState<{ mode: Mode; data: GamesResult } | null>(null);
-  const [busy, setBusy] = useState<'add' | 'compare' | null>(null);
+  const [result, setResult] = useState<{ mode: Mode; ids: string[]; data: GamesResult } | null>(null);
+  const [busy, setBusy] = useState<'add' | 'compare' | 'remove' | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    steamApi.list().then(setMembers, (e) => setError(steamErrorMessage(e)));
+  const loadMembers = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setMembers(await steamApi.list()); }
+    catch (e) { setError(steamErrorMessage(e)); }
+    finally { setLoading(false); }
   }, []);
+  useEffect(() => { void Promise.resolve().then(loadMembers); }, [loadMembers]);
 
-  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const toggle = (id: string) => {
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    setResult(null);
+  };
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (busy || loading || !input.trim()) return;
     setBusy('add');
     setError(null);
     try {
@@ -39,7 +47,8 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
   };
 
   const remove = async (id: string) => {
-    if (!confirm('이 사람을 목록에서 삭제할까요?')) return;
+    if (busy || !confirm(`${nameOf(id)}님을 공용 비교 목록에서 삭제할까요? Steam 계정과 보유 게임에는 영향이 없습니다.`)) return;
+    setBusy('remove');
     setError(null);
     try {
       await steamApi.remove(id);
@@ -48,14 +57,15 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
       setResult(null);
     } catch (err) {
       setError(steamErrorMessage(err));
-    }
+    } finally { setBusy(null); }
   };
 
   const compare = async () => {
+    if (busy || !selected.length) return;
     setBusy('compare');
     setError(null);
     try {
-      setResult({ mode, data: await steamApi.games(selected, mode) });
+      setResult({ mode, ids: [...selected], data: await steamApi.games(selected, mode) });
     } catch (err) {
       setResult(null);
       setError(steamErrorMessage(err));
@@ -74,7 +84,9 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
         <p style={styles.hint}>같이 할 사람을 고르면 모두가 가진 게임을 찾아 줍니다. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보입니다.</p>
       </header>
 
-      {error && <div style={styles.error} role="alert">{error}</div>}
+      {error && <div style={styles.error} role="alert">{error}
+        {members.length === 0 && <button className="btn btn-secondary" disabled={loading} onClick={loadMembers}>목록 다시 불러오기</button>}
+      </div>}
 
       <div className="steam-query-area">
         <label htmlFor="steam-game-query">결과에서 게임 찾기</label>
@@ -96,24 +108,24 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
             maxLength={200}
             aria-label="Steam 프로필"
           />
-          <button className="btn btn-primary" style={styles.btn} disabled={busy !== null || !input.trim()}>
+          <button className="btn btn-primary" style={styles.btn} disabled={loading || busy !== null || !input.trim()}>
             {busy === 'add' ? '찾는 중...' : '추가'}
           </button>
         </form>
         <p id="steam-profile-help" style={styles.hint}>프로필 주소나 이름, 17자리 ID를 입력해요.</p>
 
-        {members.length === 0 ? (
+        {loading ? <p style={styles.hint} role="status">Steam 멤버 목록을 불러오는 중입니다.</p> : members.length === 0 && !error ? (
           <p style={styles.hint}>아직 등록된 사람이 없습니다.</p>
         ) : (
           <ul style={styles.memberList}>
             {members.map((m) => (
               <li key={m.steamId} style={styles.member}>
                 <label style={styles.memberLabel}>
-                  <input type="checkbox" checked={selected.includes(m.steamId)} onChange={() => toggle(m.steamId)} />
+                  <input type="checkbox" disabled={busy !== null} checked={selected.includes(m.steamId)} onChange={() => toggle(m.steamId)} />
                   <VisualImage src={m.avatar} fallback={m.name.slice(0, 1)} width={32} height={32} className="member-avatar" />
                   <span>{m.name}</span>
                 </label>
-                <button className="btn btn-ghost" style={styles.removeBtn} onClick={() => remove(m.steamId)} aria-label={`${m.name} 삭제`}>
+                <button className="btn btn-ghost" style={styles.removeBtn} disabled={busy !== null} onClick={() => remove(m.steamId)} aria-label={`${m.name} 삭제`}>
                   삭제
                 </button>
               </li>
@@ -122,7 +134,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
         )}
 
         <div style={styles.addRow} className="steam-compare-row">
-          <select className="text-input" value={mode} onChange={(e) => setMode(e.target.value as Mode)} aria-label="찾을 게임 종류">
+          <select className="text-input" value={mode} disabled={busy !== null} onChange={(e) => { setMode(e.target.value as Mode); setResult(null); }} aria-label="찾을 게임 종류">
             <option value="common">모두가 가진 게임</option>
             <option value="unplayed">모두 가졌지만 아무도 안 해 본 게임</option>
           </select>
@@ -134,13 +146,14 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
 
       {result && (
         <section style={styles.panel}>
+          <p style={styles.hint}>비교한 사람: {result.ids.map(nameOf).join(', ')}</p>
           {result.data.excluded.length > 0 && (
             <p style={styles.warn}>
               게임 목록이 비공개라 빠진 사람: {result.data.excluded.map(nameOf).join(', ')} (Steam 프로필의 게임 세부 정보를 공개로 바꿔야 합니다)
             </p>
           )}
           {result.data.games.length === 0 ? (
-            <p style={styles.hint}>{result.mode === 'common' ? '모두가 가진 게임이 없습니다.' : '조건에 맞는 게임이 없습니다.'}</p>
+            <p style={styles.hint}>{result.data.excluded.length === result.ids.length ? '공개된 게임 목록이 없어 비교할 수 없습니다.' : result.mode === 'common' ? '모두가 가진 게임이 없습니다.' : '조건에 맞는 게임이 없습니다.'}</p>
           ) : (
             <>
               <p style={styles.hint} role="status">{visibleGames.length.toLocaleString()}개{query.trim() && ` / 전체 ${result.data.games.length.toLocaleString()}개`} {result.mode === 'common' ? '(합산 플레이 시간 순)' : ''}</p>

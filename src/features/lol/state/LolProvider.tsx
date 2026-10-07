@@ -35,7 +35,7 @@ const lol = createLolData(createRiotClient());
 export function LolProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,15 +44,17 @@ export function LolProvider({ children }: { children: ReactNode }) {
         setMembers(list.map(toMember));
         setRosterReady(true);
       })
-      .catch(() => setError('소환사 목록을 불러오지 못했습니다. 새로고침해 주세요.'));
+      .catch(() => { setIsLoading(false); setError('소환사 목록을 불러오지 못했습니다. 새로고침해 주세요.'); });
   }, []);
 
   // 저장 실패(중복 Riot ID, 세션 만료 등) 시 서버 기준으로 목록을 다시 맞춘다
   const persist = (p: Promise<unknown>) =>
     p.catch(async () => {
-      alert('저장하지 못했습니다. 목록을 서버 기준으로 다시 불러옵니다.');
-      const list = await rosterApi.list();
-      setMembers((prev) => list.map((e) => prev.find((m) => m.id === e.id) ?? toMember(e)));
+      setError('저장하지 못했습니다. 목록을 서버 기준으로 다시 불러옵니다.');
+      try {
+        const list = await rosterApi.list();
+        setMembers((prev) => list.map((e) => ({ ...(prev.find((m) => m.id === e.id) ?? toMember(e)), gameName: e.gameName, tagLine: e.tagLine })));
+      } catch { setError('저장과 목록 재조회에 실패했습니다. 새로고침으로 다시 확인해 주세요.'); }
     });
 
   // 목록 전체(또는 한 명)의 기본 정보(레벨/아이콘/랭크)를 갱신한다
@@ -61,16 +63,18 @@ export function LolProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     const overviews: { [memberId: string]: Overview } = {};
+    const failed: string[] = [];
     await Promise.all((target ? [target] : members).map(async (member) => {
       try {
         overviews[member.id] = await lol.overview(member);
       } catch (err) {
-        // 에러를 UI에 띄우지 않고 조용히 넘어감 (Silent Failure)
+        failed.push(member.gameName);
         console.warn(`Failed to fetch real data for ${member.gameName}:`, err);
       }
     }));
 
     setMembers((prev) => prev.map((m) => (overviews[m.id] ? { ...m, ...overviews[m.id] } : m)));
+    if (failed.length) setError(`${failed.join(', ')}의 최신 정보를 불러오지 못했습니다. 기존 정보를 표시합니다. 잠시 후 새로고침해 주세요.`);
     setIsLoading(false);
   };
 
@@ -85,7 +89,14 @@ export function LolProvider({ children }: { children: ReactNode }) {
     isLoading,
     error,
     dismissError: () => setError(null),
-    refreshAll: () => refresh(),
+    refreshAll: async () => {
+      if (rosterReady) return refresh();
+      setIsLoading(true); setError(null);
+      try {
+        const list = await rosterApi.list();
+        setMembers(list.map(toMember)); setRosterReady(true);
+      } catch { setIsLoading(false); setError('소환사 목록을 불러오지 못했습니다. 새로고침해 주세요.'); }
+    },
 
     // 상세 화면용 정보(숙련도/최근 매치/실시간 게임)를 클릭 시 불러온다
     loadDetails: async (target) => {

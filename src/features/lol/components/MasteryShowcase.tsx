@@ -101,7 +101,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
       <div style={styles.topSection}>
         {/* Left: Mastery Leaderboard (크루 통합 장인 리더보드) */}
         <section className="card-base" style={styles.leaderboardCard}>
-          <h3 className="heading-3 mastery-leaderboard-title" style={{ color: '#00ed64', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 className="heading-3 mastery-leaderboard-title" style={{ color: 'var(--primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <VisualImage src="/ui/trophy.svg" width={24} height={24} className="ui-icon" /> 통합 숙련도 리더보드
           </h3>
           
@@ -125,7 +125,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                       </span>
                     </td>
                     <td style={styles.tdMember}>
-                      <span style={{ color: '#ffffff', fontWeight: 600 }}>{item.member.gameName}</span>
+                      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{item.member.gameName}</span>
                       <span style={styles.tagLineMini}>#{item.member.tagLine}</span>
                     </td>
                     <td style={styles.tdChamp}>
@@ -138,8 +138,8 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                         <span style={styles.champLabel}>{item.mastery.championName}</span>
                       </div>
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: 700, color: '#00ed64' }}>
-                      {formatPoints(item.mastery.championPoints)} <span style={{ fontSize: '11px', color: '#7c8c9a', fontWeight: 400 }}>점</span>
+                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
+                      {formatPoints(item.mastery.championPoints)} <span style={{ fontSize: '11px', color: 'var(--steel)', fontWeight: 400 }}>점</span>
                     </td>
                     <td style={{ ...styles.td, textAlign: 'center' }}>
                       <span style={{ ...styles.lvlBadgeMini, ...getMasteryBadgeStyle(item.mastery.championLevel) }}>
@@ -171,7 +171,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
               className={`btn ${selectedMemberId === m.id ? 'btn-primary' : 'btn-secondary'}`}
               style={{
                 ...styles.filterBtn,
-                borderColor: selectedMemberId === m.id ? '#00ed64' : '#1c4558'
+                borderColor: selectedMemberId === m.id ? 'var(--primary)' : 'var(--hairline)'
               }}
               onClick={() => setSelectedMemberId(m.id)}
             >
@@ -199,11 +199,11 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                   />
                   <div>
                     <h4 style={styles.memberName}>{member.gameName}</h4>
-                    <span style={{ fontSize: '11px', color: '#7c8c9a' }}>#{member.tagLine}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--steel)' }}>#{member.tagLine}</span>
                   </div>
                 </div>
                 <div style={styles.memberHeaderRight}>
-                  <span className="badge-green-soft" style={{ borderColor: getTierColor(member.tier), color: getTierColor(member.tier) }}>
+                  <span className="badge-green-soft" style={{ backgroundColor: 'var(--surface-soft)', borderColor: getTierColor(member.tier), color: getTierColor(member.tier) }}>
                     {member.tier} {member.rank}
                   </span>
                   <span style={styles.lvlBadge}>Lv.{member.summonerLevel}</span>
@@ -236,7 +236,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                         </div>
                       </div>
                       <div style={styles.masteryItemRight}>
-                        <span style={styles.masteryPoints}>{formatPoints(item.championPoints)} <span style={{ fontSize: '10px', color: '#7c8c9a', fontWeight: 400 }}>점</span></span>
+                        <span style={styles.masteryPoints}>{formatPoints(item.championPoints)} <span style={{ fontSize: '10px', color: 'var(--steel)', fontWeight: 400 }}>점</span></span>
                         <span style={{ ...styles.levelBadge, ...getMasteryBadgeStyle(item.championLevel) }}>
                           LEVEL {item.championLevel}
                         </span>
@@ -264,11 +264,11 @@ const styles: { [key: string]: any } = {
     minHeight: 0,
   },
   header: {
-    borderBottom: '1px solid #1c4558',
+    borderBottom: '1px solid var(--hairline)',
     paddingBottom: '20px',
   },
   title: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     letterSpacing: '-1px',
   },
   topSection: {
@@ -277,8 +277,8 @@ const styles: { [key: string]: any } = {
     gap: '24px',
   },
   leaderboardCard: {
-    backgroundColor: '#001e2b',
-    border: '1px solid #1c4558',
+    backgroundColor: 'var(--canvas-dark)',
+    border: '1px solid var(--hairline)',
     padding: '24px',
   },
   tableWrapper: {
@@ -294,25 +294,25 @@ const styles: { [key: string]: any } = {
   },
   th: {
     whiteSpace: 'nowrap',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     fontSize: '11px',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '1px',
     padding: '12px 16px',
-    borderBottom: '2px solid #1c4558',
+    borderBottom: '2px solid var(--hairline)',
   },
   tr: {
-    borderBottom: '1px solid rgba(28, 69, 88, 0.4)',
+    borderBottom: '1px solid var(--hairline)',
     transition: 'background-color 0.2s ease',
     ':hover': {
-      backgroundColor: 'rgba(28, 69, 88, 0.2)',
+      backgroundColor: 'var(--surface-soft)',
     }
   },
   td: {
     padding: '14px 16px',
     fontSize: '13.5px',
-    color: '#a8b3bc',
+    color: 'var(--slate)',
     verticalAlign: 'middle',
   },
   tdRank: {
@@ -331,7 +331,7 @@ const styles: { [key: string]: any } = {
   },
   tagLineMini: {
     fontSize: '10px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     marginLeft: '4px',
   },
   rankBadge: {
@@ -341,15 +341,15 @@ const styles: { [key: string]: any } = {
     width: '24px',
     height: '24px',
     borderRadius: '6px',
-    backgroundColor: 'rgba(28, 69, 88, 0.5)',
-    color: '#ffffff',
+    backgroundColor: 'var(--surface-soft)',
+    color: 'var(--ink)',
     fontSize: '12px',
     fontWeight: 700,
   },
   topRankBadge: (rankIdx: number) => {
     const bgColors = ['rgba(255, 183, 3, 0.2)', 'rgba(224, 224, 224, 0.2)', 'rgba(205, 127, 50, 0.2)'];
-    const textColors = ['#ffb703', '#ffffff', '#cd7f32'];
-    const borders = ['1px solid #ffb703', '1px solid #ffffff', '1px solid #cd7f32'];
+    const textColors = ['#ffb703', 'var(--ink)', '#cd7f32'];
+    const borders = ['1px solid #ffb703', '1px solid var(--ink)', '1px solid #cd7f32'];
     return {
       display: 'flex',
       alignItems: 'center',
@@ -373,10 +373,10 @@ const styles: { [key: string]: any } = {
     width: '28px',
     height: '28px',
     borderRadius: '6px',
-    border: '1px solid #1c4558',
+    border: '1px solid var(--hairline)',
   },
   champLabel: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     fontWeight: 500,
   },
   lvlBadgeMini: {
@@ -389,12 +389,12 @@ const styles: { [key: string]: any } = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    borderTop: '1px solid #1c4558',
+    borderTop: '1px solid var(--hairline)',
     paddingTop: '20px',
     flexWrap: 'wrap' as const,
   },
   selectorLabel: {
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     fontSize: '13px',
     fontWeight: 600,
   },
@@ -409,8 +409,8 @@ const styles: { [key: string]: any } = {
     borderRadius: '6px',
   },
   memberCard: {
-    backgroundColor: '#001e2b',
-    border: '1px solid #1c4558',
+    backgroundColor: 'var(--canvas-dark)',
+    border: '1px solid var(--hairline)',
     padding: '24px',
     borderRadius: '12px',
     position: 'relative' as const,
@@ -420,7 +420,7 @@ const styles: { [key: string]: any } = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid #1c4558',
+    borderBottom: '1px solid var(--hairline)',
     paddingBottom: '16px',
   },
   memberHeaderLeft: {
@@ -432,10 +432,10 @@ const styles: { [key: string]: any } = {
     width: '40px',
     height: '40px',
     borderRadius: '10px',
-    border: '1px solid #1c4558',
+    border: '1px solid var(--hairline)',
   },
   memberName: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     margin: 0,
     fontSize: '15px',
     fontWeight: 600,
@@ -448,7 +448,7 @@ const styles: { [key: string]: any } = {
   },
   lvlBadge: {
     fontSize: '11px',
-    color: '#00ed64',
+    color: 'var(--primary)',
     fontWeight: 600,
   },
   masteriesList: {
@@ -461,24 +461,24 @@ const styles: { [key: string]: any } = {
     fontSize: '11.5px',
     fontWeight: 700,
     textTransform: 'uppercase',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     letterSpacing: '0.8px',
     marginBottom: '4px',
   },
   emptyMastery: {
     padding: '20px',
     textAlign: 'center' as const,
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     fontSize: '12.5px',
-    border: '1px dashed #1c4558',
+    border: '1px dashed var(--hairline)',
     borderRadius: '8px',
   },
   masteryItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 55, 71, 0.4)',
-    border: '1px solid rgba(28, 69, 88, 0.5)',
+    backgroundColor: 'var(--surface-soft)',
+    border: '1px solid var(--surface-soft)',
     borderRadius: '8px',
     padding: '12px 14px',
   },
@@ -496,14 +496,14 @@ const styles: { [key: string]: any } = {
     width: '40px',
     height: '40px',
     borderRadius: '8px',
-    border: '1px solid #1c4558',
+    border: '1px solid var(--hairline)',
   },
   masteryNumberBadge: {
     position: 'absolute' as const,
     bottom: '-4px',
     right: '-4px',
-    backgroundColor: '#001e2b',
-    color: '#00ed64',
+    backgroundColor: 'var(--canvas-dark)',
+    color: 'var(--primary)',
     fontSize: '9px',
     fontWeight: 800,
     width: '15px',
@@ -512,7 +512,7 @@ const styles: { [key: string]: any } = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid #00ed64',
+    border: '1px solid var(--primary)',
   },
   masteryInfo: {
     display: 'flex',
@@ -520,14 +520,14 @@ const styles: { [key: string]: any } = {
     alignItems: 'flex-start',
   },
   champNameText: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     fontSize: '14px',
     margin: 0,
     fontWeight: 600,
   },
   lastPlayText: {
     fontSize: '10.5px',
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     marginTop: '2px',
   },
   masteryItemRight: {
@@ -539,7 +539,7 @@ const styles: { [key: string]: any } = {
   masteryPoints: {
     fontSize: '13px',
     fontWeight: 700,
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   levelBadge: {
     fontSize: '9px',

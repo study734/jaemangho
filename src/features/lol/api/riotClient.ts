@@ -84,29 +84,37 @@ export const setCachedData = <T>(cacheKey: string, data: T) => {
 // ==========================================
 // 4. API Wrapping Functions
 // ==========================================
-export const riotGet = async <T>(url: string, cacheKey?: string, isImmutable: boolean = false): Promise<T | null> => {
+export function riotErrorMessage(error: unknown): string {
+  const source = error instanceof Error && error.cause ? error.cause : error;
+  const status = (source as AxiosError | null)?.response?.status;
+  if (status === 401) return '인증을 확인하지 못했습니다 (HTTP 401). 다시 로그인하고, 계속되면 관리자에게 문의해 주세요.';
+  if (status === 403) return 'Riot API 키가 만료되었거나 권한이 없습니다 (HTTP 403). 관리자에게 문의해 주세요.';
+  if (status === 404) return '대상 계정 정보를 찾지 못했습니다 (HTTP 404). Riot ID를 확인해 주세요.';
+  if (status === 429) return '요청 한도를 초과했습니다 (HTTP 429). 잠시 후 다시 시도해 주세요.';
+  return status ? `Riot 서버 응답 오류 (HTTP ${status}). 잠시 후 다시 시도해 주세요.` : 'Riot 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.';
+}
+
+const pendingRequests = new Map<string, Promise<unknown>>();
+
+export const riotGet = <T>(url: string, cacheKey?: string, isImmutable: boolean = false): Promise<T | null> => {
   if (cacheKey) {
     const cached = getCachedData<T>(cacheKey, isImmutable);
-    if (cached !== null) return cached;
+    if (cached !== null) return Promise.resolve(cached);
   }
-
-  try {
-    const res = await riotClient.get<T>(url);
-    if (cacheKey) {
-      setCachedData(cacheKey, res.data);
+  const pending = pendingRequests.get(url);
+  if (pending) return pending as Promise<T | null>;
+  const request = (async () => {
+    try {
+      const res = await riotClient.get<T>(url);
+      if (cacheKey) setCachedData(cacheKey, res.data);
+      return res.data;
+    } catch (e) {
+      const status = (e as AxiosError).response?.status;
+      // 대상 없음은 null, 인증·호출 제한·서버 오류는 호출자가 처리한다.
+      if (status === 404) return null;
+      throw new Error(riotErrorMessage(e), { cause: e });
     }
-    return res.data;
-  } catch (e) {
-    const err = e as AxiosError;
-    const status = err.response?.status;
-    
-    // 404 (Not Found)는 null을 반환하여 에러 배너를 띄우지 않고 부드럽게 처리
-    if (status === 404) return null;
-    
-    // 이외 400번대(429, 403, 401) 에러는 상위로 던지되, 호출부에서 조용히 잡을 수 있도록 함
-    if (status === 401) throw new Error('라이엇 API 키가 올바르지 않습니다 (HTTP 401).', { cause: e });
-    if (status === 403) throw new Error('라이엇 API 키가 만료되었습니다 (HTTP 403).', { cause: e });
-    if (status === 429) throw new Error('API 요청 제한을 초과했습니다 (HTTP 429).', { cause: e });
-    throw new Error(`Riot API 요청 실패 (HTTP ${status ?? 'network'})`, { cause: e });
-  }
+  })().finally(() => pendingRequests.delete(url));
+  pendingRequests.set(url, request);
+  return request;
 };

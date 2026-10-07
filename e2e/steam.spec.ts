@@ -3,6 +3,34 @@ import { cleanup, createUser, expect, loginAs, test } from './fixtures';
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('Steam 목록 실패는 빈 목록과 구분하고 비교 중에는 조건을 고정한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_state', 'E2E비교상태'));
+  let failed = true;
+  await page.route('**/api/steam/members', route => route.fulfill(failed ? { status: 503, json: {} } : {
+    json: [{ steamId: '76561190000000001', name: '철수', avatar: null }],
+  }));
+  let finish!: () => void;
+  const responseReady = new Promise<void>(resolve => { finish = resolve; });
+  await page.route('**/api/steam/games**', async route => {
+    await responseReady;
+    await route.fulfill({ json: { games: [{ appId: 730, name: 'Counter-Strike 2', totalMinutes: 60 }], excluded: [] } });
+  });
+  await page.goto('/steam');
+  await expect(page.getByRole('alert').filter({ hasText: 'Steam 키가 설정되지 않았습니다.' })).toBeVisible();
+  await expect(page.getByText('아직 등록된 사람이 없습니다.')).toHaveCount(0);
+  failed = false;
+  await page.getByRole('button', { name: '목록 다시 불러오기' }).click();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: '비교하기 (1명)' }).click();
+  await expect(page.getByRole('checkbox')).toBeDisabled();
+  await expect(page.getByLabel('찾을 게임 종류')).toBeDisabled();
+  finish();
+  await expect(page.getByText('비교한 사람: 철수')).toBeVisible();
+  await expect(page.getByText('Counter-Strike 2')).toBeVisible();
+  await page.getByRole('checkbox').uncheck();
+  await expect(page.getByText('Counter-Strike 2')).toHaveCount(0);
+});
+
 // Steam 호출은 서버가 하므로 브라우저의 /api/steam 요청을 가짜로 대체한다 (서버 쪽은 단위·통합 테스트가 다룬다)
 test('Steam 사람을 추가하고 골라 공통 게임을 비교하면 결과와 비공개 안내가 보인다', async ({ page, context }) => {
   await loginAs(context, await createUser('steam', 'E2E스팀'));

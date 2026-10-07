@@ -114,10 +114,10 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
 
       {duos.length === 0 ? (
         <div className="card-base" style={styles.emptyCard}>
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4e5f6e" strokeWidth="1.5">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--steel)" strokeWidth="1.5">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
           </svg>
-          <h4 className="heading-5" style={{ marginTop: '12.5px', color: '#7c8c9a' }}>시너지를 분석할 데이터가 부족합니다.</h4>
+          <h4 className="heading-5" style={{ marginTop: '12.5px', color: 'var(--steel)' }}>시너지를 분석할 데이터가 부족합니다.</h4>
           <p className="body-sm" style={{ marginTop: '4px' }}>등록된 소환사끼리 아군으로 매칭되어 플레이한 기록이 존재해야 승률 연산이 이루어집니다.</p>
         </div>
       ) : (
@@ -140,7 +140,7 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
                     전적: <strong>{bestSynergies[0].gamesPlayed}판 {bestSynergies[0].wins}승 {bestSynergies[0].losses}패</strong>
                   </div>
                   <div style={styles.duoDetailsText}>
-                    평균 KDA: <strong style={{ color: '#00ed64' }}>{bestSynergies[0].avgKda}:1</strong>
+                    평균 KDA: <strong style={{ color: 'var(--primary)' }}>{bestSynergies[0].avgKda}:1</strong>
                   </div>
                   <p className="body-sm" style={styles.cardComment}>
                     이 둘은 찰떡궁합입니다. 같이 큐를 돌리면 캐리력이 폭발하는 환상의 듀오!
@@ -195,18 +195,18 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
               <tbody>
                 {duos.map((duo, idx) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: 600, color: '#ffffff' }}>
+                    <td style={{ fontWeight: 600, color: 'var(--ink)' }}>
                       {duo.duoName}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {duo.gamesPlayed}판
                     </td>
-                    <td style={{ textAlign: 'center', color: '#a8b3bc' }}>
+                    <td style={{ textAlign: 'center', color: 'var(--slate)' }}>
                       {duo.wins}승 {duo.losses}패
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ 
-                        color: duo.winRate >= 50 ? '#00ed64' : '#ff4a4a',
+                        color: duo.winRate >= 50 ? 'var(--primary)' : '#ff4a4a',
                         fontWeight: 700
                       }}>
                         {duo.winRate}%
@@ -237,11 +237,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     minHeight: 0,
   },
   header: {
-    borderBottom: '1px solid #1c4558',
+    borderBottom: '1px solid var(--hairline)',
     paddingBottom: '20px',
   },
   title: {
-    color: '#ffffff',
+    color: 'var(--ink)',
     letterSpacing: '-1px',
   },
   emptyCard: {
@@ -250,7 +250,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '64px',
-    backgroundColor: '#0b2a38',
+    backgroundColor: 'var(--surface)',
     textAlign: 'center' as const,
   },
   content: {
@@ -263,7 +263,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '16px',
-    backgroundColor: '#001e2b',
+    backgroundColor: 'var(--canvas-dark)',
   },
   badgeRow: {
     display: 'flex',
@@ -273,7 +273,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   cardEyebrow: {
     fontSize: '12px',
     fontWeight: 600,
-    color: '#7c8c9a',
+    color: 'var(--steel)',
     textTransform: 'uppercase' as const,
     letterSpacing: '1px',
   },
@@ -287,32 +287,32 @@ const styles: { [key: string]: React.CSSProperties } = {
   duoNameText: {
     fontSize: '20px',
     fontWeight: 700,
-    color: '#ffffff',
+    color: 'var(--ink)',
   },
   largeWinRateText: {
     fontSize: '64px',
     fontWeight: 700,
-    color: '#00ed64',
+    color: 'var(--primary)',
     margin: '10px 0',
     lineHeight: '1',
   },
   duoDetailsText: {
     fontSize: '14px',
-    color: '#a8b3bc',
+    color: 'var(--slate)',
     marginBottom: '6px',
   },
   cardComment: {
     marginTop: '16px',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'var(--surface)',
     padding: '12px',
     borderRadius: '8px',
-    border: '1px solid #143747',
-    color: '#a8b3bc',
+    border: '1px solid var(--hairline)',
+    color: 'var(--slate)',
   },
   noDuoLabel: {
     textAlign: 'center' as const,
     padding: '24px',
-    color: '#5c6c7a',
+    color: 'var(--steel)',
   },
   tableSection: {
     display: 'flex',

@@ -25,11 +25,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
     <aside className={`detail-sidebar${section.items.length === 1 ? ' detail-sidebar-single' : ''}`} style={styles.sidebar}>
       <div style={styles.sectionTitle}>{section.label}</div>
 
-      <nav style={styles.nav}>
+      <nav aria-label={`${section.label} 상세 메뉴`} style={styles.nav}>
         {section.items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            aria-current={isActive(item.href, pathname) ? 'page' : undefined}
             className={`btn btn-ghost ${isActive(item.href, pathname) ? 'btn-ghost-active' : ''}`}
             style={styles.navButton}
           >
