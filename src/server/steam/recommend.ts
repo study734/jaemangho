@@ -1,6 +1,6 @@
-import type { OwnedGame } from './client';
+import type { OwnedGame, RecentGame } from './client';
 
-export type Preference = 'balanced' | 'familiar' | 'fresh';
+export type Preference = 'balanced' | 'familiar' | 'fresh' | 'recent';
 export type OwnershipScope = 'all' | 'any' | 'unowned';
 export interface Candidate {
   appId: number;
@@ -23,9 +23,9 @@ const weights = {
   balanced: [0.4, 0.4, 0.2],
   familiar: [0.7, 0.2, 0.1],
   fresh: [0.1, 0.2, 0.7],
-} satisfies Record<Preference, number[]>;
+} satisfies Record<Exclude<Preference, 'recent'>, number[]>;
 
-export function rankCandidates(libraries: OwnedGame[][], preference: Preference, scope: 'all' | 'any' = 'all'): Candidate[] {
+export function rankCandidates(libraries: OwnedGame[][], preference: Exclude<Preference, 'recent'>, scope: 'all' | 'any' = 'all'): Candidate[] {
   if (libraries.length < 2) return [];
   const maps = libraries.map(lib => new Map(lib.map(game => [game.appId, game])));
   const candidates: Candidate[] = [];
@@ -55,6 +55,22 @@ export function rankCandidates(libraries: OwnedGame[][], preference: Preference,
       minMinutes: Math.min(...minutes), maxMinutes: Math.max(...minutes), score, reasons, owners: minutes.length, ownerIndexes });
   }
   return candidates.sort((a, b) => b.score - a.score || a.appId - b.appId);
+}
+
+export interface RecentCandidate extends Candidate { recentPlayers: number; recentMinutes: number }
+export function rankRecentCandidates(libraries: OwnedGame[][], recent: (RecentGame[] | null)[], scope: 'all' | 'any'): RecentCandidate[] {
+  const maps = recent.map(games => games === null ? null : new Map(games.map(game => [game.appId, game.minutes])));
+  return rankCandidates(libraries, 'balanced', scope).map(candidate => {
+    const minutes = candidate.ownerIndexes.map(index => Math.max(0, maps[index]?.get(candidate.appId) ?? 0));
+    const recentPlayers = minutes.filter(value => value > 0).length;
+    const recentMinutes = minutes.reduce((sum, value) => sum + value, 0);
+    const activity = Math.min(1, Math.log1p(recentMinutes) / Math.log1p(840));
+    return { ...candidate, recentPlayers, recentMinutes,
+      score: Math.round(100 * (0.7 * recentPlayers / libraries.length + 0.3 * activity * candidate.owners / libraries.length)),
+      reasons: [...candidate.reasons, `최근 2주 ${recentPlayers}명 플레이`],
+    };
+  }).filter(candidate => candidate.recentPlayers > 0)
+    .sort((a, b) => b.score - a.score || b.recentMinutes - a.recentMinutes || a.appId - b.appId);
 }
 
 // 인기·신규 목록의 순서를 보존한다. 보유/플레이 기록이 없는 후보에 취향 점수를 지어내지 않는다.

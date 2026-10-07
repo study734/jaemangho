@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getLibrary } from './client';
+import { getLibrary, getRecentGames } from './client';
 import { registeredIds } from './roster';
 import { getPlaySupport } from './store';
 import { getDiscoveryGames } from './discovery';
 import { CANDIDATE_LIMIT, recommendGames, recommendationsQuerySchema } from './recommendations';
 
-vi.mock('./client', () => ({ getLibrary: vi.fn() }));
+vi.mock('./client', () => ({ getLibrary: vi.fn(), getRecentGames: vi.fn() }));
 vi.mock('./roster', async importOriginal => {
   const original = await importOriginal<typeof import('./roster')>();
   return { ...original, registeredIds: vi.fn() };
@@ -84,3 +84,14 @@ describe('Steam 추천 서비스', () => {
     expect(getPlaySupport).not.toHaveBeenCalled();
   });
 });
+
+  it('최근 기록 실패를 표시하고 확인된 기록으로만 추천한다', async () => {
+    vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: [{ appId: 1, name: 'one', minutes: 60 }] });
+    vi.mocked(getRecentGames).mockResolvedValueOnce({ ok: true, games: [{ appId: 1, minutes: 120 }] }).mockRejectedValueOnce(new Error('private'));
+    expect(await recommendGames(ids, 'recent')).toMatchObject({ recentUnavailable: [ids[1]], games: [{ appId: 1, recentPlayers: 1, recentMinutes: 120 }] });
+  });
+  it('확인된 최근 플레이가 없으면 누적 기록으로 대체하지 않는다', async () => {
+    vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: [{ appId: 1, name: 'one', minutes: 9000 }] });
+    vi.mocked(getRecentGames).mockResolvedValue({ ok: true, games: [] });
+    expect(await recommendGames(ids, 'recent')).toMatchObject({ games: [], totalCandidates: 0 });
+  });

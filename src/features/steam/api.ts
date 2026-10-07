@@ -14,7 +14,7 @@ export interface GamesResult {
   excluded: string[];
 }
 export type Mode = 'common' | 'unplayed';
-export type Preference = 'balanced' | 'familiar' | 'fresh';
+export type Preference = 'balanced' | 'familiar' | 'fresh' | 'recent';
 export type OwnershipScope = 'all' | 'any' | 'unowned';
 export interface Recommendation extends GameEntry {
   playedBy: number;
@@ -26,6 +26,8 @@ export interface Recommendation extends GameEntry {
   missingIds: string[];
   reasons: string[];
   support: 'coop' | 'multiplayer';
+  recentPlayers?: number;
+  recentMinutes?: number;
 }
 export interface RecommendationsResult {
   games: Recommendation[];
@@ -34,6 +36,14 @@ export interface RecommendationsResult {
   totalCandidates: number;
   checked: number;
   unverified: number;
+  recentUnavailable: string[];
+}
+export interface Mission {
+  id: string; title: string; description: string | null; kind: 'team-first' | 'catch-up'; unlockedIds: string[]; lockedIds: string[];
+}
+export interface MissionsResult {
+  state: 'ok' | 'unsupported' | 'unavailable' | 'not-owned' | 'complete';
+  missions: Mission[]; totalPublic: number; completedTogether: number; unknownAchievements: number; unavailableIds: string[]; missingIds: string[];
 }
 
 export class SteamApiError extends Error {
@@ -68,6 +78,8 @@ export const steamApi = {
   games: (ids: string[], mode: Mode) => call<GamesResult>(`/api/steam/games?ids=${ids.join(',')}&mode=${mode}`),
   recommendations: (ids: string[], preference: Preference, scope: OwnershipScope = 'all') =>
     call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference, scope })}`),
+  missions: (ids: string[], appId: number) =>
+    call<MissionsResult>(`/api/steam/missions?${new URLSearchParams({ ids: ids.join(','), appId: String(appId) })}`),
 };
 
 const MESSAGES: Record<number, string> = {

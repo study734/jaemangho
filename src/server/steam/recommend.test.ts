@@ -1,3 +1,4 @@
+import { rankRecentCandidates } from './recommend';
 import { describe, expect, it } from 'vitest';
 import { rankCandidates, unownedCandidates } from './recommend';
 
@@ -53,4 +54,10 @@ describe('Steam 추천 순위', () => {
     expect(candidates[0].reasons).not.toContain('모두 아직 플레이하지 않은 게임');
     expect(unownedCandidates([], catalog)).toEqual([]);
   });
+});
+
+it('현재 여러 명이 하는 게임을 누적 시간만 많은 게임보다 먼저 추천한다', () => {
+  const libs = Array(2).fill([{ appId: 1, name: 'old', minutes: 90000 }, { appId: 2, name: 'now', minutes: 100 }]);
+  expect(rankRecentCandidates(libs, [[{ appId: 2, minutes: 50 }], [{ appId: 2, minutes: 60 }]], 'all').map(g => g.appId)).toEqual([2]);
+  expect(rankRecentCandidates(libs, [null, []], 'all')).toEqual([]);
 });

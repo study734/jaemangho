@@ -239,3 +239,71 @@ test('추천 범위를 바꾸면 일부 보유·전원 미보유 후보와 안�
   await expect(page.getByLabel('오늘은 어떤 게임?')).toBeEnabled();
   await expect(page.getByRole('heading', { name: '오늘 같이 할 게임' })).toHaveCount(0);
 });
+
+test('최근 크루픽·뽑기·도전 과제를 연결하고 조건 변경 시 지운다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_fun', 'E2E크루픽'));
+  const ids = ['76561190000000001', '76561190000000002'];
+  await page.route('**/api/steam/members', route => route.fulfill({ json: ids.map((steamId, i) => ({ steamId, name: i ? '영희' : '철수', avatar: null })) }));
+  await page.route('**/store_item_assets/**', route => route.abort());
+  const gameName = '함께하는 아주 긴 이름의 협동 게임 Deluxe Edition';
+  await page.route('**/api/steam/recommendations**', route => {
+    expect(new URL(route.request().url()).searchParams.get('preference')).toBe('recent');
+    return route.fulfill({ json: { games: [620, 730].map((appId, i) => ({ appId, name: i ? '다른 게임' : gameName,
+      totalMinutes: 1000, playedBy: 2, beginnerCount: 0, minMinutes: 500, maxMinutes: 500, score: 85,
+      owners: 2, missingIds: [], reasons: ['최근 2주 1명 플레이'], support: 'coop', recentPlayers: 1, recentMinutes: 120 })),
+      excluded: [], totalCommon: 2, totalCandidates: 2, checked: 2, unverified: 0, recentUnavailable: [ids[1]] } });
+  });
+  let state = 'ok';
+  let finish!: () => void;
+  let ready = Promise.resolve();
+  await page.route('**/api/steam/missions**', async route => {
+    expect(new URL(route.request().url()).searchParams.get('appId')).toBe('620');
+    await ready;
+    return route.fulfill({ json: { state, missions: state === 'ok' ? [{ id: 'a', title: '함께 문 열기', description: '공개된 조건 설명', kind: 'catch-up', unlockedIds: [ids[0]], lockedIds: [ids[1]] }] : [],
+      totalPublic: 1, completedTogether: state === 'complete' ? 1 : 0, unknownAchievements: 0, unavailableIds: state === 'unavailable' ? [ids[1]] : [], missingIds: [] } });
+  });
+  await page.goto('/steam');
+  await expect(page.getByRole('checkbox')).toHaveCount(2);
+  for (const box of await page.getByRole('checkbox').all()) await box.check();
+  await page.getByLabel('오늘은 어떤 게임?').selectOption('recent');
+  await page.getByRole('button', { name: '추천받기 (2명)' }).click();
+  await expect(page.getByText(/최근 기록을 확인할 수 없는 사람: 영희/)).toBeVisible();
+  await page.getByRole('button', { name: '오늘의 게임 뽑기', exact: true }).click();
+  const first = await page.getByRole('heading', { name: /^오늘의 게임:/ }).textContent();
+  await page.getByRole('button', { name: '다시 뽑기', exact: true }).click();
+  expect(await page.getByRole('heading', { name: /^오늘의 게임:/ }).textContent()).not.toBe(first);
+  await page.getByLabel('결과에서 게임 찾기').fill('Deluxe');
+  await expect(page.getByRole('heading', { name: /^오늘의 게임:/ })).toHaveCount(0);
+  await page.getByRole('button', { name: '오늘의 게임 뽑기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: `오늘의 게임: ${gameName}`, exact: true })).toBeVisible();
+  ready = new Promise(resolve => { finish = resolve; });
+  await page.getByRole('button', { name: `${gameName} 같이 도전 찾기`, exact: true }).click();
+  await expect(page.getByLabel('추천 범위', { exact: true })).toBeDisabled();
+  await expect(page.getByLabel('결과에서 게임 찾기')).toBeDisabled();
+  finish();
+  await expect(page.getByText('이미 달성: 철수')).toBeVisible();
+  await expect(page.getByText('아직 남은 멤버: 영희')).toBeVisible();
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.getByRole('heading', { name: `함께할 도전 과제 · ${gameName}` }).scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `output/playwright/steam-fun-${width}.png`, fullPage: true });
+  }
+  for (const next of ['unavailable', 'unsupported', 'not-owned', 'complete'] as const) {
+    state = next;
+    await page.getByRole('button', { name: '도전 다시 확인', exact: true }).click();
+    const text = { unavailable: '일부 진행도를 확인할 수 없어요.', unsupported: '공개된 도전 과제가 없는 게임이에요.', 'not-owned': '지금은 모두 보유한 게임이 아니에요.', complete: '확인된 공개 과제를 모두 함께 달성했어요!' }[next]!;
+    await expect(page.getByText(text, { exact: false })).toBeVisible();
+  }
+  await page.getByLabel('오늘은 어떤 게임?').selectOption('balanced');
+  await expect(page.getByRole('heading', { name: /함께할 도전 과제/ })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /^오늘의 게임:/ })).toHaveCount(0);
+});
+
+test('도전 API는 잘못된 쿼리와 미등록 멤버를 거부한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_mission_validation', 'E2E도전검증'));
+  await page.goto('/steam');
+  for (const query of ['ids=76561190000000001&appId=620', 'ids=76561190000000001,76561190000000002&appId=0', 'ids=invalid,76561190000000002&appId=620', 'ids=76561190000000991,76561190000000992&appId=620']) {
+    expect(await page.evaluate(async query => (await fetch(`/api/steam/missions?${query}`)).status, query)).toBe(400);
+  }
+});

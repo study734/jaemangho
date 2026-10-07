@@ -26,7 +26,7 @@ export class SteamPayloadError extends SteamUpstreamError {
 
 const inFlight = new Map<string, Promise<unknown>>();
 
-async function call(path: string, params: Record<string, string>, schema: z.ZodType): Promise<unknown> {
+async function call(path: string, params: Record<string, string>, schema: z.ZodType, cacheable: (body: unknown) => boolean = () => true): Promise<unknown> {
   const key = process.env.STEAM_API_KEY;
   if (!key) throw new SteamNotConfiguredError();
   const cacheKey = `${path}?${new URLSearchParams(params)}`; // API 키는 DB에 저장하지 않는다.
@@ -34,7 +34,7 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
   if (pending) return pending;
   const work = (async () => {
     const cached = await steamCacheGet(cacheKey);
-    if (cached !== undefined) {
+    if (cached !== undefined && schema.safeParse(cached).success && cacheable(cached)) {
       await steamStat('hit');
       return cached;
     }
@@ -45,7 +45,8 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
       if (!res.ok) throw new SteamUpstreamError(res.status);
       const body: unknown = await res.json();
       if (!schema.safeParse(body).success) throw new SteamPayloadError();
-      await steamCachePut(cacheKey, body, path.includes('GetOwnedGames') ? 300 : 900);
+      const ttl = path.includes('GetSchemaForGame') ? 86400 : /Get(?:Owned|RecentlyPlayed)Games/.test(path) ? 300 : 900;
+      if (cacheable(body)) await steamCachePut(cacheKey, body, ttl);
       return body;
     } catch (error) {
       await steamStat('error', path, error instanceof SteamPayloadError ? 'invalid_response' : error instanceof SteamUpstreamError ? String(error.status) : 'network');
@@ -54,6 +55,47 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
   })();
   inFlight.set(cacheKey, work);
   try { return await work; } finally { inFlight.delete(cacheKey); }
+}
+
+const recentSchema = z.object({ response: z.object({
+  total_count: z.number().int().nonnegative().optional(),
+  games: z.array(z.object({ appid: z.number().int().positive(), name: z.string().optional(), playtime_2weeks: z.number().int().nonnegative() })).optional(),
+}) });
+export interface RecentGame { appId: number; minutes: number }
+export type RecentLibrary = { ok: true; games: RecentGame[] } | { ok: false };
+
+export async function getRecentGames(steamId: string): Promise<RecentLibrary> {
+  const body = recentSchema.parse(await call('/IPlayerService/GetRecentlyPlayedGames/v1/', { steamid: steamId, count: '0' }, recentSchema));
+  if (!body.response.games && body.response.total_count !== 0) return { ok: false };
+  return { ok: true, games: (body.response.games ?? []).map(game => ({ appId: game.appid, minutes: game.playtime_2weeks })) };
+}
+
+const achievementSchema = z.object({ game: z.object({ availableGameStats: z.object({
+  achievements: z.array(z.object({ name: z.string().min(1), displayName: z.string().min(1),
+    description: z.string().optional(), hidden: z.number().int().min(0).max(1).optional(),
+  })).optional(),
+}).optional() }) });
+export interface AchievementDefinition { id: string; title: string; description: string | null; hidden: boolean }
+export async function getAchievementDefinitions(appId: number): Promise<AchievementDefinition[]> {
+  const body = achievementSchema.parse(await call('/ISteamUserStats/GetSchemaForGame/v2/', { appid: String(appId), l: 'koreana' }, achievementSchema));
+  return (body.game.availableGameStats?.achievements ?? []).map(achievement => ({ id: achievement.name,
+    title: achievement.displayName, description: achievement.description ?? null, hidden: achievement.hidden !== 0,
+  }));
+}
+
+const progressSchema = z.object({ playerstats: z.object({
+  success: z.boolean(), achievements: z.array(z.object({ apiname: z.string(), achieved: z.union([z.literal(0), z.literal(1)]) })).optional(),
+}) });
+export type AchievementProgress = { ok: true; achievements: { id: string; unlocked: boolean }[] } | { ok: false };
+export async function getAchievementProgress(steamId: string, appId: number): Promise<AchievementProgress> {
+  const cacheable = (body: unknown) => {
+    const parsed = progressSchema.safeParse(body);
+    return parsed.success && parsed.data.playerstats.success && parsed.data.playerstats.achievements !== undefined;
+  };
+  const body = progressSchema.parse(await call('/ISteamUserStats/GetPlayerAchievements/v1/',
+    { steamid: steamId, appid: String(appId), l: 'koreana' }, progressSchema, cacheable));
+  if (!body.playerstats.success || !body.playerstats.achievements) return { ok: false };
+  return { ok: true, achievements: body.playerstats.achievements.map(achievement => ({ id: achievement.apiname, unlocked: achievement.achieved === 1 })) };
 }
 
 // 입력: 17자리 SteamID, steamcommunity.com/profiles/<id>, steamcommunity.com/id/<이름>, 또는 이름만
