@@ -27,9 +27,8 @@ export function createLolData(riot: RiotClient): LolData {
     new Error(`존재하지 않는 Riot ID입니다 (HTTP 404). 소환사명(${name})과 태그(#${tag})에 오타가 없는지 확인해 주세요.`);
 
   async function overviewOf(puuid: string): Promise<Overview> {
-    const summoner = await riot.summoner(puuid);
+    const [summoner, league] = await Promise.all([riot.summoner(puuid), riot.league(puuid)]);
     if (!summoner) throw new Error('소환사 상세조회 실패');
-    const league = await riot.league(puuid);
     return { summonerLevel: summoner.summonerLevel, profileIconId: summoner.profileIconId, ...toRankSummary(league) };
   }
 
@@ -55,10 +54,13 @@ export function createLolData(riot: RiotClient): LolData {
       if (!account) return null;
       const { puuid } = account;
 
-      const championMasteries = await riot
+      const championMasteriesPromise = riot
         .mastery(puuid)
         .then((list) => (list ?? []).map(toChampionMastery))
         .catch((err) => (warn('Mastery fetch error')(err), [] as ChampionMastery[]));
+      const activeGamePromise = riot.activeGame(puuid)
+        .then((game) => (game ? toActiveGame(game, puuid) : null))
+        .catch((err) => (warn('Active game fetch error')(err), null));
 
       const matches: MatchHistory[] = [];
       try {
@@ -76,10 +78,7 @@ export function createLolData(riot: RiotClient): LolData {
         warn('Match list fetch error')(err);
       }
 
-      const activeGame = await riot
-        .activeGame(puuid)
-        .then((game) => (game ? toActiveGame(game, puuid) : null))
-        .catch((err) => (warn('Active game fetch error')(err), null));
+      const [championMasteries, activeGame] = await Promise.all([championMasteriesPromise, activeGamePromise]);
 
       return { championMasteries, matches, activeGame };
     },

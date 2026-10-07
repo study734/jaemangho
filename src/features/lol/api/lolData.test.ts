@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createLolData } from './lolData';
 import type { RiotClient } from './riot';
 
@@ -18,6 +18,18 @@ const fakeRiot = (over: Partial<RiotClient> = {}): RiotClient => ({
 });
 
 describe('lookup / overview', () => {
+  it('소환사 응답을 기다리는 동안 랭크 요청도 시작한다', async () => {
+    let finish!: (value: { id: string; summonerLevel: number; profileIconId: number }) => void;
+    const leagueRequest = vi.fn(async () => league);
+    const lol = createLolData(fakeRiot({
+      summoner: () => new Promise(resolve => { finish = resolve; }), league: leagueRequest,
+    }));
+    const pending = lol.overview({ gameName: 'a', tagLine: 'b' });
+    await Promise.resolve();
+    expect(leagueRequest).toHaveBeenCalledTimes(1);
+    finish({ id: 'S', summonerLevel: 321, profileIconId: 77 });
+    expect(await pending).toMatchObject({ tier: 'PLATINUM' });
+  });
   it('lookup: 정식 Riot ID와 기본 정보를 합쳐 돌려준다', async () => {
     const s = await createLolData(fakeRiot()).lookup('입력', 'kr1');
     expect(s).toEqual({

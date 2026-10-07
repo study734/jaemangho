@@ -37,6 +37,7 @@ test('멤버 목록에서 프로필로 들어가 연결된 계정을 보고, 주
   // 연결 해제 -> 다시 주인 없음
   await page.getByText('E2E스팀').first().locator('xpath=ancestor::li[1]').getByRole('button', { name: '연결 해제' }).click();
   await expect.poll(async () => (await db.query(`select owner_id from steam_members where steam_id = '${STEAM_ID}'`)).rows[0].owner_id).toBeNull();
+  await expect(page.getByRole('status').filter({ hasText: '계정 연결 정보를 저장했습니다.' })).toBeVisible();
 });
 
 test('없는 멤버 프로필은 404', async ({ page, context }) => {

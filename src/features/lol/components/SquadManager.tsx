@@ -47,7 +47,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
   const [editLevel, setEditLevel] = useState(150);
 
   // Handler to search summoner
-  const handleSearch = async (e: React.MouseEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gameName.trim() || !tagLine.trim()) {
       alert('소환사 이름과 태그라인을 입력해 주세요.');
@@ -168,11 +168,11 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
             라이엇 소환사 검색 및 추가
           </h3>
           
-          <div style={styles.formRow} className="responsive-form-grid">
+          <form onSubmit={handleSearch} style={styles.formRow} className="responsive-form-grid">
             <div style={styles.formGroup}>
-              <label style={styles.label}>소환사명</label>
+              <label htmlFor="summoner-name" style={styles.label}>소환사명</label>
               <input 
-                type="text" 
+                id="summoner-name" required disabled={isSearching} type="text"
                 className="text-input" 
                 placeholder="예: Faker"
                 value={gameName}
@@ -184,9 +184,9 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
               />
             </div>
             <div style={styles.formGroup}>
-              <label style={styles.label}>태그라인</label>
+              <label htmlFor="summoner-tag" style={styles.label}>태그라인</label>
               <input 
-                type="text" 
+                id="summoner-tag" required disabled={isSearching} type="text"
                 className="text-input" 
                 placeholder="예: KR1"
                 value={tagLine}
@@ -199,7 +199,7 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
             </div>
             <div style={{ ...styles.formGroup, display: 'flex', alignItems: 'flex-end' }}>
               <button 
-                type="button" 
+                type="submit"
                 className="btn btn-secondary" 
                 style={{ 
                   width: '100%', 
@@ -212,7 +212,6 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                   color: '#00ed64',
                   backgroundColor: 'transparent'
                 }}
-                onClick={handleSearch}
                 disabled={isSearching}
               >
                 {isSearching ? (
@@ -225,10 +224,10 @@ export const SquadManager: React.FC<SquadManagerProps> = ({
                 )}
               </button>
             </div>
-          </div>
+          </form>
 
           {searchError && (
-            <div style={{ color: '#fa6e39', fontSize: '13px', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div role="alert" style={{ color: 'var(--accent-orange)', fontSize: '13px', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>⚠️</span> {searchError}
             </div>
           )}

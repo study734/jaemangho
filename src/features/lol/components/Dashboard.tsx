@@ -1,7 +1,7 @@
 'use client';
 
 import { RiotImage } from './RiotImage';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { Member } from '../types';
 import { getTierColor, getTierLabelKR, getTierOrder, getRankOrder } from '../mockData';
 
@@ -11,9 +11,19 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetails }) => {
-  const [selectedPlayer, setSelectedPlayer] = useState<Member | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedPlayer = members.find(member => member.id === selectedId) ?? null;
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const isLoadingDetails = loadingId === selectedId;
   const [now] = useState(() => Date.now());
+  const openDetails = async (member: Member) => {
+    setSelectedId(member.id); setLoadingId(member.id);
+    try { await fetchMemberDetails(member); }
+    finally { setLoadingId(current => current === member.id ? null : current); }
+  };
+  const showDialog = useCallback((node: HTMLDialogElement | null) => {
+    if (node && !node.open) node.showModal();
+  }, []);
 
   // Filter active games
   const activeGames = members.filter(m => m.activeGame !== null);
@@ -47,7 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
   };
 
   const formatTimeAgo = (timestamp: number) => {
-    const diff = now - timestamp;
+    const diff = Math.max(0, now - timestamp);
     const mins = Math.floor(diff / 60000);
     if (mins < 60) return `${mins}분 전`;
     const hrs = Math.floor(mins / 60);
@@ -208,12 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                   return (
                     <tr 
                       key={member.id} 
-                      onClick={async () => {
-                        setSelectedPlayer(member);
-                        setIsLoadingDetails(true);
-                        await fetchMemberDetails(member);
-                        setIsLoadingDetails(false);
-                      }}
+                      onClick={() => openDetails(member)}
                       style={{ cursor: 'pointer' }}
                     >
                       <td style={{ textAlign: 'center' }}>
@@ -227,7 +232,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                             style={styles.profileIconTiny} 
                           />
                           <div>
-                            <span style={styles.tableUserName}>{member.gameName}</span>
+                            <button className="btn btn-ghost" style={styles.tableUserName}
+                              aria-label={`${member.gameName}#${member.tagLine} 상세 보기`}
+                              onClick={e => { e.stopPropagation(); void openDetails(member); }}>{member.gameName}</button>
                             <span style={styles.tableUserTag}>#{member.tagLine}</span>
                           </div>
                           {member.activeGame && <span className="pulse-indicator" style={{ marginLeft: '8px' }} />}
@@ -262,11 +269,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
 
       {/* Detailed Player Modal (소환사 전적 상세조회) */}
       {selectedPlayer && (
-        <div style={styles.modalOverlay} onClick={() => setSelectedPlayer(null)}>
-          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+          <dialog className="player-details-dialog" style={styles.modalContent} aria-labelledby="player-details-title"
+            ref={showDialog} onClose={() => setSelectedId(null)}
+            onClick={e => {
+              const box = e.currentTarget.getBoundingClientRect();
+              if (e.target === e.currentTarget && (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom)) e.currentTarget.close();
+            }}>
             
             {/* Modal Header */}
-            <div style={styles.modalHeader}>
+            <div className="player-details-header" style={styles.modalHeader}>
               <div style={styles.modalUserBox}>
                 <RiotImage
                   kind="profileicon" asset={selectedPlayer.profileIconId}
@@ -274,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                   style={styles.modalProfileIcon} 
                 />
                 <div>
-                  <h3 className="heading-2" style={{ color: '#ffffff' }}>
+                  <h3 id="player-details-title" className="heading-2" style={{ color: 'var(--ink)' }}>
                     {selectedPlayer.gameName}
                     <span style={{ color: '#7c8c9a', fontSize: '18px', fontWeight: 400 }}>#{selectedPlayer.tagLine}</span>
                   </h3>
@@ -286,7 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                   </div>
                 </div>
               </div>
-              <button style={styles.modalCloseBtn} aria-label="상세 닫기" onClick={() => setSelectedPlayer(null)}>
+              <button className="btn btn-ghost" style={styles.modalCloseBtn} aria-label="상세 닫기" onClick={e => e.currentTarget.closest('dialog')?.close()}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -314,7 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                     const statusColor = match.win ? '#00ed64' : '#ff4a4a';
 
                     return (
-                      <div key={match.matchId} style={cardStyle}>
+                      <div key={match.matchId} className="player-match-card" style={cardStyle}>
                         
                         {/* Game Status */}
                         <div style={styles.matchStatusColumn}>
@@ -375,8 +386,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ members, fetchMemberDetail
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </dialog>
       )}
     </div>
   );
@@ -623,7 +633,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tableUserName: {
     fontWeight: 600,
-    color: '#ffffff',
+    color: 'var(--ink)',
     fontSize: '13.5px',
   },
   tableUserTag: {
@@ -644,29 +654,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     color: '#7c8c9a',
   },
-  modalOverlay: {
-    position: 'fixed' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 30, 43, 0.8)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-    backdropFilter: 'blur(4px)',
-  },
   modalContent: {
-    backgroundColor: '#0b2a38',
-    borderRadius: '16px',
+    margin: 'auto',
+    backgroundColor: 'var(--surface)',
+    color: 'var(--ink)',
+    borderRadius: '12px',
+    padding: 0,
     width: '640px',
     maxWidth: '90%',
     maxHeight: '85vh',
-    display: 'flex',
     flexDirection: 'column' as const,
     boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
-    border: '1px solid #1c4558',
+    border: '1px solid var(--hairline)',
     overflow: 'hidden',
   },
   modalHeader: {
@@ -680,6 +679,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
+    minWidth: 0,
   },
   modalProfileIcon: {
     width: '56px',
@@ -694,6 +694,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '13px',
   },
   modalCloseBtn: {
+    flexShrink: 0,
     background: 'none',
     border: 'none',
     color: '#7c8c9a',

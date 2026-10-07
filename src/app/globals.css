@@ -1,4 +1,16 @@
 /* 재망호 다크 아지트 토큰 — DESIGN.md 참고 */
+dialog.player-details-dialog::backdrop { background: rgba(23, 24, 36, .8); backdrop-filter: blur(4px); }
+dialog.player-details-dialog[open] { display: flex; }
+.player-details-header h3 { overflow-wrap: anywhere; }
+.squad-heading > .btn { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 600px) {
+  .player-details-dialog .player-details-header { padding: 16px !important; gap: 8px; }
+  .player-details-header h3 { font-size: 22px; }
+  .player-details-dialog .player-match-card { display: grid !important; grid-template-columns: 1fr 2fr; gap: 12px !important; }
+  .player-match-card > div { width: auto !important; min-width: 0; }
+}
+.skip-link { position: fixed; top: 16px; left: 16px; z-index: 1000; transform: translateY(-200%); padding: 12px 20px; border-radius: 8px; background: var(--primary); color: var(--on-primary); }
+.skip-link:focus { transform: none; }
 :root {
   --page-padding: 24px;
   --panel-padding: 24px;

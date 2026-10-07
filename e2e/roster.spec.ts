@@ -12,7 +12,7 @@ test('소환사를 검색해 추가하면 목록에 나오고, 새로고침해�
   await page.getByRole('button', { name: '소환사 추가' }).click();
   await page.getByPlaceholder('예: Faker').fill('E2E소환사');
   await page.getByPlaceholder('예: KR1').fill('kr1');
-  await page.getByRole('button', { name: /소환사 검색 및 검증/ }).click();
+  await page.getByLabel('태그라인', { exact: true }).press('Enter');
 
   // 검색 결과 미리보기 -> 추가 확정
   await expect(page.getByText('계정 확인 완료')).toBeVisible();

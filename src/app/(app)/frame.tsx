@@ -25,25 +25,26 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
 
   return (
     <div className="app-frame" style={styles.appContainer}>
+      <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <TopBar isAdmin={isAdmin} />
       <div className="app-body" style={styles.body}>
       {sectionOf(pathname) !== 'home' && <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />}
 
-      <main style={styles.mainPane}>
+      <main id="main-content" tabIndex={-1} style={styles.mainPane}>
         {isLoading && (
-          <div style={styles.loadingBanner}>
+          <div role="status" style={styles.loadingBanner}>
             <span className="pulse-indicator" style={{ marginRight: '8px' }} />
             라이엇 서버로부터 소환사들의 최신 전적을 받아오고 있습니다...
           </div>
         )}
 
         {onLol && error && (
-          <div style={styles.errorBanner}>
+          <div role="alert" style={styles.errorBanner}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexGrow: 1 }}>
               <UiIcon name="exclamation-triangle" />
               <span>{error}</span>
             </div>
-            <button className="btn" style={styles.errorCloseBtn} onClick={dismissError}>
+            <button className="btn" style={styles.errorCloseBtn} aria-label="오류 안내 닫기" onClick={dismissError}>
               닫기
             </button>
           </div>
@@ -53,7 +54,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
           <div style={styles.syncRow}>
             <button className="btn btn-secondary" style={styles.syncBtn} onClick={() => refreshAll()}>
               <UiIcon name="arrow-repeat" />
-              실시간 데이터 강제 동기화
+              롤 정보 다시 불러오기
             </button>
           </div>
         )}
