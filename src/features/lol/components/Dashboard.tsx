@@ -32,7 +32,7 @@ export function Dashboard({ members, fetchMemberDetails }: DashboardProps) {
         <p className="subtitle" style={styles.subtitleText}>등록된 소환사들의 실시간 상태와 랭킹을 확인하세요.</p>
       </div>
     </header>
-    <div className="dashboard-grid"><ActiveGamesPanel members={members} /><TierLeaderboard members={members} onSelectMember={member => { void openDetails(member); }} /></div>
+    <div className="dashboard-grid dashboard-overview-grid"><ActiveGamesPanel members={members} /><TierLeaderboard members={members} onSelectMember={member => { void openDetails(member); }} /></div>
     {selectedPlayer && <PlayerDetailsDialog member={selectedPlayer} loading={isLoadingDetails} now={now} onClose={() => setSelectedId(null)} />}
   </div>;
 }

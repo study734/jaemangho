@@ -3,6 +3,30 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('티어 랭킹은 데스크톱에서 LP까지 보이고 긴 이름도 줄바꿈한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ranking_width', 'E2E랭킹너비'));
+  const name = '아주긴소환사이름도잘리지않도록';
+  await db.query(`insert into members (id, game_name, tag_line) values ('e2e_ranking_width', $1, 'KR1')`, [name]);
+  await mockRiot(page, { gameName: name, tagLine: 'KR1' });
+  await page.goto('/lol');
+  const region = page.getByRole('region', { name: '티어 랭킹 표' });
+  await expect(region.getByText('55 LP')).toBeVisible();
+  for (const width of [1440, 1280, 1024]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect.poll(() => region.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const lp = await region.getByText('55 LP').boundingBox();
+    const bounds = await region.boundingBox();
+    expect(lp!.x + lp!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width + 1);
+    expect(await region.getByRole('button', { name: `${name}#KR1 상세 보기` }).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await region.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  const lp = await region.getByText('55 LP').boundingBox();
+  const bounds = await region.boundingBox();
+  expect(lp!.x + lp!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width + 1);
+});
+
 test('본문 건너뛰기와 소환사 상세의 키보드 동작, 새 상세 데이터 표시', async ({ page, context }) => {
   await loginAs(context, await createUser('keyboard', 'E2E키보드'));
   await db.query(`insert into members (id, game_name, tag_line) values ('e2e_keyboard', 'E2E키보드', 'KR1')`);

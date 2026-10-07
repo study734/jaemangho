@@ -30,11 +30,18 @@ export function TierLeaderboard({ members, onSelectMember }: {
       <h3 className="heading-3">티어 랭킹</h3>
     </div>
 
-    <div style={{ overflowX: 'auto' }}>
-      <table className="comparison-table">
+    <div style={{ overflowX: 'auto', minWidth: 0 }} role="region" aria-label="티어 랭킹 표" tabIndex={0}>
+      <table className="comparison-table tier-ranking-table">
+        <colgroup>
+          <col style={{ width: '44px' }} />
+          <col />
+          <col style={{ width: '96px' }} />
+          <col style={{ width: '76px' }} />
+          <col style={{ width: '80px' }} />
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ width: '60px', textAlign: 'center' }}>순위</th>
+            <th style={{ textAlign: 'center' }}>순위</th>
             <th>소환사명</th>
             <th>티어</th>
             <th style={{ textAlign: 'center' }}>승률</th>
@@ -57,7 +64,7 @@ export function TierLeaderboard({ members, onSelectMember }: {
               <td>
                 <div style={styles.tableUserCell}>
                   <RiotImage kind="profileicon" asset={member.profileIconId} alt={`${member.gameName} 프로필`} style={styles.profileIconTiny} />
-                  <div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <button className="btn btn-ghost" style={styles.tableUserName} aria-label={`${member.gameName}#${member.tagLine} 상세 보기`} onClick={e => { e.stopPropagation(); void onSelectMember(member); }}>{member.gameName}</button>
                     <span style={styles.tableUserTag}>#{member.tagLine}</span>
                   </div>
@@ -112,17 +119,26 @@ const styles = {
     gap: '10px',
   },
   profileIconTiny: {
+    flexShrink: 0,
     width: '26px',
     height: '26px',
     borderRadius: '50%',
     border: '1px solid #1c4558',
   },
   tableUserName: {
+    width: '100%',
+    minWidth: 0,
+    padding: 0,
+    textAlign: 'left',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    lineHeight: 1.5,
     fontWeight: 600,
     color: 'var(--ink)',
     fontSize: '13.5px',
   },
   tableUserTag: {
+    display: 'block',
     color: '#5c6c7a',
     fontSize: '11.5px',
   },

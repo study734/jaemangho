@@ -574,6 +574,13 @@ body {
 .dashboard-grid > section {
   min-width: 0;
 }
+.dashboard-grid.dashboard-overview-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
+}
+.dashboard-overview-grid .tier-ranking-table {
+  table-layout: fixed;
+  min-width: 440px;
+}
 .dashboard-grid .comparison-table th,
 .dashboard-grid .comparison-table td {
   padding: 16px 8px;
