@@ -12,7 +12,7 @@ test.describe('로그인하지 않은 방문자', () => {
   });
 
   test('모든 API가 거부된다', async ({ request }) => {
-    for (const path of ['/api/members', '/api/steam/members', '/api/steam/games?ids=76561190000000001', '/api/steam/recommendations?ids=76561190000000001,76561190000000002', '/api/admin?resource=users', '/api/riot?region=kr&path=/lol/league/v4/entries/by-puuid/a']) {
+    for (const path of ['/api/members', '/api/steam/members', '/api/steam/missions?ids=76561190000000001,76561190000000002&appId=620', '/api/steam/games?ids=76561190000000001', '/api/steam/recommendations?ids=76561190000000001,76561190000000002', '/api/admin?resource=users', '/api/riot?region=kr&path=/lol/league/v4/entries/by-puuid/a']) {
       expect((await request.get(path)).status(), path).toBe(401);
     }
     // 크론 경로는 세션이 아니라 비밀값으로 보호된다. 이 환경에는 설정이 없어 503, 설정돼 있어도 인증 없이는 401.
