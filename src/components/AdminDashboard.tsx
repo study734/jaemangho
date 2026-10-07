@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { adminStyles, Panel, ScrollTable } from './AdminUi';
+import { operationsLog } from '@/lib/operations-log';
 import { AuditPanel, BackupNote, ChatSyncPanel, OpsNotice, OpsStatusPanel, SteamPanel, ViewAnalytics, useOperations } from './OperationsPanel';
 
 interface Status {
@@ -52,7 +53,7 @@ const hitRate = (d: { hits: number; misses: number }) =>
   d.hits + d.misses === 0 ? '-' : `${Math.round((d.hits / (d.hits + d.misses)) * 100)}%`;
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-const when = (iso: string) => new Date(iso).toLocaleString('ko-KR');
+const when = (iso: string) => new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -68,8 +69,11 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [members, setMembers] = useState<AdminMember[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const [s, u, m] = await Promise.all([
         call<Status>('/api/admin?resource=status'),
@@ -82,7 +86,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       setError(null);
     } catch (e) {
       setError((e as Error).message);
-    }
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -127,8 +131,14 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
 
   const ops = useOperations();
   const [tab, setTab] = useState<TabId>('overview');
-  const activeAlerts = ops.data?.alerts.filter((a) => a.active).length ?? 0;
-  const attention = activeAlerts + (status?.envProblems.length ?? 0);
+  const configuration = !!status?.envProblems.length;
+  const attention = Number(configuration) + (ops.data ? operationsLog(ops.data, ops.now)
+    .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0);
+  const refresh = async () => {
+    setRefreshing(true);
+    try { await Promise.all([load(), ops.refresh()]); }
+    finally { setRefreshing(false); }
+  };
 
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
@@ -144,12 +154,14 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       <header style={styles.header}>
         <div style={{ flex: '1 1 260px' }}>
           <h2 className="heading-1" style={styles.title}>관리자 대시보드</h2>
-          <p className="subtitle">접속자, 등록 소환사 목록, 시스템 상태를 관리합니다.</p>
+          <p className="subtitle">사용자, 등록 소환사 목록, 시스템 상태를 관리합니다.</p>
         </div>
-        <button className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={load}>새로고침</button>
+        <button className="btn btn-secondary" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} disabled={loading || refreshing || ops.busy}
+          onClick={refresh}>새로고침</button>
       </header>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {loading && <p role="status" style={adminStyles.muted}>관리자 정보를 불러오는 중입니다.</p>}
+      {error && <div role="alert" style={styles.error}>Error · 관리자 정보 조회 실패: {error}{status && ' · 이전 데이터를 표시하고 있습니다.'} 새로고침으로 다시 확인하세요.</div>}
       <OpsNotice ops={ops} />
 
       <div role="tablist" aria-label="관리자 메뉴" style={styles.tabs}>
@@ -165,7 +177,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
             onClick={() => setTab(t.id)}
             onKeyDown={(e) => onTabKey(e, i)}
           >
-            {t.label}{t.id === 'overview' && attention > 0 && <span style={styles.count}> {attention}</span>}
+            {t.label}{t.id === 'overview' && attention > 0 && <span style={styles.count}> · 확인 {attention}건</span>}
           </button>
         ))}
       </div>
@@ -174,8 +186,9 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
         {tab === 'overview' && (
           <>
             {status && status.envProblems.length > 0 && (
-              <div style={styles.error}>
-                <strong>환경변수 점검에서 문제가 발견되었습니다</strong> (값은 표시하지 않습니다)
+              <div style={styles.configuration}>
+                <strong>Warning · 환경 설정 확인</strong>
+                <p style={{ margin: '8px 0' }}>로그인·외부 연동에 영향을 줄 수 있습니다. 환경변수 설정을 확인하세요. 값은 표시하지 않습니다.</p>
                 <ul style={{ margin: '8px 0 0 18px' }}>
                   {status.envProblems.map((p) => (
                     <li key={p}>{p}</li>
@@ -183,11 +196,11 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                 </ul>
               </div>
             )}
-            <OpsStatusPanel ops={ops} />
+            <OpsStatusPanel ops={ops} onOpenIntegrations={() => setTab('integrations')} />
             {status && (
               <section style={styles.cards}>
                 <Card label="등록 소환사" value={`${status.counts.members}명`} />
-                <Card label="접속자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
+                <Card label="사용자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
                 <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
                 <Card
                   label="DB 사용량 (Neon 무료 한도 대비)"
@@ -219,8 +232,9 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
 
         {tab === 'people' && (
           <>
-            <Panel title={`접속자 (${users.length})`}>
-              <ScrollTable head={['이름', '접속 횟수', '마지막 접속', '']}>
+            <Panel title={`사용자 (${status ? users.length : '—'})`}>
+              <p style={adminStyles.muted}>로그인 이력 기준 · 마지막 로그인 시각은 한국 시간으로 표시합니다.</p>
+              <ScrollTable head={['이름', '로그인 횟수', '마지막 로그인', '']}>
                 {users.map((u) => (
                   <tr key={u.id}>
                     <td style={styles.td}>
@@ -238,9 +252,10 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                     </td>
                   </tr>
                 ))}
+                {users.length === 0 && <tr><td style={styles.td} colSpan={4}>{loading ? '불러오는 중입니다.' : error ? '사용자 목록을 불러오지 못했습니다.' : '로그인한 사용자 기록이 없습니다.'}</td></tr>}
               </ScrollTable>
             </Panel>
-            <Panel title={`등록 소환사 목록 (${members.length})`}>
+            <Panel title={`등록 소환사 목록 (${status ? members.length : '—'})`}>
               <ScrollTable head={['Riot ID', '등록자', '등록일', '']}>
                 {members.map((m) => (
                   <tr key={m.id}>
@@ -252,6 +267,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                     </td>
                   </tr>
                 ))}
+                {members.length === 0 && <tr><td style={styles.td} colSpan={4}>{loading ? '불러오는 중입니다.' : error ? '소환사 목록을 불러오지 못했습니다.' : '등록된 소환사가 없습니다.'}</td></tr>}
               </ScrollTable>
             </Panel>
           </>
@@ -325,6 +341,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   header: { flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
+  configuration: { padding: '12px 16px', borderRadius: 8, backgroundColor: 'var(--surface)', borderLeft: '4px solid var(--status-warning)', color: 'var(--status-warning)', fontSize: 14 },
   tabs: { flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', borderBottom: '1px solid var(--hairline)' },
   tabPanel: { flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 },
   count: { color: 'var(--accent-pink)', fontWeight: 700 },
