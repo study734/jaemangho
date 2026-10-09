@@ -72,7 +72,7 @@ src/
 - 이름에 `⛵`가 들어간 텍스트·공지 채널만 봅니다(`src/server/chat/sync.ts`의 `WATCH_MARK`).
 - 하루 한 번 Vercel 크론(`vercel.json`)이 `GET /api/cron/chat`을 불러 최근 7일을 REST로 가져와 `chat_messages`에 저장합니다(반응 수는 변하므로 매번 갱신, 60일 지난 기록은 삭제). 이 경로는 로그인 세션이 아니라 `CRON_SECRET`(Bearer)으로 보호하며, 설정이 없으면 누구도 호출할 수 없습니다.
 - 동기화가 전체 채널을 읽은 날에는 원본 삭제 전에 최근 60일의 날짜별 메시지·답글·반응·활동 작성자 **수**를 `discord_daily_activity`에 다시 계산해 남깁니다. 한국 시간 날짜만 저장하며 작성자·채널 식별자는 이 장기 집계에 넣지 않습니다. 부분 동기화 중에는 갱신하지 않고, 기록이 없는 날은 활동이 없었다고 단정하지 않습니다.
-- Riot·Steam의 장기 활동 저장 구조(`migrations/0010_activity_facts.sql`)와 중복 방지 로직은 준비돼 있지만 외부 API 수집과 예약 작업에는 연결되지 않았습니다. Riot 제품 등록 범위 확인과 Steam 계정 주인의 명시적 요청·고지 절차를 마친 뒤 활성화합니다. 설계와 근거는 [활동 데이터 수집 설계안](docs/activity-data-design.md)에 정리했습니다.
+- Riot·Steam의 장기 활동 저장 구조(`migrations/0010_activity_facts.sql`)와 중복 방지 로직은 준비돼 있습니다. Steam은 요청된 계정만 주간 간격으로 고르고 실패·조회 불가를 기록하는 수집 작업(`migrations/0011_steam_collection_state.sql`)도 준비했지만, 호출 경로나 예약 작업에는 연결하지 않았습니다. Riot 제품 등록 범위 확인과 Steam 계정 주인의 명시적 요청·고지 절차를 마친 뒤 활성화합니다. 설계와 근거는 [활동 데이터 수집 설계안](docs/activity-data-design.md)에 정리했습니다.
 - 필요한 환경변수(둘 다 선택, 없으면 기능이 꺼짐): `DISCORD_BOT_TOKEN`(개발자 포털의 같은 앱에서 봇을 만들고 서버에 초대. 권한은 **채널 보기, 메시지 기록 읽기**만), `CRON_SECRET`(16자 이상 랜덤, `openssl rand -base64 24`).
 - 처음 한 번 바로 채우려면(배포 후): `curl -H "Authorization: Bearer $CRON_SECRET" https://<도메인>/api/cron/chat` — 응답은 개수만 담습니다.
 
