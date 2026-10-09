@@ -16,6 +16,7 @@ describe.skipIf(!testDbUrl)('Steam 요청 계정 수집 (DB)', () => {
       values ('tsc_user', '수집테스트', 'tsc@test.invalid', false)`);
     await pool.query(`insert into steam_members (steam_id, persona_name, owner_id)
       values ($1, '수집테스트', 'tsc_user')`, [STEAM_ID]);
+    await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'tsc_user')`, [STEAM_ID]);
   });
   afterAll(async () => {
     await pool.query(`delete from steam_members where steam_id = any($1)`, [[STEAM_ID, ...RATE_LIMIT_IDS]]);
@@ -59,6 +60,7 @@ describe.skipIf(!testDbUrl)('Steam 요청 계정 수집 (DB)', () => {
     for (const steamId of RATE_LIMIT_IDS) {
       await pool.query(`insert into steam_members (steam_id, persona_name, owner_id)
         values ($1, '호출제한테스트', 'tsc_user')`, [steamId]);
+      await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'tsc_user')`, [steamId]);
       await pool.query(`insert into steam_collection_requests
         (steam_id, requested_by, notice_version, requested_at)
         values ($1, 'tsc_user', 'test-v1', '2040-02-01T00:00:00Z')`, [steamId]);

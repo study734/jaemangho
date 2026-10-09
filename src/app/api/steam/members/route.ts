@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest) {
   const body = await parseBody(request, setOwnerSchema);
   if (!body.ok) return body.response;
   try {
-    return (await setSteamOwner(body.data.steamId, body.data.ownerId))
+    return (await setSteamOwner(body.data.steamId, body.data.ownerId, user.id))
       ? new Response(null, { status: 204 })
       : Response.json({ error: 'Not found' }, { status: 404 });
   } catch (e) {
@@ -66,8 +66,9 @@ export async function DELETE(request: NextRequest) {
   const id = steamIdSchema.safeParse(request.nextUrl.searchParams.get('id'));
   if (!id.success) return Response.json({ error: 'Invalid request' }, { status: 400 });
   try {
-    await removeSteamMember(id.data);
-    return new Response(null, { status: 204 });
+    return (await removeSteamMember(id.data, user.id))
+      ? new Response(null, { status: 204 })
+      : Response.json({ error: 'Not found or verified by another user' }, { status: 404 });
   } catch (e) {
     return failure(e);
   }

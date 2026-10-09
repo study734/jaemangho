@@ -19,6 +19,7 @@ describe.skipIf(!testDbUrl)('Riot·Steam 활동 사실 저장 (DB)', () => {
     await pool.query(`insert into riot_account_identity (member_id, puuid, verified_at) values
       ('taf_riot_1', 'taf_puuid_1', now()), ('taf_riot_2', 'taf_puuid_2', now())`);
     await pool.query(`insert into steam_members (steam_id, persona_name, owner_id) values ($1, '활동테스트', 'taf_user')`, [STEAM_ID]);
+    await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'taf_user')`, [STEAM_ID]);
   });
   afterAll(async () => {
     await pool.query(`delete from members where id like 'taf_riot_%'`);

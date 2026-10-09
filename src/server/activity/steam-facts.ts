@@ -17,7 +17,10 @@ export async function recordSteamObservation(steamId: string, games: SteamGameTo
     const request = (await client.query(
       `select 1 from steam_collection_requests r
        join steam_members m on m.steam_id = r.steam_id
-       where r.steam_id = $1 and r.stopped_at is null and r.requested_by = m.owner_id`, [steamId],
+       join steam_verified_accounts v on v.steam_id = r.steam_id and v.user_id = r.requested_by
+       join "user" u on u.id = r.requested_by and not coalesce(u.banned, false)
+       where r.steam_id = $1 and r.stopped_at is null and r.requested_by = m.owner_id
+       for share of r`, [steamId],
     )).rowCount;
     if (!request) throw new Error('Steam collection was not requested by this account');
 

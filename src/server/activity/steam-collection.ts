@@ -53,6 +53,8 @@ export async function runSteamCollection(source: 'scheduled' | 'manual', options
     const eligible = (await pool.query<{ steam_id: string }>(`select r.steam_id
       from steam_collection_requests r
       join steam_members m on m.steam_id = r.steam_id and m.owner_id = r.requested_by
+      join steam_verified_accounts v on v.steam_id = r.steam_id and v.user_id = r.requested_by
+      join "user" u on u.id = r.requested_by and not coalesce(u.banned, false)
       left join steam_collection_state s on s.steam_id = r.steam_id
       where r.stopped_at is null and (s.last_success_at is null or s.last_success_at <= $1)
       order by s.last_success_at nulls first, r.requested_at, r.steam_id limit $2`,
