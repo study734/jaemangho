@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { recordAwards } from './awards';
 import { DiscordRateLimitedError, fetchMessagePage, findWatchedChannels } from './bot';
+import { recordDailyActivity } from './daily-activity';
 import { recordHighlights } from './highlights';
 
 // 이 표시가 이름에 들어간 채널만 본다. 바꾸려면 여기를 고친다.
@@ -81,6 +82,9 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const warnings: string[] = [];
   await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); console.error('record highlights failed', e); });
   await recordAwards(now).catch((e) => { warnings.push('awards_failed'); console.error('record awards failed', e); });
+  if (!rateLimited && !truncated && channels.length > 0) {
+    await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); console.error('record daily activity failed', e); });
+  }
 
   await sql`delete from chat_messages where created_at < ${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString()}`;
   return { channels: channels.length, messages: total, rateLimited, ...(warnings.length ? { warnings } : {}), ...(truncated ? { truncated } : {}) };
