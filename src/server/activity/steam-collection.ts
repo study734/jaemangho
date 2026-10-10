@@ -23,8 +23,7 @@ function errorCode(error: unknown): string {
   return 'collection_failed';
 }
 
-// 호출 경로와 예약 작업은 아직 연결하지 않는다. 요청행과 roster owner_id 일치만 확인하며,
-// 실제 Steam 계정 주인 검증은 활성화 전에 별도로 마련해야 한다.
+// 호출 경로와 예약 작업은 아직 연결하지 않는다. 확인된 계정의 명시적 요청만 처리한다.
 export async function runSteamCollection(source: 'scheduled' | 'manual', options: SteamCollectionOptions = {}) {
   const { now = new Date(), maxAccounts = MAX_ACCOUNTS, budgetMs = 45_000, fetchLibrary = getLibrary } = options;
   if (!Number.isInteger(maxAccounts) || maxAccounts < 1 || maxAccounts > MAX_ACCOUNTS) throw new Error('Invalid account limit');
@@ -100,7 +99,12 @@ export async function runSteamCollection(source: 'scheduled' | 'manual', options
 async function saveAccountState(steamId: string, at: Date, result: 'success' | 'unavailable' | 'error', code: string | null) {
   await pool.query(`insert into steam_collection_state
     (steam_id, last_attempt_at, last_success_at, last_result, last_error_code)
-    values ($1, $2, $3, $4, $5)
+    select r.steam_id, $2::timestamptz, $3::timestamptz, $4, $5
+    from steam_collection_requests r
+    join steam_members m on m.steam_id = r.steam_id and m.owner_id = r.requested_by
+    join steam_verified_accounts v on v.steam_id = r.steam_id and v.user_id = r.requested_by
+    where r.steam_id = $1 and r.stopped_at is null
+    for share of r
     on conflict (steam_id) do update set
       last_attempt_at = excluded.last_attempt_at,
       last_success_at = coalesce(excluded.last_success_at, steam_collection_state.last_success_at),

@@ -2,13 +2,14 @@ import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins';
 import type { DiscordProfile } from 'better-auth/social-providers';
+import { after } from 'next/server';
 import { fetchGuildMember } from './discord';
 import { type RawConnection, fetchConnections, linkConnections } from './discord-connections';
 import { pool } from './pool';
 
 // 로그인 중인 사용자의 권한. getUserInfo(디스코드 토큰을 가진 유일한 지점)에서 계산해 두었다가
 // 세션이 만들어진 직후 훅에서 user 행에 반영한다. 한 번의 콜백 요청 안에서만 쓰이는 값이라 금방 비운다.
-const pending = new Map<string, { role: 'admin' | 'user'; username: string; connections: RawConnection[]; at: number }>();
+const pending = new Map<string, { role: 'admin' | 'user'; username: string; connections: Promise<RawConnection[]>; at: number }>();
 const PENDING_TTL_MS = 5 * 60 * 1000;
 
 // 빌드는 비밀키 없이도 되어야 한다(CI 등). 빌드 단계에서만 자리표시자를 쓰고, 실행 중에 SESSION_SECRET이 없으면 라이브러리가 오류를 낸다.
@@ -46,10 +47,9 @@ export const auth = betterAuth({
       // 크루 디스코드 서버 멤버만 통과시킨다. null을 돌려주면 로그인이 거부된다(unable_to_get_user_info).
       getUserInfo: async (token) => {
         if (!token.accessToken) return null;
-        const [member, connections] = await Promise.all([
-          fetchGuildMember(token.accessToken, process.env.DISCORD_GUILD_ID ?? ''),
-          fetchConnections(token.accessToken), // 실패해도 빈 목록이라 로그인에 영향 없음
-        ]);
+        // 연결 목록은 미리 요청하지만 로그인 완료를 기다리게 하지 않는다.
+        const connections = fetchConnections(token.accessToken);
+        const member = await fetchGuildMember(token.accessToken, process.env.DISCORD_GUILD_ID ?? '');
         if (!member) return null;
 
         // 차단된 사용자도 여기서 거부한다. 관리자 플러그인의 차단 검사는 요청 컨텍스트가 있을 때만 동작하므로
@@ -101,11 +101,11 @@ export const auth = betterAuth({
             [session.userId, info.role, info.username]
           );
 
-          // 연결된 앱의 계정을 멤버에 묶는다. 실패하거나 느려도 로그인은 그대로 성공시킨다.
-          await Promise.race([
-            linkConnections(session.userId, info.connections).catch((e) => console.error('discord connection link failed', e)),
-            new Promise((resolve) => setTimeout(resolve, 5000)),
-          ]);
+          // 응답을 보낸 뒤 연결한다. after는 서버리스에서도 요청 수명 안에서 작업을 기다린다.
+          after(async () => {
+            try { await linkConnections(session.userId, await info.connections); }
+            catch (e) { console.error('discord connection link failed', e); }
+          });
         },
       },
     },

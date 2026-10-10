@@ -1,8 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { openTestDb, testDbUrl } from './testing/db';
 
 // DB가 필요한 통합 테스트: TEST_DATABASE_URL이 있을 때만 실행한다 (CI에서는 Postgres 서비스 컨테이너를 사용).
 // 디스코드는 fetch를 가짜로 바꿔 대신하고, 로그인 라이브러리와 DB는 실제로 사용한다.
+const deferred = vi.hoisted(() => [] as Array<() => Promise<void>>);
+vi.mock('next/server', async (original) => ({
+  ...await original<typeof import('next/server')>(),
+  after: (work: () => Promise<void>) => { deferred.push(work); },
+}));
 
 describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세션 훅 -> DB)', () => {
   type Mods = { auth: typeof import('./auth').auth; pool: Awaited<ReturnType<typeof openTestDb>> };
@@ -41,8 +46,13 @@ describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세�
 
   afterAll(async () => {
     vi.unstubAllGlobals();
+    await m.pool.query(`delete from steam_members where steam_id = '76561193000000041'`);
     await m.pool.query(`delete from "user" where email like '%@discord.invalid'`); // account/session은 cascade
     await m.pool.end();
+  });
+  afterEach(async () => {
+    for (const work of deferred.splice(0)) await work();
+    vi.unstubAllEnvs();
   });
 
   it('서버 멤버가 아니면 로그인을 거부한다', async () => {
@@ -83,5 +93,28 @@ describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세�
 
     await m.pool.query(`update "user" set banned = false where id = $1`, [id]);
     expect(await login(id)).toBe(id);
+  });
+
+  it('연결 목록이 늦어도 세션을 먼저 만들고 응답 후 Steam 계정을 연결한다', async () => {
+    vi.stubEnv('STEAM_API_KEY', 'integration-test-placeholder');
+    let release!: (value: Response) => void;
+    const connections = new Promise<Response>((resolve) => { release = resolve; });
+    vi.stubGlobal('fetch', async (input: string) => {
+      const url = String(input);
+      if (url.endsWith('/connections')) return connections;
+      const body = url.endsWith('/users/@me')
+        ? { id: '778', username: 'slow', global_name: '느린연결', avatar: null }
+        : url.includes('GetPlayerSummaries')
+          ? { response: { players: [{ steamid: '76561193000000041', personaname: 'Steam연결' }] } }
+          : [{ id: 'G', owner: false, permissions: '0' }];
+      return new Response(JSON.stringify(body));
+    });
+    const id = (await login(null, '778'))!;
+    expect(await row(id)).toMatchObject({ role: 'user', loginCount: 1 });
+    expect(deferred).toHaveLength(1);
+    expect((await m.pool.query(`select steam_id from steam_members where steam_id = '76561193000000041'`)).rowCount).toBe(0);
+    release(new Response(JSON.stringify([{ id: '76561193000000041', name: 'Steam연결', type: 'steam' }])));
+    for (const work of deferred.splice(0)) await work();
+    expect((await m.pool.query(`select owner_id from steam_members where steam_id = '76561193000000041'`)).rows[0].owner_id).toBe(id);
   });
 });

@@ -44,4 +44,20 @@ describe.skipIf(!testDbUrl)('Steam 수집 요청·중단·삭제 (DB)', () => {
     expect(await consent.requestSteamActivity('tco_owner', STEAM_ID, 'test-v1')).toBe(false);
     expect((await consent.getSteamActivitySettings('tco_owner')).accounts).toEqual([]);
   });
+
+  it('외부 조회 중 기록을 삭제하면 늦은 응답이 수집 상태를 되살리지 않는다', async () => {
+    await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'tco_owner')`, [STEAM_ID]);
+    expect(await consent.requestSteamActivity('tco_owner', STEAM_ID, 'test-v1')).toBe(true);
+    const { runSteamCollection } = await import('./steam-collection');
+    let notify!: () => void;
+    const fetching = new Promise<void>((resolve) => { notify = resolve; });
+    let release!: (value: { ok: false }) => void;
+    const response = new Promise<{ ok: false }>((resolve) => { release = resolve; });
+    const job = runSteamCollection('manual', { fetchLibrary: async () => { notify(); return response; } });
+    await fetching;
+    expect(await consent.eraseSteamActivity('tco_owner', STEAM_ID)).toBe(true);
+    release({ ok: false });
+    await job;
+    expect((await pool.query(`select count(*)::int as n from steam_collection_state where steam_id = $1`, [STEAM_ID])).rows[0].n).toBe(0);
+  });
 });

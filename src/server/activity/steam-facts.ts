@@ -10,6 +10,10 @@ export async function recordSteamObservation(steamId: string, games: SteamGameTo
   if (Number.isNaN(observedAt.getTime()) || new Set(games.map((game) => game.appId)).size !== games.length) {
     throw new Error('Invalid Steam observation');
   }
+  for (const game of games) {
+    if (!Number.isSafeInteger(game.appId) || game.appId <= 0 || game.appId > 2147483647 ||
+        !Number.isSafeInteger(game.minutes) || game.minutes < 0) throw new Error('Invalid Steam game total');
+  }
   const client = await pool.connect();
   try {
     await client.query('begin');
@@ -24,29 +28,38 @@ export async function recordSteamObservation(steamId: string, games: SteamGameTo
     )).rowCount;
     if (!request) throw new Error('Steam collection was not requested by this account');
 
+    const previousRows = await client.query<{ app_id: number; minutes: string; observed_at: Date }>(
+      'select app_id, minutes, observed_at from steam_game_totals where steam_id = $1 and app_id = any($2::integer[])',
+      [steamId, games.map((game) => game.appId)],
+    );
+    const previousById = new Map(previousRows.rows.map((row) => [row.app_id, row]));
+    const fresh = games.filter((game) => {
+      const previous = previousById.get(game.appId);
+      return !previous || observedAt > previous.observed_at;
+    });
+    const increased = fresh.filter((game) => {
+      const previous = previousById.get(game.appId);
+      return previous && BigInt(game.minutes) > BigInt(previous.minutes);
+    });
     let changes = 0;
-    for (const game of games) {
-      if (!Number.isSafeInteger(game.appId) || game.appId <= 0 || !Number.isSafeInteger(game.minutes) || game.minutes < 0) {
-        throw new Error('Invalid Steam game total');
-      }
-      const previous = (await client.query<{ minutes: string; observed_at: Date }>(
-        'select minutes, observed_at from steam_game_totals where steam_id = $1 and app_id = $2',
-        [steamId, game.appId],
-      )).rows[0];
-      if (previous && observedAt <= previous.observed_at) continue;
-      if (previous && BigInt(game.minutes) > BigInt(previous.minutes)) {
-        await client.query(`insert into steam_playtime_changes
-          (steam_id, app_id, previous_observed_at, observed_at, previous_minutes, minutes)
-          values ($1, $2, $3, $4, $5, $6)
-          on conflict (steam_id, app_id, observed_at) do nothing`,
-        [steamId, game.appId, previous.observed_at, observedAt, previous.minutes, game.minutes]);
-        changes++;
-      }
+    if (increased.length) {
+      const inserted = await client.query(`insert into steam_playtime_changes
+        (steam_id, app_id, previous_observed_at, observed_at, previous_minutes, minutes)
+        select $1, app_id, previous_at, $2, previous_minutes, minutes
+        from unnest($3::integer[], $4::timestamptz[], $5::bigint[], $6::bigint[])
+          as batch(app_id, previous_at, previous_minutes, minutes)
+        on conflict (steam_id, app_id, observed_at) do nothing`,
+      [steamId, observedAt, increased.map((game) => game.appId),
+        increased.map((game) => previousById.get(game.appId)!.observed_at),
+        increased.map((game) => previousById.get(game.appId)!.minutes), increased.map((game) => game.minutes)]);
+      changes = inserted.rowCount ?? 0;
+    }
+    if (fresh.length) {
       await client.query(`insert into steam_game_totals (steam_id, app_id, minutes, observed_at)
-        values ($1, $2, $3, $4)
+        select $1, app_id, minutes, $2 from unnest($3::integer[], $4::bigint[]) as batch(app_id, minutes)
         on conflict (steam_id, app_id) do update
           set minutes = excluded.minutes, observed_at = excluded.observed_at`,
-      [steamId, game.appId, game.minutes, observedAt]);
+      [steamId, observedAt, fresh.map((game) => game.appId), fresh.map((game) => game.minutes)]);
     }
     await client.query('commit');
     return changes;

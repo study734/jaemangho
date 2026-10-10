@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Client } from 'pg';
 import { openTestDb, testDbUrl } from '../testing/db';
 
 const STEAM_ID = '76561193000000001';
@@ -68,5 +69,29 @@ describe.skipIf(!testDbUrl)('Riot·Steam 활동 사실 저장 (DB)', () => {
     expect((await pool.query(`select minutes::int from steam_game_totals where steam_id = $1`, [STEAM_ID])).rows[0].minutes).toBe(120);
     await pool.query(`update steam_collection_requests set stopped_at = now() where steam_id = $1`, [STEAM_ID]);
     await expect(recordSteamObservation(STEAM_ID, [{ appId: 10, minutes: 150 }], new Date('2040-02-22T00:00:00Z'))).rejects.toThrow('not requested');
+  });
+
+  it('게임 1,000개의 기준선과 증가분을 각각 최대 7회 SQL로 저장하고 오래된 관측은 건너뛴다', async () => {
+    await pool.query(`update steam_collection_requests set stopped_at = null where steam_id = $1`, [STEAM_ID]);
+    const games = Array.from({ length: 1000 }, (_, index) => ({ appId: 1000 + index, minutes: 100 }));
+    const first = new Date('2041-01-01T00:00:00Z');
+    const second = new Date('2041-01-08T00:00:00Z');
+    const query = vi.spyOn(Client.prototype, 'query');
+    try {
+      expect(await recordSteamObservation(STEAM_ID, games, first)).toBe(0);
+      expect(query).toHaveBeenCalled();
+      expect(query.mock.calls.length).toBeLessThanOrEqual(7);
+      query.mockClear();
+      expect(await recordSteamObservation(STEAM_ID, games.map((game) => ({ ...game, minutes: 120 })), second)).toBe(1000);
+      expect(query).toHaveBeenCalled();
+      expect(query.mock.calls.length).toBeLessThanOrEqual(7);
+    } finally {
+      query.mockRestore();
+    }
+    expect(await recordSteamObservation(STEAM_ID, games, first)).toBe(0);
+    expect((await pool.query(`select count(*)::int as n from steam_playtime_changes where steam_id = $1 and app_id >= 1000`, [STEAM_ID])).rows[0].n).toBe(1000);
+    expect((await pool.query(`select min(minutes)::int as n from steam_game_totals where steam_id = $1 and app_id >= 1000`, [STEAM_ID])).rows[0].n).toBe(120);
+    await expect(recordSteamObservation(STEAM_ID, [{ appId: 1000, minutes: 150 }, { appId: 1001, minutes: -1 }], new Date('2041-01-15T00:00:00Z'))).rejects.toThrow('Invalid');
+    expect((await pool.query(`select minutes::int from steam_game_totals where steam_id = $1 and app_id = 1000`, [STEAM_ID])).rows[0].minutes).toBe(120);
   });
 });
