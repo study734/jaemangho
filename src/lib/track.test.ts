@@ -4,6 +4,8 @@ import { routeKey } from './track';
 describe('routeKey', () => {
   it.each([
     ['/', '/'],
+    ['/play', '/play'],
+    ['/memories', '/memories'],
     ['/steam', '/steam'],
     ['/steam/', '/steam'], // 끝의 슬래시 무시
     ['/lol/squad', '/lol/squad'],

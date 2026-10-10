@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
-import { TopBar } from '@/components/TopBar';
+import { MobileNavigation, TopBar } from '@/components/TopBar';
 import { UiIcon } from '@/components/VisualImage';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
@@ -62,6 +62,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
         {children}
       </main>
       </div>
+      <MobileNavigation />
     </div>
   );
 }

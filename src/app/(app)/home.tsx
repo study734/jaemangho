@@ -1,8 +1,5 @@
-'use client';
-
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { JaesuniHero } from '@/components/JaesuniHero';
 import { HomeCard } from '@/components/HomeCard';
 import { ServiceMark, UiIcon, VisualImage } from '@/components/VisualImage';
 import { LolHomeSummary } from '@/features/lol';
@@ -39,8 +36,7 @@ function timeAgo(iso: string) {
   if (min < 60 * 24) return `${Math.floor(min / 60)}시간 전`;
   return `${Math.floor(min / 60 / 24)}일 전`;
 }
-// 서버와 브라우저의 시각이 다르므로 시간 표시는 하이드레이션 경고를 끈다
-const Ago = ({ iso }: { iso: string }) => <span suppressHydrationWarning style={styles.ago}>{timeAgo(iso)}</span>;
+const Ago = ({ iso }: { iso: string }) => <span style={styles.ago}>{timeAgo(iso)}</span>;
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -106,34 +102,21 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
   );
 }
 
-export function Home({ name, activity, people, chat, moments, notice }: { name: string; activity: Activity[]; people: Person[]; chat: ChatHighlights | null; moments: HotMoment[]; notice: string }) {
+export function HomeCommunity({ chat, moments, notice, unavailable = false }: { chat: ChatHighlights | null; moments: HotMoment[]; notice: string; unavailable?: boolean }) {
   return (
-    <div className="home-page" style={styles.container}>
-      <JaesuniHero name={name} />
-
-      <section className="home-steam" aria-labelledby="steam-title">
-        <div className="home-steam-top">
-        <div>
-          <p className="home-eyebrow">함께 놀기</p>
-          <h2 id="steam-title" className="visual-heading"><ServiceMark service="steam" size={36} />Steam 공통 게임 찾기</h2>
-          <p style={styles.hint}>같이 할 사람을 고르면, 모두가 가진 게임을 찾아볼 수 있어요.</p>
-        </div>
-        </div>
-        <div className="home-steam-meta"><div className="home-steam-summary"><SteamHomeSummary /></div><Link href="/steam" className="btn btn-link">공통 게임 찾기<UiIcon name="arrow-right" /></Link></div>
-        <SteamHomeSearch />
-      </section>
-
-      <div className="home-grid">
-        <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card" icon={<ServiceMark service="leagueoflegends" size={40} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
         <section className="home-community" style={styles.panel} aria-labelledby="community-title">
           <div className="home-section-heading community-graphic-heading"><div>
             <h2 id="community-title" className="visual-heading"><ServiceMark service="discord" size={32} />이번 주 디스코드 활동</h2>
             <Link href="/community" className="btn btn-link">커뮤 보기</Link>
           </div></div>
-          {chat ? <ChatPanels chat={chat} moments={moments} notice={notice} /> : <p style={styles.hint}>아직 모아 둔 활동이 없어요. 커뮤니티에서 소식을 확인해 보세요.</p>}
+          {unavailable && <p role="status" style={styles.hint}>일부 디스코드 활동을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.</p>}
+          {chat ? <ChatPanels chat={chat} moments={moments} notice={notice} /> : !unavailable && <p style={styles.hint}>아직 모아 둔 활동이 없어요. 커뮤니티에서 소식을 확인해 보세요.</p>}
         </section>
-      </div>
+  );
+}
 
+export function HomeRecent({ activity, people }: { activity: Activity[]; people: Person[] }) {
+  return (
       <div className="home-grid home-lower-grid">
         <Panel title="최근 활동">
           {activity.length === 0 ? <p style={styles.hint}>아직 활동이 없습니다.</p> : (
@@ -157,6 +140,42 @@ export function Home({ name, activity, people, chat, moments, notice }: { name: 
           <Link href="/people" className="btn btn-link"><UiIcon name="people" />전체 멤버 보기</Link>
         </Panel>
       </div>
+  );
+}
+
+export function Home({ name, discovery, community, recent, week }: { name: string; discovery: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode }) {
+  return (
+    <div className="home-page" style={styles.container}>
+      <div className="home-discovery-grid">
+        {discovery}
+        <aside className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
+        <section className="home-play" aria-labelledby="play-title">
+          <h2 id="play-title">지금 같이 놀기</h2>
+          <p>{name}님, 멤버만 고르면 시작할 수 있어요.</p>
+          <Link href="/steam" className="btn btn-primary"><ServiceMark service="steam" size={22} />같이 할 게임 찾기<UiIcon name="arrow-right" /></Link>
+          <div className="home-play-links"><Link href="/steam">오늘의 게임 뽑기 →</Link><Link href="/play">LoL · 도전 과제 →</Link></div>
+        </section>
+
+      <section className="home-steam" aria-labelledby="steam-title">
+        <div className="home-steam-top">
+        <div>
+          <h2 id="steam-title" className="visual-heading"><ServiceMark service="steam" size={36} />Steam 공통 게임 찾기</h2>
+        </div>
+        </div>
+        <div className="home-steam-meta"><div className="home-steam-summary"><SteamHomeSummary /></div><Link href="/steam" className="btn btn-link">공통 게임 찾기<UiIcon name="arrow-right" /></Link></div>
+        <SteamHomeSearch />
+      </section>
+        </aside>
+      </div>
+
+      {week}
+
+      <div className="home-grid">
+        <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card" icon={<ServiceMark service="leagueoflegends" size={40} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+        {community}
+      </div>
+
+      {recent}
     </div>
   );
 }
@@ -173,6 +192,6 @@ const styles = {
   row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--hairline)', fontSize: '14px', color: 'var(--ink)' },
   rank: { color: 'var(--steel)', width: '16px', fontSize: '12px' },
   tag: { fontSize: '11px', fontWeight: 700, color: 'var(--primary)', border: '1px solid var(--hairline)', borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap' as const },
-  text: { flexGrow: 1, minWidth: 0 },
+  text: { flexGrow: 1, minWidth: 0, overflowWrap: 'anywhere' as const },
   ago: { color: 'var(--steel)', fontSize: '12px', whiteSpace: 'nowrap' as const },
 };
