@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, type ReactNode, useEffect, useRef } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
@@ -14,6 +14,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
   const pathname = usePathname();
+  const [membersVisible, setMembersVisible] = useState(true);
   // 화면이 열릴 때 한 번 센다(누가 열었는지는 저장하지 않는다). 실패해도 화면에는 영향이 없다.
   const lastTracked = useRef<string | null>(null);
   useEffect(() => {
@@ -25,13 +26,13 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   const isLoading = onLol && lolLoading;
 
   return (
-    <div className="app-frame" style={styles.appContainer}>
+    <div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <ServerRail />
       <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} />
       <div className="app-column">
       <TopBar isAdmin={isAdmin} />
-      <ChannelHeader isAdmin={isAdmin} />
+      <ChannelHeader isAdmin={isAdmin} membersVisible={membersVisible} onToggleMembers={() => setMembersVisible(visible => !visible)} />
       <div className="app-body" style={styles.body}>
       {sectionOf(pathname) !== 'home' && <Sidebar isAdmin={isAdmin} />}
 

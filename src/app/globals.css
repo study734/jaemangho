@@ -1076,7 +1076,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .server-shortcut:hover::before { height: 20px; }
 .server-shortcut[aria-current]::before { height: 36px; }
 .server-divider { width: 32px; height: 2px; background: var(--hairline); }
-.server-members { margin-top: auto; }
 .channel-sidebar { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
 .channel-brand { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--hairline); color: var(--ink); font-size: 16px; font-weight: 600; text-decoration: none; }
 .channel-brand-caption { margin-left: auto; color: var(--steel); font-size: 12px; font-weight: 400; }
@@ -1111,14 +1110,33 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 @media (min-width: 769px) and (max-width: 1100px) { .channel-sidebar { width: 208px; } }
 
-/* 홈은 가운데 기록 피드와 독립적으로 스크롤하는 실행/멤버 열로 구성한다. */
-.home-page { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; padding: 0; background: var(--surface-soft); overflow: hidden; }
+/* 홈은 가운데 콘텐츠와 독립적으로 스크롤하는 멤버 활동 열로 구성한다. */
+.home-page { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 264px; padding: 0; background: var(--surface-soft); overflow: hidden; }
 .home-channel-feed { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 28px; overflow-y: auto; padding: 24px; }
 .channel-welcome { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--hairline-strong); }
 .channel-welcome-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface); color: var(--steel); font-size: 36px; line-height: 1; }
 .channel-welcome h2 { font-size: clamp(22px, 2vw, 28px); line-height: 1.35; overflow-wrap: anywhere; }
 .channel-welcome p { color: var(--slate); font-size: 14px; }
-.home-action-stack { min-width: 0; min-height: 0; overflow-y: auto; padding: 24px 16px; gap: 24px; background: var(--surface); border: 0; border-radius: 0; }
+.home-action-stack { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; padding: 20px; gap: 20px; background: var(--surface); border: 0; border-radius: 12px; }
+.home-member-panel { min-width: 0; min-height: 0; overflow-y: auto; padding: 12px 8px 24px; background: var(--surface); }
+.home-member-panel .home-activity { padding: 0; border: 0; gap: 8px; }
+.home-member-panel .home-data-notice { padding: 12px 8px; border: 0; background: transparent; }
+.home-member-panel .member-group { padding: 16px 8px 8px; font-size: 12px; font-weight: 600; }
+.member-activity-cards { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
+.member-activity-card { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--canvas-dark); border: 1px solid var(--hairline); border-radius: 12px; }
+.member-activity-card > .visual-image { flex-shrink: 0; }
+.member-activity-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.member-activity-copy strong { font-size: 14px; font-weight: 600; }
+.member-activity-actor, .member-activity-target { color: var(--slate); }
+.member-panel-toggle[aria-expanded="true"] { color: var(--ink); background: var(--surface); }
+@media (min-width: 1025px) {
+  .members-panel-hidden .home-member-panel { display: none; }
+  .members-panel-hidden .home-page { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 1280px) {
+  .home-action-stack { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+  .home-action-stack .home-steam { border-top: 0; border-left: 1px solid var(--hairline); padding: 0 0 0 20px; }
+}
 .home-play h2 { font-size: 18px; }
 .home-play > .btn { align-self: stretch; justify-content: center; }
 .home-action-stack .game-search-field { background: var(--canvas-dark); }
@@ -1142,7 +1160,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .home-action-stack { order: 2; padding: 20px; overflow: visible; flex-shrink: 0; border-radius: 12px; }
   .home-week { order: 3; }
   .home-grid { order: 4; }
-  .home-activity, .home-channel-feed > .home-data-notice { order: 5; }
+  .home-member-panel { order: 5; overflow: visible; flex-shrink: 0; padding: 8px; border-radius: 12px; }
+  .member-panel-toggle { display: none; }
 }
 
 /* 실제 프로필과 실패 시 이름 첫 글자를 보여주는 친구 목록. */

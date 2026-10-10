@@ -4,16 +4,30 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
-test('PC 채널 피드와 실행 영역은 따로 스크롤하고 빠른 채널 이동이 동작한다', async ({ page, context }) => {
+test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼칠 수 있다', async ({ page, context }) => {
   await loginAs(context, await createUser('channel_shell', '채널친구'));
   await page.setViewportSize({ width: 1504, height: 640 });
   await page.goto('/');
   const feed = page.locator('.home-channel-feed');
-  const actions = page.getByRole('complementary', { name: '게임 찾기와 바로 놀기' });
-  const initial = await actions.boundingBox();
+  const members = page.getByRole('complementary', { name: '멤버 활동과 최근 접속' });
+  const initial = await members.boundingBox();
+  await expect(members.getByRole('heading', { name: /최근 활동/ })).toBeVisible();
+  await expect(members.locator('.member-activity-card')).toContainText('사이트 접속');
+  await expect(members.locator('.member-row')).toContainText('채널친구');
+  await expect(members.getByRole('search')).toHaveCount(0);
+  await expect(feed.getByRole('search')).toBeVisible();
+  await expect(page.locator('.channel-sidebar').getByRole('link', { name: '멤버', exact: true })).toHaveCount(0);
   await feed.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect.poll(() => feed.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-  expect((await actions.boundingBox())!.y).toBe(initial!.y);
+  expect((await members.boundingBox())!.y).toBe(initial!.y);
+  const toggle = page.getByRole('button', { name: '멤버 활동 패널' });
+  const expandedWidth = (await feed.boundingBox())!.width;
+  await toggle.click();
+  await expect(members).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect((await feed.boundingBox())!.width).toBeGreaterThan(expandedWidth);
+  await toggle.click();
+  await expect(members).toBeVisible();
   await expect(page.locator('.channel-user')).toBeVisible();
   const rail = page.getByRole('navigation', { name: '빠른 채널 이동' });
   await rail.getByRole('link', { name: 'Steam 게임 채널' }).click();

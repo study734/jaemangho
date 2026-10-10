@@ -94,8 +94,14 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
       if (width === 1504) {
         const play = await page.locator('.home-play').boundingBox();
         const search = await page.getByRole('search').boundingBox();
+        const actions = await page.locator('.home-action-stack').boundingBox();
+        const discovery = await deck.boundingBox();
         expect(play!.height).toBeLessThan(250);
-        expect(search!.y).toBeLessThan(700);
+        // 게임 도구는 발견 아래 중앙에 있고 오른쪽은 멤버 활동만 표시한다.
+        expect(actions!.y).toBeGreaterThanOrEqual(discovery!.y + discovery!.height);
+        expect(search!.x).toBeGreaterThan(play!.x + play!.width);
+        await expect(page.locator('.home-channel-feed').getByRole('search')).toBeVisible();
+        await expect(page.locator('.home-member-panel').getByRole('search')).toHaveCount(0);
         await expect(page.locator('.home-record-award').getByText('발견 친구님 · 12 새벽 메시지')).toBeVisible();
       }
     }

@@ -27,7 +27,7 @@ const sentence = (a: Activity) => {
   if (a.kind === 'steam') return `${who}님이 Steam 멤버 ${a.target}을(를) 등록했어요`;
   return `${who}님이 접속했어요`;
 };
-const TAG = { lol: '롤', steam: 'Steam', login: '접속' } as const;
+const ACTIVITY_LABEL = { lol: '소환사 등록', steam: 'Steam 멤버 등록', login: '사이트 접속' } as const;
 
 function timeAgo(iso: string) {
   const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -116,12 +116,16 @@ export function HomeCommunity({ chat, moments, notice, unavailable = false }: { 
 }
 
 export function HomeRecent({ activity }: { activity: Activity[] }) {
+  const recent = activity.slice(0, 5);
   return (
     <section className="home-activity" aria-labelledby="activity-title">
-      <h2 id="activity-title" className="home-section-label">최근 활동</h2>
+      <h2 id="activity-title" className="member-group">최근 활동 — {recent.length}</h2>
       {activity.length === 0 ? <p style={styles.hint}>아직 활동이 없습니다.</p> : (
-        <ul className="activity-feed">{activity.map((a, i) => (
-          <li key={i}><span className="activity-tag">{TAG[a.kind]}</span><span>{sentence(a)}</span><Ago iso={a.at} /></li>
+        <ul className="member-activity-cards">{recent.map((a, i) => (
+          <li key={`${a.kind}:${a.at}:${i}`} className="member-activity-card" aria-label={sentence(a)}>
+            <div className="member-activity-copy"><span className="member-activity-actor">{a.actor || '누군가'}</span><strong>{ACTIVITY_LABEL[a.kind]}</strong>{a.target && <span className="member-activity-target">{a.target}</span>}<Ago iso={a.at} /></div>
+            {a.kind === 'login' ? <UiIcon name="people" size={32} /> : <ServiceMark service={a.kind === 'lol' ? 'leagueoflegends' : 'steam'} size={32} />}
+          </li>
         ))}</ul>
       )}
     </section>
@@ -155,14 +159,7 @@ export function Home({ name, discovery, community, recent, week, members }: { na
       <div className="home-channel-feed">
         <div className="channel-welcome"><span className="channel-welcome-icon" aria-hidden="true">#</span><h2>우리의 아지트에 온 걸 환영해!</h2><p>친구들의 발견과 함께한 기록이 모이는 홈 채널이에요.</p></div>
         {discovery}
-        {week}
-        <div className="home-grid">
-          <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card home-channel-summary" icon={<ServiceMark service="leagueoflegends" size={24} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
-          {community}
-        </div>
-        {recent}
-      </div>
-        <aside className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
+        <section className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
         <section className="home-play" aria-labelledby="play-title">
           <h2 id="play-title">지금 같이 놀기</h2>
           <p>{name}님, 멤버만 고르면 시작할 수 있어요.</p>
@@ -179,8 +176,17 @@ export function Home({ name, discovery, community, recent, week, members }: { na
         <div className="home-steam-meta"><div className="home-steam-summary"><SteamHomeSummary /></div><Link href="/steam" className="btn btn-link">공통 게임 찾기<UiIcon name="arrow-right" /></Link></div>
         <SteamHomeSearch />
       </section>
+        </section>
+        {week}
+        <div className="home-grid">
+          <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card home-channel-summary" icon={<ServiceMark service="leagueoflegends" size={24} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+          {community}
+        </div>
+      </div>
+      <aside id="home-member-panel" className="home-member-panel" aria-label="멤버 활동과 최근 접속">
+        {recent}
         {members}
-        </aside>
+      </aside>
     </div>
   );
 }

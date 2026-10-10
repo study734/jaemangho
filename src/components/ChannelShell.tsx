@@ -17,7 +17,6 @@ export function ServerRail() {
       { href: '/lol', section: 'lol', service: 'leagueoflegends', label: '롤 게임 채널' },
       { href: '/community', section: 'community', service: 'discord', label: '디스코드 기록 채널' },
     ] as const).map(item => <Link key={item.href} href={item.href} className="server-shortcut" aria-label={item.label} title={item.label} aria-current={section === item.section ? 'page' : undefined}><ServiceMark service={item.service} size={24} /></Link>)}
-    <Link href="/people" className="server-shortcut server-members" aria-label="재망호 멤버 목록" title="멤버 목록" aria-current={section === 'people' ? 'page' : undefined}><UiIcon name="people" size={24} /></Link>
   </nav>;
 }
 
@@ -33,13 +32,13 @@ export function ChannelSidebar({ summary, isAdmin, userName }: { summary: Summar
       <div className="channel-scroll">
       <nav aria-label="주제">
         <p className="channel-label">재망호 채널</p>
-        {PRIMARY_DESTINATIONS.map((s) => (
+        {PRIMARY_DESTINATIONS.filter(s => s.id !== 'people').map((s) => (
           <Link key={s.id} href={s.href} className="channel-link" aria-current={s.id === current ? 'page' : undefined}>
             <UiIcon name={s.icon} size={20} /><span>{s.label}</span>
           </Link>
         ))}
       </nav>
-      {section.id !== 'home' && (
+      {section.id !== 'home' && section.id !== 'people' && (
         <nav aria-label={`${section.label} 상세 메뉴`} className="channel-details">
           <p className="channel-label">{section.label}</p>
           {section.items.map((item) => (
@@ -61,7 +60,7 @@ export function ChannelSidebar({ summary, isAdmin, userName }: { summary: Summar
   );
 }
 
-export function ChannelHeader({ isAdmin }: { isAdmin: boolean }) {
+export function ChannelHeader({ isAdmin, membersVisible, onToggleMembers }: { isAdmin: boolean; membersVisible: boolean; onToggleMembers: () => void }) {
   const pathname = usePathname();
   const sections = sectionsFor(isAdmin);
   const items = sections.flatMap((s) => s.items).filter((i) => isActive(i.href, pathname)).sort((a, b) => b.href.length - a.href.length);
@@ -71,7 +70,7 @@ export function ChannelHeader({ isAdmin }: { isAdmin: boolean }) {
     <header className="channel-header">
       <div className="channel-title">{title}</div>
       <span className="channel-description">{description}</span>
-      <Link href="/people" className="channel-header-link" aria-label="멤버 프로필 보기" title="멤버 프로필 보기"><UiIcon name="people" size={20} /></Link>
+      {pathname === '/' ? <button type="button" className="channel-header-link member-panel-toggle" aria-label="멤버 활동 패널" aria-expanded={membersVisible} aria-controls="home-member-panel" title="멤버 활동 패널" onClick={onToggleMembers}><UiIcon name="people" size={20} /></button> : <Link href="/people" className="channel-header-link" aria-label="멤버 프로필 보기" title="멤버 프로필 보기"><UiIcon name="people" size={20} /></Link>}
     </header>
   );
 }
