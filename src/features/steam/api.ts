@@ -45,6 +45,13 @@ export interface MissionsResult {
   state: 'ok' | 'unsupported' | 'unavailable' | 'not-owned' | 'complete';
   missions: Mission[]; totalPublic: number; completedTogether: number; unknownAchievements: number; unavailableIds: string[]; missingIds: string[];
 }
+export interface ActivityAccount {
+  steamId: string; name: string; verifiedAt: string; requestedAt: string | null;
+  stoppedAt: string | null; lastSuccessAt: string | null; lastResult: string | null;
+}
+export interface ActivitySettings {
+  noticeVersion: string; storageCountry: string | null; accounts: ActivityAccount[];
+}
 
 export class SteamApiError extends Error {
   status: number;
@@ -80,6 +87,13 @@ export const steamApi = {
     call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference, scope })}`),
   missions: (ids: string[], appId: number) =>
     call<MissionsResult>(`/api/steam/missions?${new URLSearchParams({ ids: ids.join(','), appId: String(appId) })}`),
+  activity: () => call<ActivitySettings>('/api/steam/activity'),
+  requestActivity: (steamId: string, noticeVersion: string) =>
+    call<null>('/api/steam/activity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ steamId, noticeVersion }) }),
+  stopActivity: (steamId: string) =>
+    call<null>('/api/steam/activity', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ steamId }) }),
+  eraseActivity: (steamId: string) =>
+    call<null>('/api/steam/activity', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ steamId }) }),
 };
 
 const MESSAGES: Record<number, string> = {

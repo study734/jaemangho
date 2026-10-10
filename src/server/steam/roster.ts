@@ -43,15 +43,22 @@ export async function addSteamMember(rawInput: string, creator: { id: string; na
   return { steamId: profile.steamId, name: profile.name, avatar: profile.avatar, ownerId: (row?.ownerId as string | null) ?? null };
 }
 
-export async function setSteamOwner(steamId: string, ownerId: string | null): Promise<boolean> {
+export async function setSteamOwner(steamId: string, ownerId: string | null, actorId?: string): Promise<boolean> {
   const sql = await db();
-  const rows = await sql`update steam_members set owner_id = (select id from "user" where id = ${ownerId}) where steam_id = ${steamId} returning steam_id`;
+  const rows = await sql`update steam_members set owner_id = (select id from "user" where id = ${ownerId})
+    where steam_id = ${steamId} and not exists (
+      select 1 from steam_verified_accounts v where v.steam_id = ${steamId}
+        and (v.user_id is distinct from ${actorId ?? null} or v.user_id is distinct from ${ownerId})
+    ) returning steam_id`;
   return rows.length > 0;
 }
 
-export async function removeSteamMember(steamId: string) {
+export async function removeSteamMember(steamId: string, actorId?: string): Promise<boolean> {
   const sql = await db();
-  await sql`delete from steam_members where steam_id = ${steamId}`;
+  const rows = await sql`delete from steam_members where steam_id = ${steamId}
+    and not exists (select 1 from steam_verified_accounts v where v.steam_id = ${steamId} and v.user_id is distinct from ${actorId ?? null})
+    returning steam_id`;
+  return rows.length > 0;
 }
 
 // 등록된 사람만 조회한다 (우리 Steam 키로 아무 계정이나 조회하는 프록시가 되지 않게)

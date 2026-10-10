@@ -1,0 +1,170 @@
+[
+  {
+    "mode": "baseline",
+    "implementation": "before",
+    "games": 1000,
+    "medianMs": 2032,
+    "samples": [
+      {
+        "ms": 2425.21,
+        "queries": 2004
+      },
+      {
+        "ms": 1992.04,
+        "queries": 2004
+      },
+      {
+        "ms": 2032,
+        "queries": 2004
+      },
+      {
+        "ms": 2091.44,
+        "queries": 2004
+      },
+      {
+        "ms": 1883.2,
+        "queries": 2004
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "implementation": "after",
+    "games": 1000,
+    "medianMs": 92.75,
+    "samples": [
+      {
+        "ms": 92.75,
+        "queries": 6
+      },
+      {
+        "ms": 78.28,
+        "queries": 6
+      },
+      {
+        "ms": 82.03,
+        "queries": 6
+      },
+      {
+        "ms": 98.12,
+        "queries": 6
+      },
+      {
+        "ms": 119.6,
+        "queries": 6
+      }
+    ]
+  },
+  {
+    "mode": "increase",
+    "implementation": "before",
+    "games": 1000,
+    "medianMs": 5226.87,
+    "samples": [
+      {
+        "ms": 4789.6,
+        "queries": 3004
+      },
+      {
+        "ms": 4284.86,
+        "queries": 3004
+      },
+      {
+        "ms": 5226.87,
+        "queries": 3004
+      },
+      {
+        "ms": 6106.4,
+        "queries": 3004
+      },
+      {
+        "ms": 6174.53,
+        "queries": 3004
+      }
+    ]
+  },
+  {
+    "mode": "increase",
+    "implementation": "after",
+    "games": 1000,
+    "medianMs": 230.32,
+    "samples": [
+      {
+        "ms": 235.89,
+        "queries": 7
+      },
+      {
+        "ms": 217.51,
+        "queries": 7
+      },
+      {
+        "ms": 231.74,
+        "queries": 7
+      },
+      {
+        "ms": 230.32,
+        "queries": 7
+      },
+      {
+        "ms": 220.82,
+        "queries": 7
+      }
+    ]
+  },
+  {
+    "mode": "unchanged",
+    "implementation": "before",
+    "games": 1000,
+    "medianMs": 3226.47,
+    "samples": [
+      {
+        "ms": 3882.67,
+        "queries": 2004
+      },
+      {
+        "ms": 3340.06,
+        "queries": 2004
+      },
+      {
+        "ms": 3226.47,
+        "queries": 2004
+      },
+      {
+        "ms": 2356.94,
+        "queries": 2004
+      },
+      {
+        "ms": 2195.21,
+        "queries": 2004
+      }
+    ]
+  },
+  {
+    "mode": "unchanged",
+    "implementation": "after",
+    "games": 1000,
+    "medianMs": 47.67,
+    "samples": [
+      {
+        "ms": 46.14,
+        "queries": 6
+      },
+      {
+        "ms": 56.75,
+        "queries": 6
+      },
+      {
+        "ms": 46.64,
+        "queries": 6
+      },
+      {
+        "ms": 47.67,
+        "queries": 6
+      },
+      {
+        "ms": 48.97,
+        "queries": 6
+      }
+    ]
+  }
+]

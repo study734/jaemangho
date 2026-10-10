@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { type Recommendation, type MissionsResult, type GamesResult, type Mode, type OwnershipScope, type Preference, type RecommendationsResult, type SteamMember, steamApi, steamErrorMessage } from './api';
 import { drawGame } from './draw';
+import { SteamActivitySettings } from './ActivitySettings';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
 const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, Math.round(minutes / 60)).toLocaleString()}시간`);
@@ -10,7 +11,7 @@ const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.f
 const randomRoll = () => Math.random();
 const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
 
-export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
+export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: string; linkResult?: string }) {
   const [query, setQuery] = useState(initialQuery);
   const [members, setMembers] = useState<SteamMember[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -288,6 +289,7 @@ export function SteamGames({ initialQuery = '' }: { initialQuery?: string }) {
           )}
         </section>
       )}
+      <SteamActivitySettings linkResult={linkResult} />
     </div>
   );
 }
