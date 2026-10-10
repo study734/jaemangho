@@ -5,7 +5,7 @@ import axios from 'axios';
 import { riotErrorMessage } from '../api/riotClient';
 
 // Riot API 키는 서버(RIOT_API_KEY)가 관리하므로 여기서는 서버의 Riot 연결 상태만 확인한다.
-export const Settings: React.FC = () => {
+export const Settings: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -23,7 +23,7 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={embedded ? { ...styles.container, padding: 0, overflowY: 'visible' } : styles.container}>
       <header style={styles.header}>
         <div>
           <h2 className="heading-1" style={styles.title}>시스템 설정</h2>

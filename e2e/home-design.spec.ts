@@ -218,8 +218,9 @@ test('모바일에서 메뉴와 주요 행동을 쓸 수 있고 본문이 넘치
   await page.screenshot({ path: 'output/playwright/home-option1-mobile.png', fullPage: true });
   const nav = page.getByRole('navigation', { name: '주요 메뉴' });
   await expect(nav.getByRole('link')).toHaveCount(4);
-  await page.getByRole('banner').getByRole('link', { name: '설정', exact: true }).click();
-  await expect(page).toHaveURL(/\/lol\/settings$/);
+  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '사용자 설정' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 수 있다', async ({ page, context }) => {

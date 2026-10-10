@@ -2,13 +2,14 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { summarizeRoster, useLol } from '@/features/lol';
+import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
 import { MobileNavigation, TopBar } from '@/components/TopBar';
 import { ChannelHeader, ChannelSidebar, ServerRail } from '@/components/ChannelShell';
 import { UiIcon } from '@/components/VisualImage';
 import { JaesuniMessage } from '@/components/JaesuniMessage';
+import { SettingsDialog } from '@/components/SettingsDialog';
 
 const CHANNEL_LINES: Record<string, string> = {
   '/steam': '같이 할 게임은 여기서 찾으면 돼. 멤버를 고르면 보유 게임 비교와 추천을 보여줄게.',
@@ -28,6 +29,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
   const pathname = usePathname();
   const [membersVisible, setMembersVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // 화면이 열릴 때 한 번 센다(누가 열었는지는 저장하지 않는다). 실패해도 화면에는 영향이 없다.
   const lastTracked = useRef<string | null>(null);
   useEffect(() => {
@@ -50,9 +52,9 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
     <div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <ServerRail />
-      <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} />
+      <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} onOpenSettings={() => setSettingsOpen(true)} />
       <div className="app-column">
-      <TopBar isAdmin={isAdmin} />
+      <TopBar onOpenSettings={() => setSettingsOpen(true)} />
       <ChannelHeader isAdmin={isAdmin} membersVisible={membersVisible} onToggleMembers={() => setMembersVisible(visible => !visible)} />
       <div className="app-body" style={styles.body}>
       {sectionOf(pathname) !== 'home' && <Sidebar isAdmin={isAdmin} />}
@@ -89,6 +91,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       </div>
       <MobileNavigation />
       </div>
+      {settingsOpen && <SettingsDialog userName={userName} isAdmin={isAdmin} onClose={() => setSettingsOpen(false)}><Settings embedded /></SettingsDialog>}
     </div>
   );
 }

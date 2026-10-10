@@ -6,7 +6,7 @@ import { authClient } from '@/lib/auth-client';
 import { primarySectionOf, PRIMARY_DESTINATIONS } from './nav';
 import { UiIcon } from './VisualImage';
 
-export function TopBar({ isAdmin }: { isAdmin: boolean }) {
+export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const current = primarySectionOf(pathname);
@@ -23,7 +23,7 @@ export function TopBar({ isAdmin }: { isAdmin: boolean }) {
           </Link>
         ))}
       </nav>
-      <Link href="/lol/settings" aria-label={isAdmin ? '설정 · 관리자' : '설정'} className={`btn btn-ghost app-settings ${current === 'settings' ? 'btn-ghost-active' : ''}`} aria-current={current === 'settings' ? 'page' : undefined}><UiIcon name="gear" /><span>{isAdmin ? '설정 · 관리자' : '설정'}</span></Link>
+      <button type="button" aria-label="설정" aria-haspopup="dialog" className="btn btn-ghost app-settings" onClick={onOpenSettings}><UiIcon name="gear" /><span>설정</span></button>
       <button className="btn btn-ghost app-logout" onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => router.push('/login') } })}>로그아웃</button>
     </header>
   );
