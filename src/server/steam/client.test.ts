@@ -45,6 +45,28 @@ describe('Steam 호출', () => {
     reply({ response: { games: [{ appid: 10, name: 'CS', playtime_forever: 5 }] } });
     expect(await getLibrary('76561198000000000')).toEqual({ ok: true, games: [{ appId: 10, name: 'CS', minutes: 5 }] });
   });
+  it('서로 다른 보유 목록을 동시에 요청해도 외부 호출은 최대 4개만 실행한다', async () => {
+    let active = 0;
+    let peak = 0;
+    const release: Array<() => void> = [];
+    fetchMock.mockImplementation(() => new Promise<Response>(resolve => {
+      active++;
+      peak = Math.max(peak, active);
+      release.push(() => {
+        active--;
+        resolve(new Response(JSON.stringify({ response: { games: [{ appid: 10, playtime_forever: 5 }] } })));
+      });
+    }));
+    const pending = Promise.all(Array.from({ length: 8 }, (_, i) => getLibrary(`7656119800000000${i}`)));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    for (let i = 0; i < 8; i++) {
+      await vi.waitFor(() => expect(release.length).toBeGreaterThan(0));
+      release.shift()!();
+    }
+    expect(await pending).toHaveLength(8);
+    expect(fetchMock).toHaveBeenCalledTimes(8);
+    expect(peak).toBe(4);
+  });
   it('이름이 없는 vanity는 null', async () => {
     reply({ response: { success: 42 } });
     expect(await resolveSteamId({ kind: 'vanity', vanity: 'nobody' })).toBeNull();

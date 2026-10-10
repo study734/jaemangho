@@ -25,6 +25,20 @@ export class SteamPayloadError extends SteamUpstreamError {
 }
 
 const inFlight = new Map<string, Promise<unknown>>();
+const MAX_UPSTREAM_CONCURRENCY = 4;
+let activeUpstream = 0;
+const upstreamWaiters: Array<() => void> = [];
+
+async function withUpstreamSlot<T>(work: () => Promise<T>): Promise<T> {
+  if (activeUpstream < MAX_UPSTREAM_CONCURRENCY) activeUpstream++;
+  else await new Promise<void>(resolve => upstreamWaiters.push(resolve));
+  try { return await work(); }
+  finally {
+    const next = upstreamWaiters.shift();
+    if (next) next(); // 점유한 슬롯을 다음 요청에 넘긴다.
+    else activeUpstream--;
+  }
+}
 
 async function call(path: string, params: Record<string, string>, schema: z.ZodType, cacheable: (body: unknown) => boolean = () => true): Promise<unknown> {
   const key = process.env.STEAM_API_KEY;
@@ -41,9 +55,11 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
     await steamStat('miss');
     try {
       const url = `${BASE}${path}?${new URLSearchParams({ key, ...params })}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
-      if (!res.ok) throw new SteamUpstreamError(res.status);
-      const body: unknown = await res.json();
+      const body: unknown = await withUpstreamSlot(async () => {
+        const res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: 'no-store' });
+        if (!res.ok) throw new SteamUpstreamError(res.status);
+        return res.json();
+      });
       if (!schema.safeParse(body).success) throw new SteamPayloadError();
       const ttl = path.includes('GetSchemaForGame') ? 86400 : /Get(?:Owned|RecentlyPlayed)Games/.test(path) ? 300 : 900;
       if (cacheable(body)) await steamCachePut(cacheKey, body, ttl);
