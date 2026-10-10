@@ -8,6 +8,7 @@ import { listHighlights } from '@/server/chat/highlights';
 import { listAwards } from '@/server/chat/awards';
 import { chatNotice } from '@/server/chat/notice';
 import { getHomeFeed } from '@/server/home';
+import { HomeMembers } from './home';
 import { getViewer } from '@/server/viewer';
 import { unstable_cache } from 'next/cache';
 import { Home, HomeCommunity, HomeRecent } from './home';
@@ -37,9 +38,17 @@ async function Community() {
   return <HomeCommunity chat={chat.status === 'fulfilled' ? chat.value : null} moments={moments.status === 'fulfilled' ? moments.value.slice(0, 3) : []} notice={chatNotice()} unavailable={chat.status === 'rejected' || moments.status === 'rejected'} />;
 }
 
+// 같은 요청에서 최근 활동과 멤버 목록이 한 번의 조회를 나눠 쓴다
+const homeFeed = cache(() => getHomeFeed().catch(() => null));
+
+async function Members() {
+  const feed = await homeFeed();
+  return feed ? <HomeMembers people={feed.people} /> : null;
+}
+
 async function Recent() {
-  const feed = await getHomeFeed().catch(() => null);
-  if (feed) return <HomeRecent {...feed} />;
+  const feed = await homeFeed();
+  if (feed) return <HomeRecent activity={feed.activity} />;
   return <section className="home-data-notice"><p role="status">최근 활동과 접속 기록을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.</p><Link href="/people" className="btn btn-link">전체 멤버 보기 →</Link></section>;
 }
 
@@ -54,6 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     discovery={<Suspense fallback={<DiscoveryLoading />}><Discovery selected={searchParams} /></Suspense>}
     week={<Suspense fallback={<section className="home-data-notice" role="status">우리 기록을 고르는 중이에요.</section>}><Week /></Suspense>}
     community={<Suspense fallback={<section className="home-data-notice" role="status">디스코드 활동을 불러오는 중이에요.</section>}><Community /></Suspense>}
+    members={<Suspense fallback={<section className="member-list" role="status"><p className="member-empty">멤버를 불러오는 중이에요.</p></section>}><Members /></Suspense>}
     recent={<Suspense fallback={<section className="home-data-notice" role="status">최근 활동을 불러오는 중이에요.</section>}><Recent /></Suspense>}
   />;
 }

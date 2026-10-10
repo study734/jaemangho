@@ -13,9 +13,15 @@ test('주요 메뉴는 PC 상단과 모바일 하단에, 상세 메뉴는 기존
     await page.setViewportSize({ width, height: 1000 });
     const header = await page.getByRole('banner').boundingBox();
     const sidebar = await details.boundingBox();
-    expect(header!.x).toBe(0);
-    expect(header!.width).toBe(width);
-    expect(sidebar!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+    if (width <= 768) {
+      expect(header!.x).toBe(0);
+      expect(header!.width).toBe(width);
+      expect(sidebar!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+    } else {
+      // PC는 왼쪽 채널 목록 옆의 본문 열 위에 헤더가 놓인다
+      expect(header!.x).toBeGreaterThan(sidebar!.x);
+      expect(header!.x + header!.width).toBe(width);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const primary = width <= 768 ? page.getByRole('navigation', { name: '주요 메뉴' }) : topics;
     await expect(primary.getByRole('link', { name: '같이 놀기', exact: true })).toHaveAttribute('aria-current', 'page');

@@ -68,7 +68,7 @@ const styles = {
     backgroundColor: 'var(--canvas-dark)',
     border: '1.5px solid var(--primary)',
     padding: '24px',
-    borderRadius: '12px',
+    borderRadius: '8px',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '16px',
@@ -87,7 +87,7 @@ const styles = {
   previewIcon: {
     width: '56px',
     height: '56px',
-    borderRadius: '12px',
+    borderRadius: '8px',
     border: '2px solid var(--primary)',
   },
   previewMainInfo: {

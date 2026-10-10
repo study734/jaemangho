@@ -13,12 +13,34 @@ export interface SummaryRow {
 }
 
 interface SidebarProps {
-  summary: SummaryRow[];
   isAdmin: boolean;
 }
 
 
-export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
+export function SidebarSummary({ summary }: { summary: SummaryRow[] }) {
+  return (
+    <div className="sidebar-summary" style={styles.summaryContainer}>
+      <div style={styles.summaryTitle}>요약 정보</div>
+      {summary.map((row) => (
+        <div key={row.label} style={styles.summaryItem}>
+          <span style={styles.summaryLabel}>{row.label}</span>
+          {row.tone === 'live' ? (
+            <span style={styles.summaryValueActive}>
+              <span className="pulse-indicator" style={{ marginRight: '6px' }} />
+              {row.value}
+            </span>
+          ) : (
+            <span style={row.tone === 'highlight' ? styles.summaryValueTop : styles.summaryValue} title={row.value}>
+              {row.value}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isAdmin }) => {
   const pathname = usePathname();
   const section = sectionsFor(isAdmin).find((s) => s.id === sectionOf(pathname))!;
   return (
@@ -40,27 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ summary, isAdmin }) => {
         ))}
       </nav>
 
-      {/* 롤 데이터 요약은 롤 주제에서만 보인다 */}
-      {section.id === 'lol' && (
-        <div className="sidebar-summary" style={styles.summaryContainer}>
-          <div style={styles.summaryTitle}>요약 정보</div>
-          {summary.map((row) => (
-            <div key={row.label} style={styles.summaryItem}>
-              <span style={styles.summaryLabel}>{row.label}</span>
-              {row.tone === 'live' ? (
-                <span style={styles.summaryValueActive}>
-                  <span className="pulse-indicator" style={{ marginRight: '6px' }} />
-                  {row.value}
-                </span>
-              ) : (
-                <span style={row.tone === 'highlight' ? styles.summaryValueTop : styles.summaryValue} title={row.value}>
-                  {row.value}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </aside>
   );
 };

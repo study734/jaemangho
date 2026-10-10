@@ -6,10 +6,11 @@ import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
 import { MobileNavigation, TopBar } from '@/components/TopBar';
+import { ChannelHeader, ChannelSidebar } from '@/components/ChannelShell';
 import { UiIcon } from '@/components/VisualImage';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
-export function Frame({ isAdmin, children }: { isAdmin: boolean; children: ReactNode }) {
+export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userName: string; children: ReactNode }) {
   const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
   const pathname = usePathname();
@@ -26,9 +27,12 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
   return (
     <div className="app-frame" style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
+      <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} />
+      <div className="app-column">
       <TopBar isAdmin={isAdmin} />
+      <ChannelHeader isAdmin={isAdmin} />
       <div className="app-body" style={styles.body}>
-      {sectionOf(pathname) !== 'home' && <Sidebar summary={summarizeRoster(members)} isAdmin={isAdmin} />}
+      {sectionOf(pathname) !== 'home' && <Sidebar isAdmin={isAdmin} />}
 
       <main id="main-content" tabIndex={-1} style={styles.mainPane}>
         {isLoading && (
@@ -63,6 +67,7 @@ export function Frame({ isAdmin, children }: { isAdmin: boolean; children: React
       </main>
       </div>
       <MobileNavigation />
+      </div>
     </div>
   );
 }

@@ -164,9 +164,9 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
   await expect(page.locator('.discovery-dialogue')).toContainText('재망호 발견 · 재순이');
   await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
-  const stage = await page.locator('.discovery-stage').boundingBox();
+  const stage = await page.locator('.dc-message').boundingBox();
   const title = await page.locator('.discovery-dialogue').boundingBox();
-  expect(title!.y).toBeGreaterThan(stage!.y);
+  expect(title!.y).toBeGreaterThanOrEqual(stage!.y);
   expect(title!.y + title!.height).toBeLessThanOrEqual(stage!.y + stage!.height);
   await page.getByRole('link', { name: '같이 할 게임 찾기', exact: true }).click();
   await expect(page).toHaveURL(/\/steam$/);

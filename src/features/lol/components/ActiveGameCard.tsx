@@ -62,7 +62,7 @@ const styles = {
   activeGameCard: {
     backgroundColor: 'var(--canvas-dark)',
     border: '1px solid var(--hairline)',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: '24px',
     position: 'relative',
     overflow: 'hidden',

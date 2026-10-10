@@ -116,36 +116,36 @@ export function DiscoveryDeck({ cards, unavailable, selectedId }: DiscoveryFeed 
     <h1 id="discovery-title" className="sr-only">오늘은 무슨 일이 있었을까?</h1>
     {unavailable ? <p role="status" className="discovery-notice">일부 기록을 불러오지 못했어요. 확인된 기록과 게임 찾기를 보여드릴게요.</p> : !hasRecords && <p className="discovery-notice">아직 소개할 만한 기록이 없어요. 오늘은 같이 할 게임부터 골라볼까요?</p>}
     {selectedId && !cards.some(c => c.id === selectedId) && <p role="status" className="discovery-notice">공유된 발견이 현재 목록에 없어요. 최근 선별된 기록을 보여드릴게요.</p>}
-    <div className={`discovery-stage discovery-stage-${card.kind}`}
-      onPointerDown={e => { swipe.current = (e.target as HTMLElement).closest('button,a,input,summary') ? null : { x: e.clientX, y: e.clientY }; }}
-      onPointerCancel={() => { swipe.current = null; }}
-      onPointerUp={e => { const s = swipe.current; swipe.current = null; if (!s) return; const dx = e.clientX - s.x; if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(e.clientY - s.y) * 1.5) go(currentIndex + (dx < 0 ? 1 : -1)); }}>
-      {cards.length > 1 && <ol className="discovery-progress" aria-label="발견 목록">
-        {cards.map((c, i) => <li key={c.id}><button aria-label={`${i + 1}번째 발견`} aria-current={i === currentIndex || undefined} className={i <= currentIndex ? 'is-passed' : ''} onClick={() => go(i)} /></li>)}
-      </ol>}
-      <div className="discovery-stage-body" key={card.id}>
-        <div className="discovery-content">
-          {hasRecords && <ContentVisual card={card} revealed={isRevealed} />}
-          <div className="discovery-story" aria-live="polite" aria-atomic="true">
+    <article className="dc-message">
+      {!imageFailed ? <Image ref={node => { if (node?.complete && node.naturalWidth === 0) setImageFailed(true); }} src="/images/jaesuni-home.webp" alt="게임패드를 든 재망호 막내 재순이" width={1942} height={809} className="discovery-mascot dc-avatar" sizes="40px" priority onError={() => setImageFailed(true)} /> : <span className="dc-avatar dc-avatar-text" aria-hidden="true">재</span>}
+      <div className="dc-body">
+        <div className="discovery-dialogue" aria-live="polite"><p className="home-eyebrow dc-head"><b>재망호 발견 · 재순이</b><span className="dc-bot">앱</span></p><p className="dc-text">{hostLine(card, isRevealed)}</p></div>
+        <div className={`dc-embed discovery-stage-${card.kind}`}
+          onPointerDown={e => { swipe.current = (e.target as HTMLElement).closest('button,a,input,summary') ? null : { x: e.clientX, y: e.clientY }; }}
+          onPointerCancel={() => { swipe.current = null; }}
+          onPointerUp={e => { const s = swipe.current; swipe.current = null; if (!s) return; const dx = e.clientX - s.x; if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(e.clientY - s.y) * 1.5) go(currentIndex + (dx < 0 ? 1 : -1)); }}>
+          <div className="dc-embed-body" key={card.id}>
             <div className="discovery-meta"><span>{card.label}</span>{card.at && <time dateTime={card.at}>{dateLabel(card)}</time>}</div>
-            <h2>{headline}</h2>
-            <button className={`btn ${isRevealed ? 'btn-secondary' : 'btn-primary'}`} aria-expanded={isRevealed} aria-controls={resultId} onClick={() => setRevealed(previous => previous.includes(card.id) ? previous.filter(id => id !== card.id) : [...previous, card.id])}>{isRevealed ? '결과 접기' : card.kind === 'play' ? '게임 뽑기 알아보기' : '결과 공개'}</button>
+            <h2 className="dc-embed-title" aria-live="polite" aria-atomic="true">{headline}</h2>
+            {hasRecords && <ContentVisual card={card} revealed={isRevealed} />}
             <div id={resultId} className="discovery-result" hidden={!isRevealed}><p>{card.result}</p>{!hasRecords && <span className="discovery-art-caption">{card.context}</span>}{card.href.startsWith('https://') ? <a href={card.href} className="btn btn-link" target="_blank" rel="noopener noreferrer">{card.action} ↗</a> : <Link href={card.href} className="btn btn-link">{card.action} →</Link>}</div>
           </div>
+          {cards.length > 1 && <ol className="discovery-progress" aria-label="발견 목록">
+            {cards.map((c, i) => <li key={c.id}><button aria-label={`${i + 1}번째 발견`} aria-current={i === currentIndex || undefined} className={i <= currentIndex ? 'is-passed' : ''} onClick={() => go(i)} /></li>)}
+          </ol>}
         </div>
+        <div className="dc-components">
+          <button className={`btn ${isRevealed ? 'btn-secondary' : 'btn-primary'}`} aria-expanded={isRevealed} aria-controls={resultId} onClick={() => setRevealed(previous => previous.includes(card.id) ? previous.filter(id => id !== card.id) : [...previous, card.id])}>{isRevealed ? '결과 접기' : card.kind === 'play' ? '게임 뽑기 알아보기' : '결과 공개'}</button>
+          {cards.length > 1 && <>
+            <button className="btn btn-secondary" aria-label="이전 발견" disabled={currentIndex === 0} onClick={() => go(currentIndex - 1)}>← 이전</button>
+            <button className={`btn ${isRevealed && currentIndex < cards.length - 1 ? 'btn-primary' : 'btn-secondary'}`} aria-label="다음 발견" disabled={currentIndex === cards.length - 1} onClick={() => go(currentIndex + 1)}>{currentIndex === cards.length - 1 ? '여기까지 봤어' : isRevealed ? '다음 발견 →' : '다음 →'}</button>
+            <span role="status" className="dc-status">{currentIndex + 1} / {cards.length}{currentIndex === cards.length - 1 && ' · 오늘의 발견 끝'}</span>
+          </>}
+        </div>
+        {isRevealed && <DiscoveryActions key={`actions:${card.id}`} card={card} revealed={isRevealed} />}
+        {hasRecords && <details className="discovery-provenance"><summary>왜 이 기록을 골랐을까?</summary><p>{card.reason}</p><p>{card.source} · 로그인한 재망호 멤버에게 표시</p></details>}
       </div>
-      {isRevealed && <DiscoveryActions key={`actions:${card.id}`} card={card} revealed={isRevealed} />}
-      <header className="discovery-intro">
-        {!imageFailed && <Image ref={node => { if (node?.complete && node.naturalWidth === 0) setImageFailed(true); }} src="/images/jaesuni-home.webp" alt="게임패드를 든 재망호 막내 재순이" width={1942} height={809} className="discovery-mascot" sizes="120px" priority onError={() => setImageFailed(true)} />}
-        <div className="discovery-dialogue" aria-live="polite"><p className="home-eyebrow">재망호 발견 · 재순이</p><p>{hostLine(card, isRevealed)}</p></div>
-      </header>
-    </div>
-    {hasRecords && <details className="discovery-provenance"><summary>왜 이 기록을 골랐을까?</summary><p>{card.reason}</p><p>{card.source} · 로그인한 재망호 멤버에게 표시</p></details>}
-    {cards.length > 1 && <footer className="discovery-controls">
-      <button className="btn btn-secondary" aria-label="이전 발견" disabled={currentIndex === 0} onClick={() => go(currentIndex - 1)}>← 이전</button>
-      <span role="status">{currentIndex + 1} / {cards.length}{currentIndex === cards.length - 1 && ' · 오늘의 발견 끝'}</span>
-      <button className={`btn ${isRevealed && currentIndex < cards.length - 1 ? 'btn-primary' : 'btn-secondary'}`} aria-label="다음 발견" disabled={currentIndex === cards.length - 1} onClick={() => go(currentIndex + 1)}>{currentIndex === cards.length - 1 ? '여기까지 봤어' : isRevealed ? '다음 발견 →' : '다음 →'}</button>
-    </footer>}
+    </article>
   </section>;
 }
 
@@ -155,9 +155,16 @@ export function DiscoveryWeek({ cards, unavailable }: DiscoveryFeed) {
   if (!featured.length && !unavailable) return null;
   return <section aria-labelledby="memories-title" className="home-week">
     <div className="home-section-heading"><h2 id="memories-title">요즘 우리</h2><Link href="/memories" className="btn btn-link">우리 기록 보기 →</Link></div>
-    {featured.length ? <div className="home-records">{featured.map(card => <Link key={card.id} href={`/?discovery=${encodeURIComponent(card.id)}`} className={`home-record home-record-${card.kind}`}>
-      <div className="home-record-art"><span aria-hidden="true">{card.motif}</span><People card={card} compact /></div>
-      <div><p>{card.label} · {dateLabel(card)}</p><h3>{card.kind === 'award' ? card.metric : card.title}</h3><strong>{card.result}</strong><span className="home-record-cta">발견으로 열기 →</span></div>
-    </Link>)}</div> : <p className="home-records-empty">{unavailable ? '기록을 확인하고 있어요. 확인되지 않은 장면은 소개하지 않아요.' : '소개할 만한 장면이 아직 없어요. 새 기록이 모이면 여기서 만나요.'}</p>}
+    {featured.length ? <ol className="feed">{featured.map(card => {
+      const who = card.people[0];
+      return <li key={card.id}><Link href={`/?discovery=${encodeURIComponent(card.id)}`} className={`msg-row home-record-${card.kind}`}>
+        <VisualImage src={who?.image} fallback={(who?.name ?? '재').slice(0, 1)} width={40} height={40} className="msg-avatar" />
+        <div className="msg-body">
+          <p className="msg-head"><b>{who?.name ?? '재망호'}</b><time dateTime={card.at ?? undefined}>{dateLabel(card)}</time></p>
+          <p className="msg-text">{card.label} · {card.kind === 'award' ? card.metric : card.title}</p>
+          <p className="msg-text">{card.result}</p>
+        </div>
+      </Link></li>;
+    })}</ol> : <p className="home-records-empty">{unavailable ? '기록을 확인하고 있어요. 확인되지 않은 장면은 소개하지 않아요.' : '소개할 만한 장면이 아직 없어요. 새 기록이 모이면 여기서 만나요.'}</p>}
   </section>;
 }
