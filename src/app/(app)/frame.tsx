@@ -8,6 +8,19 @@ import { sectionOf } from '@/components/nav';
 import { MobileNavigation, TopBar } from '@/components/TopBar';
 import { ChannelHeader, ChannelSidebar, ServerRail } from '@/components/ChannelShell';
 import { UiIcon } from '@/components/VisualImage';
+import { JaesuniMessage } from '@/components/JaesuniMessage';
+
+const CHANNEL_LINES: Record<string, string> = {
+  '/steam': '같이 할 게임은 여기서 찾으면 돼. 멤버를 고르면 보유 게임 비교와 추천을 보여줄게.',
+  '/lol': '친구들의 랭크와 최근 전적을 모아뒀어. 소환사를 누르면 자세히 볼 수 있어.',
+  '/lol/squad': '같이 볼 소환사들을 등록하는 곳이야. Riot ID로 검색해서 추가할 수 있어.',
+  '/lol/synergy': '함께한 경기 기록으로 듀오 성적을 비교해줄게.',
+  '/lol/mastery': '친구들이 자주 쓰는 챔피언과 숙련도를 여기서 확인할 수 있어.',
+  '/community': '반응과 답글이 모인 기록이야. 원문은 각 링크에서 확인할 수 있어.',
+  '/community/awards': '한 주가 끝나면 실제 기록으로 칭호를 정리해. 지난 수상자들은 여기 있어.',
+  '/play': '게임 찾기와 팀 꾸리기는 여기 모아뒀어. 필요한 기능을 골라.',
+  '/memories': '함께한 기록을 모아뒀어. 개념글, 시상식, 친구들의 칭호로 이어져.',
+};
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
 export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userName: string; children: ReactNode }) {
@@ -24,6 +37,14 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   }, [pathname]);
   const onLol = pathname.startsWith('/lol');
   const isLoading = onLol && lolLoading;
+  const syncAction = onLol && !lolLoading ? (
+    <div style={styles.syncRow}>
+      <button className="btn btn-secondary" style={styles.syncBtn} onClick={() => refreshAll()}>
+        <UiIcon name="arrow-repeat" />
+        롤 정보 다시 불러오기
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
@@ -56,16 +77,14 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
           </div>
         )}
 
-        {onLol && !lolLoading && (
-          <div style={styles.syncRow}>
-            <button className="btn btn-secondary" style={styles.syncBtn} onClick={() => refreshAll()}>
-              <UiIcon name="arrow-repeat" />
-              롤 정보 다시 불러오기
-            </button>
+        {CHANNEL_LINES[pathname] ? (
+          <div className="jaesuni-channel-feed" key={pathname}>
+            <JaesuniMessage line={CHANNEL_LINES[pathname]}>
+              {syncAction}
+              <div className="jaesuni-tool-content">{children}</div>
+            </JaesuniMessage>
           </div>
-        )}
-
-        {children}
+        ) : <>{syncAction}{children}</>}
       </main>
       </div>
       <MobileNavigation />

@@ -1253,6 +1253,23 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 * { scrollbar-width: thin; scrollbar-color: var(--hairline-strong) transparent; }
 .dc-message { max-width: 640px; }
+.jaesuni-message { max-width: none; min-width: 0; }
+.jaesuni-avatar { overflow: hidden; }
+.jaesuni-avatar > img { object-fit: cover; object-position: 72% 40%; }
+.jaesuni-embed { min-width: 0; border-left: 4px solid var(--primary); border-radius: 12px; background: var(--surface); }
+.jaesuni-channel-feed { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; padding: var(--page-padding); }
+.jaesuni-tool-content { min-width: 0; }
+.jaesuni-tool-content > * { padding: 20px !important; overflow-y: visible !important; }
+.jaesuni-tool-content .hub-heading { margin-bottom: 24px; }
+.jaesuni-embed .home-channel-summary { border-top: 0 !important; padding: 20px !important; }
+@media (max-width: 1024px) { .home-tools-message { order: 2; } }
+@media (max-width: 768px) {
+  .jaesuni-message { padding-left: 0; }
+  .jaesuni-message .dc-head { padding-left: 52px; min-height: 24px; }
+  .jaesuni-message > .dc-body > .dc-text { padding-left: 52px; min-height: 20px; }
+  .jaesuni-tool-content > * { padding: 16px !important; }
+  .jaesuni-embed .home-channel-summary { padding: 16px !important; }
+}
 .dc-embed { border-radius: 12px; }
 .dc-text { line-height: 1.5; }
 .home-community .home-section-heading h2 { font-size: 18px; color: var(--ink); }

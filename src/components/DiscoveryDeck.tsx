@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { UiIcon, VisualImage } from './VisualImage';
 import type { DiscoveryCard, DiscoveryFeed } from '@/lib/discovery';
+import { JaesuniMessage } from './JaesuniMessage';
 
 const dateLabel = (card: DiscoveryCard) => card.at ? new Date(card.at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' }) + (card.kind === 'award' ? ' 시작한 주' : '') : '오늘 같이 놀기';
 
@@ -153,7 +154,7 @@ export function DiscoveryWeek({ cards, unavailable }: DiscoveryFeed) {
   const records = cards.filter(c => c.kind !== 'play');
   const featured = ['award', 'highlight', 'moment'].flatMap(kind => records.find(c => c.kind === kind) ?? []).slice(0, 3);
   if (!featured.length && !unavailable) return null;
-  return <section aria-labelledby="memories-title" className="home-week">
+  return <JaesuniMessage className="home-week" line="요즘 우리 기록을 모아봤어. 각 기록을 누르면 해당 발견으로 이어져."><section aria-labelledby="memories-title">
     <div className="home-section-heading"><h2 id="memories-title">요즘 우리</h2><Link href="/memories" className="btn btn-link">우리 기록 보기 →</Link></div>
     {featured.length ? <ol className="feed">{featured.map(card => {
       const who = card.people[0];
@@ -166,5 +167,5 @@ export function DiscoveryWeek({ cards, unavailable }: DiscoveryFeed) {
         </div>
       </Link></li>;
     })}</ol> : <p className="home-records-empty">{unavailable ? '기록을 확인하고 있어요. 확인되지 않은 장면은 소개하지 않아요.' : '소개할 만한 장면이 아직 없어요. 새 기록이 모이면 여기서 만나요.'}</p>}
-  </section>;
+  </section></JaesuniMessage>;
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HomeCard } from '@/components/HomeCard';
+import { JaesuniMessage } from '@/components/JaesuniMessage';
 import { ServiceMark, UiIcon, VisualImage } from '@/components/VisualImage';
 import { LolHomeSummary } from '@/features/lol';
 import { scoreLabel } from '@/lib/chat-format';
@@ -159,6 +160,7 @@ export function Home({ name, discovery, community, recent, week, members }: { na
       <div className="home-channel-feed">
         <div className="channel-welcome"><span className="channel-welcome-icon" aria-hidden="true">#</span><h2>우리의 아지트에 온 걸 환영해!</h2><p>친구들의 발견과 함께한 기록이 모이는 홈 채널이에요.</p></div>
         {discovery}
+        <JaesuniMessage className="home-tools-message" line="같이 할 게임 찾기는 여기 있어. 멤버를 고르면 공통 게임에서 골라줄게.">
         <section className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
         <section className="home-play" aria-labelledby="play-title">
           <h2 id="play-title">지금 같이 놀기</h2>
@@ -177,10 +179,15 @@ export function Home({ name, discovery, community, recent, week, members }: { na
         <SteamHomeSearch />
       </section>
         </section>
+        </JaesuniMessage>
         {week}
         <div className="home-grid">
+          <JaesuniMessage line="친구들의 롤 현황을 모아뒀어.">
           <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card home-channel-summary" icon={<ServiceMark service="leagueoflegends" size={24} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+          </JaesuniMessage>
+          <JaesuniMessage line="디스코드에서 함께한 기록은 여기서 확인할 수 있어.">
           {community}
+          </JaesuniMessage>
         </div>
       </div>
       <aside id="home-member-panel" className="home-member-panel" aria-label="멤버 활동과 최근 접속">

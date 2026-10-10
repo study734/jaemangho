@@ -4,6 +4,35 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('제공 기능은 재순이 메시지의 임베드에서 사용하고 모든 게임·기록 채널에 표시한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('jaesuni_tools', '기능친구'));
+  await mockRiot(page);
+  await mkdir('output/playwright', { recursive: true });
+  for (const path of ['/play', '/memories', '/steam', '/lol', '/lol/squad', '/lol/synergy', '/lol/mastery', '/community', '/community/awards']) {
+    await page.goto(path);
+    const message = page.getByRole('article', { name: '재순이의 기능 안내' });
+    await expect(message).toHaveCount(1);
+    await expect(message.locator('.dc-head')).toHaveText('재순이앱');
+    await expect(message.locator('.jaesuni-tool-content')).toBeVisible();
+    if (['/steam', '/lol', '/community'].includes(path)) {
+      for (const width of [1504, 1024, 390]) {
+        await page.setViewportSize({ width, height: 1045 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: `output/playwright/jaesuni-${path.slice(1)}-${width}.png` });
+      }
+      await page.setViewportSize({ width: 1504, height: 1045 });
+    }
+  }
+  await page.goto('/');
+  const tools = page.locator('.home-tools-message');
+  await expect(tools.locator('.dc-head')).toHaveText('재순이앱');
+  await expect(tools.getByRole('search')).toBeVisible();
+  await expect(tools.getByRole('link', { name: '같이 할 게임 찾기', exact: true })).toBeVisible();
+  const toolsBox = await tools.boundingBox();
+  const summariesBox = await page.locator('.home-grid').boundingBox();
+  expect(toolsBox!.y + toolsBox!.height).toBeLessThanOrEqual(summariesBox!.y);
+});
+
 test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼칠 수 있다', async ({ page, context }) => {
   await loginAs(context, await createUser('channel_shell', '채널친구'));
   await page.setViewportSize({ width: 1504, height: 640 });
@@ -194,11 +223,13 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await loginAs(context, await createUser('image_design', '오늘도듀오'));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route(/\/_next\/image\?.*jaesuni-home/, (route) => route.abort());
+  await page.route('**/images/jaesuni-home.webp', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
   await expect(page.locator('.discovery-dialogue')).toContainText('재망호 발견 · 재순이');
   await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
-  const stage = await page.locator('.dc-message').boundingBox();
+  await expect(page.locator('.home-tools-message .visual-fallback')).toHaveText('재');
+  const stage = await page.locator('.discovery-deck .dc-message').boundingBox();
   const title = await page.locator('.discovery-dialogue').boundingBox();
   expect(title!.y).toBeGreaterThanOrEqual(stage!.y);
   expect(title!.y + title!.height).toBeLessThanOrEqual(stage!.y + stage!.height);

@@ -12,8 +12,13 @@
 
 서버는 재망호 하나이며 Steam·롤·우리 기록은 그 안의 카테고리다. 분류 없는 홈 채널과 카테고리별 채널 목록을 모든 PC 화면에서 유지하고 현재 채널만 선택 표시한다. 카테고리는 키보드로도 접고 펼칠 수 있고 채널 이동에도 접힘 상태가 유지된다. 관리자 채널 표시는 기존 권한을 따른다.
 
+## 재순이의 기능 안내
+
+홈의 게임 도구·롤·기록 요약과 Steam·롤·기록 채널의 모든 제공 기능은 재순이 아바타·앱 배지·한 줄 안내 뒤의 임베드로 표시한다. 실제 입력·버튼·표·결과와 기존 조회 및 접근 권한은 유지한다. 메시지의 전송 시각이나 대화 이력을 만들지 않는다. 제공된 `discord/react-native-screens`는 React Native 탐색 라이브러리의 포크라 웹 채팅 UI 소스로 사용하지 않았다. 새 의존성 없이 기존 컴포넌트와 디자인 토큰을 사용한다.
+
 ## 실제 화면과 흐름
 
+- `output/playwright/jaesuni-steam-1504.png`, `jaesuni-lol-1024.png`, `jaesuni-community-390.png`: 실제 기능 채널의 재순이 메시지·임베드와 반응형 배치.
 - `output/playwright/server-channels-desktop.png`, `server-channels-tablet.png`, `server-channels-mobile.png`: 단일 재망호 서버의 Steam 채널을 1504px·1024px·390px에서 확인했다.
 - `output/playwright/member-panel-desktop.png`, `member-panel-tablet.png`, `member-panel-mobile.png`: 후속 수정의 1504px·1024px·390px 빈 홈.
 - `output/playwright/discovery-content-1504.png`, `discovery-content-1024.png`, `discovery-content-390.png`: 선별된 기록과 결과 공개. `discovery-comparison-mobile.png`: 실제 테스트 집계의 비교 막대.
@@ -26,5 +31,5 @@
 
 - `npm run lint`, `npm test` 기본 실행, `npm run build` 통과. 기본 테스트는 249개 통과, DB가 필요한 93개는 건너뛴다.
 - DB 통합 테스트를 실행했으나 임시 DB 생성 권한이 없어 실패했다. 기존 로컬 DB 클러스터의 권한 확대는 자동 승인 검토가 거절하여 변경하지 않았다. 이 실패는 UI 코드의 assertion 실패가 아니며 DB 통합 테스트 통과로 보고하지 않는다.
-- 로컬 격리 DB에 기존 마이그레이션을 적용하고 기존 권한으로 E2E를 실행했다. 전체 실행에서 59개가 통과했고, 접힌 카테고리 내부의 선택 상태 검사에 사용하는 locator를 보정해 탐색 테스트 두 개를 재실행하여 모두 통과했다. E2E의 운영 빌드도 통과했다. 전체 60개는 최종 커밋의 CI에서 다시 검증한다.
+- 로컬 격리 DB에 기존 마이그레이션을 적용하고 기존 권한으로 E2E를 실행했다. 재순이 기능 안내 적용 후 전체 실행에서 60개가 통과했고, 메시지가 여러 개가 된 구조에 맞춰 이미지 실패 검사의 범위를 발견 메시지로 한정한 뒤 해당 테스트도 통과했다. 새 재순이 아바타 실패 시 이름 글자 대체도 확인했다. PC 게임 도구의 콘텐츠 순서를 보정한 뒤 기능 안내·홈 연결·이미지 실패 테스트 세 개를 재실행해 통과했다. E2E의 운영 빌드도 통과했다. 전체 61개는 최종 커밋의 CI에서 다시 검증한다.
 - 네이티브 공유 창, 실제 기기의 손가락 스와이프, 실제 멤버 사진과 운영 데이터 화면은 이번 확인에 포함하지 않는다. 로그인·권한·마이그레이션 파일·배포 설정·환경변수 정의는 변경하지 않았다.
