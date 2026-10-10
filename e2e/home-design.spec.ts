@@ -73,22 +73,25 @@ test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리�
   await loginAs(context, user);
   await db.query(`update "user" set image = '/images/games/413150.jpg' where id = $1`, [user.id]);
   await page.goto('/?discovery=play%3Asteam');
+  // 스트리밍의 숨겨진 임시 HTML 대신 실제 표시된 홈만 검사한다.
+  const home = page.locator('.home-page:visible');
+  await expect(home).toBeVisible();
   await mkdir('output/playwright', { recursive: true });
   for (const width of [1504, 1024, 390, 320]) {
     await page.setViewportSize({ width, height: 1045 });
-    expect(await page.locator('.home-steam-top').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
-    expect(await page.locator('.home-card-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
-    expect(await page.locator('.community-graphic-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
+    expect(await home.locator('.home-steam-top').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
+    expect(await home.locator('.home-card-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
+    expect(await home.locator('.community-graphic-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
     for (const selector of ['.home-card-heading', '.community-graphic-heading']) {
-      expect(await page.locator(selector).evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
+      expect(await home.locator(selector).evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
     }
     for (const selector of ['.home-play', '.discovery-deck', '.game-cover-grid']) {
-      expect(await page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      expect(await home.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
-    await expect(page.locator('.home-play').getByText(`${name}님, 멤버만 고르면 시작할 수 있어요.`)).toBeVisible();
-    await page.locator('.discovery-deck').scrollIntoViewIfNeeded();
+    await expect(home.locator('.home-play').getByText(`${name}님, 멤버만 고르면 시작할 수 있어요.`)).toBeVisible();
+    await home.locator('.discovery-deck').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `output/playwright/home-long-name-${width}.png` });
-    const avatar = page.locator('.member-avatar img').first();
+    const avatar = home.locator('.member-avatar img').first();
     await avatar.scrollIntoViewIfNeeded();
     await expect.poll(() => avatar.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     const box = await avatar.boundingBox();
@@ -97,9 +100,9 @@ test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리�
   }
   await page.route('**/images/games/413150.jpg', route => route.abort());
   await page.reload();
-  const fallback = page.locator('.member-avatar .visual-fallback').first();
+  const fallback = home.locator('.member-avatar .visual-fallback').first();
   await expect.poll(async () => {
-    await page.locator('.member-avatar').first().evaluate(el => el.scrollIntoView({ block: 'center' }));
+    await home.locator('.member-avatar').first().evaluate(el => el.scrollIntoView({ block: 'center' }));
     return fallback.isVisible();
   }).toBe(true);
   await expect(fallback).toHaveText('L');
