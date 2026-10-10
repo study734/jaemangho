@@ -98,3 +98,25 @@ npm run db:verify-restore -- backups/jaemangho-YYYYMMDD.dump --confirm-isolated
 ## 보존 기간
 
 자동 운영 점검에서 정리한다: 채팅 실행 90일, 관리자 이력 180일, Steam 오류 7일, 화면 열람·Riot/Steam 일별 호출 통계 365일. 만료 Steam 캐시도 정리한다. 점검이 꺼져 있으면 이 정리도 실행되지 않는다. 채팅 원본 메타데이터 60일·Riot 오류 7일의 기존 정리도 유지한다.
+
+
+## GitHub Actions 운영 기준
+
+| Workflow / 검사 | 실행 조건 | 확인하는 내용 |
+|---|---|---|
+| CI / check, e2e | PR·main push·merge queue·수동·매주 화요일 03:23 KST | 의존성 취약점·lint·실제 DB 테스트·빌드·브라우저 흐름 |
+| CI / workflow-policy | CI와 동일 | actionlint로 YAML·표현식·셸 검사, 기존 SQL 수정·삭제·이름 변경 차단, 신규 번호 중복·역순 방지 |
+| Recovery rehearsal / backup-restore | PR·main push·merge queue·수동·매주 목요일 03:41 KST | 임시 DB에 가짜 데이터 생성 → 실제 pg_dump/pg_restore → 사용자·세션·소환사·통계·스키마 체크섬 비교 |
+| CodeQL / analyze | PR·main push·merge queue·수동·매주 금요일 03:13 KST | JavaScript/TypeScript와 Actions 코드의 보안 분석, Security 탭에 결과 저장 |
+| Operations monitor | 기존 30분 예약·main에서 수동 | 외부 사이트·DB 점검과 내부 운영 점검, 기존 Discord 알림 |
+| Smoke / health | 성공한 Production 배포·main에서 수동 | health JSON, 로그인 HTML, 홈의 로그인 이동, 공개되지 않아야 하는 API의 401 응답 |
+
+PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 남지 않게 한다. 새 PR 커밋은 이전 PR 실행을 취소하고, main 실행은 보존한다. 고정된 Ubuntu 24.04와 Node 24를 쓰고 각 작업에 시간 제한을 둔다. Actions는 검증한 전체 커밋 SHA로 고정하며 Dependabot이 갱신 PR을 만든다. checkout에는 자격 증명을 남기지 않는다.
+
+기존 필수 검사 이름 `check`, `e2e`는 유지한다. `workflow-policy`가 실패·생략되면 `check`도 실패하므로 기존 필수 검사로 정책을 보호한다. `backup-restore`, CodeQL 검사를 별도 필수 검사로 지정하는 저장소 설정은 별도 승인 후 변경한다. Workflow 파일만 추가해도 브랜치 보호 설정이 자동으로 바뀌지는 않는다.
+
+복구 훈련에는 운영 DB·운영 백업·새 비밀값을 사용하지 않는다. CI 로컬 DB에서만 실행하며 백업 파일과 임시 DB는 성공·실패 시 정리한다. 가짜 데이터를 사용한 도구 검증이며 운영 백업 존재 여부·보존 기간·실제 운영 데이터 복구를 보장하지 않는다. 운영 백업 정책과 실제 격리 복구 훈련은 별도 관리한다.
+
+Smoke는 읽기 요청만 보내며 대상은 고정된 운영 URL이다. 배포 직후 일시 오류를 제한된 횟수로 재시도하고 경로별 결과를 Job summary에 남긴다. 로그인된 사용자 동작과 외부 Discord/Riot/Steam 동작은 이 검사 범위에 포함하지 않는다. E2E 실패 시 스크린샷·트레이스를 7일간 보관한다.
+
+예약 실행은 기본 브랜치에 머지한 뒤 활성화되며 GitHub 지연 가능성이 있다. PR·CI 실패 확인은 Actions와 GitHub 알림 설정을 사용한다. CodeQL 결과 확인과 경고 조치는 운영자의 책임이다. 운영 감시의 독립 보조 경로는 PR #52에서 별도로 추가한다.

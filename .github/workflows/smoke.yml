@@ -1,16 +1,30 @@
 name: Smoke
 
-# Vercel이 운영 배포를 성공으로 알리면 /api/health를 확인한다. 비밀값은 쓰지 않는다.
 on:
   deployment_status:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
 jobs:
   health:
-    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
-    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: /api/health 확인
-        run: curl --fail --silent --show-error --retry 5 --retry-delay 10 --retry-all-errors --max-time 15 https://jaemangho.vercel.app/api/health
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: 배포 후 헬스·로그인·접근 제한 검사
+        run: node scripts/smoke.mjs https://jaemangho.vercel.app
