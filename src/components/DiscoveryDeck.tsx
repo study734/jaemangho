@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { UiIcon, VisualImage } from './VisualImage';
 import type { DiscoveryCard, DiscoveryFeed } from '@/lib/discovery';
-import { JaesuniMessage } from './JaesuniMessage';
+import { JaesuniAuthor, JaesuniMessage } from './JaesuniMessage';
 
 const dateLabel = (card: DiscoveryCard) => card.at ? new Date(card.at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' }) + (card.kind === 'award' ? ' 시작한 주' : '') : '오늘 같이 놀기';
 
@@ -120,7 +120,7 @@ export function DiscoveryDeck({ cards, unavailable, selectedId }: DiscoveryFeed 
     <article className="dc-message">
       {!imageFailed ? <Image ref={node => { if (node?.complete && node.naturalWidth === 0) setImageFailed(true); }} src="/images/jaesuni-home.webp" alt="게임패드를 든 재망호 막내 재순이" width={1942} height={809} className="discovery-mascot dc-avatar" sizes="40px" priority onError={() => setImageFailed(true)} /> : <span className="dc-avatar dc-avatar-text" aria-hidden="true">재</span>}
       <div className="dc-body">
-        <div className="discovery-dialogue" aria-live="polite"><p className="home-eyebrow dc-head"><b>재망호 발견 · 재순이</b><span className="dc-bot">앱</span></p><p className="dc-text">{hostLine(card, isRevealed)}</p></div>
+        <div className="discovery-dialogue" aria-live="polite"><JaesuniAuthor className="home-eyebrow" /><p className="dc-text">{hostLine(card, isRevealed)}</p></div>
         <div className={`dc-embed discovery-stage-${card.kind}`}
           onPointerDown={e => { swipe.current = (e.target as HTMLElement).closest('button,a,input,summary') ? null : { x: e.clientX, y: e.clientY }; }}
           onPointerCancel={() => { swipe.current = null; }}

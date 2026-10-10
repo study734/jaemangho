@@ -229,7 +229,7 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await page.route('**/images/jaesuni-home.webp', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
-  await expect(page.locator('.discovery-dialogue')).toContainText('재망호 발견 · 재순이');
+  await expect(page.locator('.discovery-dialogue .dc-head')).toHaveText('재순이앱');
   await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
   await expect(page.locator('.home-tools-message .visual-fallback')).toHaveText('재');
   const stage = await page.locator('.discovery-deck .dc-message').boundingBox();
