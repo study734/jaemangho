@@ -48,7 +48,8 @@ test('한 서버 안에서 카테고리와 채널 목록을 유지하고 선택�
   await expect(page).toHaveURL(/\/community\/awards$/);
   await expect(side.getByRole('link', { name: '시상식', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(servers.getByRole('link', { name: '재망호 서버' })).toHaveAttribute('aria-current', 'true');
-  await page.locator('.channel-user').getByRole('link', { name: '설정', exact: true }).click();
-  await expect(page).toHaveURL(/\/lol\/settings$/);
+  await page.locator('.channel-user').getByRole('button', { name: '설정', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '사용자 설정' })).toBeVisible();
+  await expect(page).toHaveURL(/\/community\/awards$/);
   await expect(side.getByRole('link', { name: '관리자', exact: true })).toHaveCount(0);
 });

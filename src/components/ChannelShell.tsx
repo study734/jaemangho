@@ -14,11 +14,13 @@ export function ServerRail() {
 }
 
 // 재망호 서버의 목록은 채널 이동에도 유지한다. 모바일은 TopBar와 하단 탭을 쓴다.
-export function ChannelSidebar({ summary, isAdmin, userName }: { summary: SummaryRow[]; isAdmin: boolean; userName: string }) {
+export function ChannelSidebar({ summary, isAdmin, userName, onOpenSettings }: { summary: SummaryRow[]; isAdmin: boolean; userName: string; onOpenSettings: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
   const sections = sectionsFor(isAdmin);
-  const categories = sections.filter(s => ['steam', 'lol', 'community', 'settings'].includes(s.id));
+  const categories = sections.filter(s => ['steam', 'lol', 'community', 'settings'].includes(s.id))
+    .map(s => s.id === 'settings' ? { ...s, label: '관리자', items: s.items.filter(item => item.href !== '/lol/settings') } : s)
+    .filter(s => s.items.length > 0);
   return (
     <aside className="channel-sidebar">
       <Link href="/" className="channel-brand">재망호<span className="channel-brand-caption">우리의 아지트</span></Link>
@@ -47,7 +49,7 @@ export function ChannelSidebar({ summary, isAdmin, userName }: { summary: Summar
       <div className="channel-user">
         <span className="channel-user-avatar" aria-hidden="true">{userName.slice(0, 1)}</span>
         <span className="channel-user-name"><b>{userName}</b><small>{isAdmin ? '관리자' : '로그인 중'}</small></span>
-        <Link href="/lol/settings" aria-label={isAdmin ? '설정 · 관리자' : '설정'} className="channel-user-btn" aria-current={sectionOf(pathname) === 'settings' ? 'page' : undefined}><UiIcon name="gear" size={20} /></Link>
+        <button type="button" aria-label="설정" aria-haspopup="dialog" className="channel-user-btn" onClick={onOpenSettings}><UiIcon name="gear" size={20} /></button>
         <button className="channel-user-btn" aria-label="로그아웃" onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => router.push('/login') } })}><UiIcon name="box-arrow-up-right" size={18} /></button>
       </div>
     </aside>
