@@ -6,7 +6,7 @@ import { summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
 import { MobileNavigation, TopBar } from '@/components/TopBar';
-import { ChannelHeader, ChannelSidebar } from '@/components/ChannelShell';
+import { ChannelHeader, ChannelSidebar, ServerRail } from '@/components/ChannelShell';
 import { UiIcon } from '@/components/VisualImage';
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
@@ -27,6 +27,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   return (
     <div className="app-frame" style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
+      <ServerRail />
       <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} />
       <div className="app-column">
       <TopBar isAdmin={isAdmin} />

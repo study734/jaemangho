@@ -40,7 +40,7 @@ const Ago = ({ iso }: { iso: string }) => <span style={styles.ago}>{timeAgo(iso)
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={styles.panel}>
+    <section className="home-chat-section">
       <h3 className="heading-5" style={styles.panelTitle}>{title}</h3>
       {children}
     </section>
@@ -104,7 +104,7 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
 
 export function HomeCommunity({ chat, moments, notice, unavailable = false }: { chat: ChatHighlights | null; moments: HotMoment[]; notice: string; unavailable?: boolean }) {
   return (
-        <section className="home-community" style={styles.panel} aria-labelledby="community-title">
+        <section className="home-community home-channel-summary" aria-labelledby="community-title">
           <div className="home-section-heading community-graphic-heading"><div>
             <h2 id="community-title" className="visual-heading"><ServiceMark service="discord" size={32} />이번 주 디스코드 활동</h2>
             <Link href="/community" className="btn btn-link">커뮤 보기</Link>
@@ -151,9 +151,17 @@ export function HomeMembers({ people }: { people: Person[] }) {
 
 export function Home({ name, discovery, community, recent, week, members }: { name: string; discovery: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode; members: ReactNode }) {
   return (
-    <div className="home-page" style={styles.container}>
-      <div className="home-discovery-grid">
+    <div className="home-page">
+      <div className="home-channel-feed">
+        <div className="channel-welcome"><span className="channel-welcome-icon" aria-hidden="true">#</span><h2>우리의 아지트에 온 걸 환영해!</h2><p>친구들의 발견과 함께한 기록이 모이는 홈 채널이에요.</p></div>
         {discovery}
+        {week}
+        <div className="home-grid">
+          <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card home-channel-summary" icon={<ServiceMark service="leagueoflegends" size={24} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+          {community}
+        </div>
+        {recent}
+      </div>
         <aside className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
         <section className="home-play" aria-labelledby="play-title">
           <h2 id="play-title">지금 같이 놀기</h2>
@@ -173,22 +181,11 @@ export function Home({ name, discovery, community, recent, week, members }: { na
       </section>
         {members}
         </aside>
-      </div>
-
-      {week}
-
-      <div className="home-grid">
-        <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card" icon={<ServiceMark service="leagueoflegends" size={40} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
-        {community}
-      </div>
-
-      {recent}
     </div>
   );
 }
 
 const styles = {
-  container: { flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: 'clamp(40px, 5vw, 64px)', overflowY: 'auto' as const, minHeight: 0 },
   header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   hint: { color: 'var(--slate)', fontSize: '14px' },

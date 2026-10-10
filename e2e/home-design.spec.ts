@@ -4,6 +4,26 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('PC 채널 피드와 실행 영역은 따로 스크롤하고 빠른 채널 이동이 동작한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('channel_shell', '채널친구'));
+  await page.setViewportSize({ width: 1504, height: 640 });
+  await page.goto('/');
+  const feed = page.locator('.home-channel-feed');
+  const actions = page.getByRole('complementary', { name: '게임 찾기와 바로 놀기' });
+  const initial = await actions.boundingBox();
+  await feed.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect.poll(() => feed.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  expect((await actions.boundingBox())!.y).toBe(initial!.y);
+  await expect(page.locator('.channel-user')).toBeVisible();
+  const rail = page.getByRole('navigation', { name: '빠른 채널 이동' });
+  await rail.getByRole('link', { name: 'Steam 게임 채널' }).click();
+  await expect(page).toHaveURL(/\/steam$/);
+  await expect(rail.getByRole('link', { name: 'Steam 게임 채널' })).toHaveAttribute('aria-current', 'page');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(rail).toBeHidden();
+  await expect(page.getByRole('navigation', { name: '주요 메뉴' })).toBeVisible();
+});
+
 test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리지 않는다', async ({ page, context }) => {
   const name = 'LongUnbrokenMemberName'.repeat(5);
   const user = await createUser('home_long_name', name);

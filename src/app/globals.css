@@ -1066,101 +1066,108 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .discovery-art-play { min-height: 160px; }
 }
 
-/* 디스코드식 PC 뼈대 */
+/* Discord 채널 구조. 기존 재망호 토큰과 모바일 탐색을 유지한다. */
 .app-frame { flex-direction: row; }
 .app-column { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.channel-sidebar { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--hairline); }
-.channel-brand { height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--hairline); color: var(--ink); font-size: 17px; font-weight: 750; text-decoration: none; }
+.server-rail { width: 72px; flex-shrink: 0; padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--canvas-dark); }
+.server-shortcut { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface-soft); color: var(--ink); transition: border-radius .15s, background .15s; }
+.server-shortcut:hover, .server-shortcut[aria-current] { border-radius: 16px; background: var(--primary-pressed); }
+.server-shortcut::before { content: ''; position: absolute; left: -12px; width: 4px; height: 0; background: var(--ink); border-radius: 0 4px 4px 0; transition: height .15s; }
+.server-shortcut:hover::before { height: 20px; }
+.server-shortcut[aria-current]::before { height: 36px; }
+.server-divider { width: 32px; height: 2px; background: var(--hairline); }
+.server-members { margin-top: auto; }
+.channel-sidebar { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
+.channel-brand { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--hairline); color: var(--ink); font-size: 16px; font-weight: 600; text-decoration: none; }
+.channel-brand-caption { margin-left: auto; color: var(--steel); font-size: 12px; font-weight: 400; }
+.channel-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
 .channel-sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; }
-.channel-details { border-top: 1px solid var(--hairline); }
-.channel-label { padding: 8px 12px 4px; color: var(--steel); font-size: 12px; font-weight: 700; }
-.channel-link { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: 4px; color: var(--slate); font-size: 15px; font-weight: 550; text-decoration: none; }
-.channel-link:hover { background: var(--surface-soft); color: var(--ink); }
-.channel-link[aria-current] { background: var(--surface-soft); color: var(--ink); }
-.channel-link svg { flex-shrink: 0; }
-.channel-sidebar .sidebar-summary { margin: auto 12px 16px; }
-.channel-header { height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--hairline); background: var(--canvas-dark); }
-.channel-title { flex: 1; font-size: 16px; font-weight: 700; }
-@media (min-width: 769px) {
-  .app-column > .app-navigation, .detail-sidebar, .mobile-navigation { display: none !important; }
-}
-@media (max-width: 768px) {
-  .channel-sidebar, .channel-header { display: none; }
-}
-@media (min-width: 769px) and (max-width: 1100px) { .channel-sidebar { width: 208px; } }
-
-/* 디스코드 문법: 4px 버튼, 평평한 면, 채팅 메시지 피드 */
-.btn-primary, .btn-secondary, .btn-ghost { border-radius: 8px; }
-.btn-primary { box-shadow: none; }
-.btn-primary:hover { box-shadow: none; }
-.btn-secondary { background-color: var(--surface-soft); border: 0; }
-.btn-secondary:hover { background-color: color-mix(in srgb, var(--ink) 12%, var(--surface-soft)); }
-.btn-ghost:hover { background-color: var(--surface-soft); color: var(--ink); }
-input, select, textarea { border-radius: 4px; }
-.game-search, .game-search-field { border-radius: 4px; border-color: var(--hairline); }
-.game-search:focus-within, .game-search-field:focus-within { border-color: var(--primary); }
-.home-action-stack, .home-steam, .home-data-notice, .hub-destination, .game-cover-link { border-radius: 8px; }
-
-.channel-title::before { content: "#"; margin-right: 8px; color: var(--steel); font-weight: 400; }
-.channel-label { text-transform: uppercase; letter-spacing: .02em; }
-* { scrollbar-width: thin; scrollbar-color: var(--hairline-strong) transparent; }
-.feed { list-style: none; padding: 0; display: flex; flex-direction: column; max-width: 720px; }
-.msg-row { display: flex; gap: 16px; padding: 12px 16px; margin: 0 -16px; border-radius: 4px; color: var(--ink); text-decoration: none; }
-.msg-row:hover { background: var(--surface); }
-.msg-avatar { border-radius: 50%; background: var(--surface-soft); flex-shrink: 0; margin-top: 2px; }
-.msg-avatar > img { object-fit: cover; }
-.msg-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.msg-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 12px; color: var(--slate); }
-.msg-head b { font-size: 16px; font-weight: 600; color: var(--ink); }
-.msg-badge { padding: 0 6px; border-radius: 4px; background: var(--surface-soft); font-size: 11px; }
-.msg-row h3 { font-size: 16px; font-weight: 500; line-height: 1.5; }
-.msg-sub { font-size: 14px; color: var(--slate); line-height: 1.6; }
-
-/* 디스코드 홈 화면 기준: 촘촘한 목록, 하단 사용자 패널, 오른쪽 활동 열 */
-.channel-sidebar { width: 232px; }
-.channel-brand { height: 48px; }
-.channel-link { min-height: 40px; border-radius: 8px; font-size: 14px; }
-.channel-label { text-transform: none; font-size: 12px; font-weight: 500; }
+.channel-details { margin-top: 8px; }
+.channel-label { padding: 8px 8px 4px; color: var(--steel); font-size: 12px; font-weight: 600; }
+.channel-link { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px; border-radius: 8px; color: var(--slate); font-size: 15px; font-weight: 500; text-decoration: none; }
+.channel-link:hover { background: color-mix(in srgb, var(--slate) 12%, transparent); color: var(--ink); }
+.channel-link[aria-current] { background: color-mix(in srgb, var(--slate) 24%, transparent); color: var(--ink); }
+.channel-link > .visual-image { flex-shrink: 0; }
+.channel-details .channel-link { min-height: 36px; }
+.channel-hash { width: 20px; text-align: center; color: var(--steel); font-size: 22px; line-height: 1; flex-shrink: 0; }
 .channel-sidebar .sidebar-summary { margin: 12px 12px 0; }
-.channel-user { margin-top: auto; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px; background: var(--canvas-dark); border-top: 1px solid var(--hairline); }
+.channel-user { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px; background: var(--canvas-dark); border-top: 1px solid var(--hairline); }
 .channel-user-avatar { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-weight: 700; font-size: 14px; margin-right: 4px; }
 .channel-user-name { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .channel-user-name b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .channel-user-name small { font-size: 12px; color: var(--slate); }
-.channel-user-btn { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--slate); cursor: pointer; }
-.channel-user-btn:hover, .channel-user-btn[aria-current] { background: var(--surface-soft); color: var(--ink); }
-.channel-header { height: 48px; padding: 0 16px; }
-.channel-title { font-size: 15px; }
-@media (min-width: 1025px) {
-  .home-discovery-grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 0; }
-  .home-action-stack { background: none; border: 0; border-left: 1px solid var(--hairline); border-radius: 0; padding: 0 0 0 28px; }
+.channel-user-btn, .channel-header-link { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--slate); cursor: pointer; }
+.channel-user-btn:hover, .channel-user-btn[aria-current], .channel-header-link:hover { background: var(--surface-soft); color: var(--ink); }
+.channel-header { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 24px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft); }
+.channel-title { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.channel-title::before { content: '#'; margin-right: 12px; color: var(--steel); font-size: 24px; font-weight: 400; vertical-align: middle; }
+.channel-description { padding-left: 16px; border-left: 1px solid var(--hairline-strong); font-size: 13px; color: var(--slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channel-header-link { margin-left: auto; }
+@media (min-width: 769px) {
+  .app-column > .app-navigation, .detail-sidebar, .mobile-navigation { display: none !important; }
 }
-.home-action-stack .btn { border-radius: 8px; }
-.home-action-stack .game-search { padding-left: 12px; gap: 8px; }
-.home-action-stack .game-search .btn { padding: 8px 14px; }
+@media (max-width: 768px) {
+  .server-rail, .channel-sidebar, .channel-header { display: none; }
+}
+@media (min-width: 769px) and (max-width: 1100px) { .channel-sidebar { width: 208px; } }
 
-/* 멤버: 디스코드 친구 목록 행(높이 약 60px, 이름 16px/600, 얇은 구분선) */
-.friends { padding: 24px var(--page-padding); flex-grow: 1; min-height: 0; overflow-y: auto; max-width: 760px; }
+/* 홈은 가운데 기록 피드와 독립적으로 스크롤하는 실행/멤버 열로 구성한다. */
+.home-page { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; padding: 0; background: var(--surface-soft); overflow: hidden; }
+.home-channel-feed { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 28px; overflow-y: auto; padding: 24px; }
+.channel-welcome { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--hairline-strong); }
+.channel-welcome-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface); color: var(--steel); font-size: 36px; line-height: 1; }
+.channel-welcome h2 { font-size: clamp(22px, 2vw, 28px); line-height: 1.35; overflow-wrap: anywhere; }
+.channel-welcome p { color: var(--slate); font-size: 14px; }
+.home-action-stack { min-width: 0; min-height: 0; overflow-y: auto; padding: 24px 16px; gap: 24px; background: var(--surface); border: 0; border-radius: 0; }
+.home-play h2 { font-size: 18px; }
+.home-play > .btn { align-self: stretch; justify-content: center; }
+.home-action-stack .game-search-field { background: var(--canvas-dark); }
+.home-action-stack .game-search { padding: 0; gap: 10px; }
+.home-action-stack .game-search .btn { padding: 8px 12px; }
+.home-action-stack .home-steam-top h2 { font-size: 16px; }
+.home-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.home-channel-summary { min-width: 0; display: flex; flex-direction: column; gap: 12px; background: transparent !important; border: 0 !important; border-top: 1px solid var(--hairline) !important; border-radius: 0 !important; padding: 20px 0 0 !important; }
+.home-card-heading h3, .home-section-heading h2 { font-size: 18px; }
+.home-section-heading { align-items: center; }
+.home-chat-section { display: flex; flex-direction: column; gap: 8px; }
+.home-chat-section h3 { font-size: 14px; color: var(--slate); }
+.home-week .home-section-heading { border-bottom: 1px solid var(--hairline); padding-bottom: 8px; }
+.home-week h2 { font-size: 14px; color: var(--slate); }
+.home-activity { padding-top: 20px; border-top: 1px solid var(--hairline); }
+@media (max-width: 1024px) {
+  .home-page { display: flex; flex-direction: column; overflow-y: auto; padding: var(--page-padding); gap: 24px; }
+  .home-channel-feed { display: contents; }
+  .channel-welcome { order: 0; }
+  .discovery-deck { order: 1; }
+  .home-action-stack { order: 2; padding: 20px; overflow: visible; flex-shrink: 0; border-radius: 12px; }
+  .home-week { order: 3; }
+  .home-grid { order: 4; }
+  .home-activity, .home-channel-feed > .home-data-notice { order: 5; }
+}
+
+/* 실제 프로필과 실패 시 이름 첫 글자를 보여주는 친구 목록. */
+.friends { padding: 24px var(--page-padding); flex-grow: 1; min-height: 0; overflow-y: auto; }
 .friends-count { font-size: 12px; font-weight: 600; color: var(--slate); }
 .friends-hint { margin: 4px 0 16px; font-size: 13px; color: var(--slate); }
-.friends-list { list-style: none; margin: 0; padding: 0; }
+.friends-list { list-style: none; margin: 0; padding: 0; max-width: 960px; }
 .friends-list li { border-top: 1px solid var(--hairline); }
-.friend-row { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 12px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; }
-.friend-row:hover { background: var(--surface); }
-.friends-list li:hover { border-color: transparent; }
-.friend-avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; object-fit: cover; background: var(--surface-soft); }
-.friend-avatar-empty { display: grid; place-items: center; font-weight: 700; color: var(--slate); }
-.friend-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.friend-row { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.friend-row:hover { background: var(--surface-soft); }
+.friend-avatar { border-radius: 50%; flex-shrink: 0; background: var(--surface-soft); }
+.friend-avatar img { object-fit: cover; }
+.friend-text { flex: 1; display: flex; flex-direction: column; min-width: 0; line-height: 1.5; }
 .friend-text b { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
 .friend-text small { font-size: 13px; color: var(--slate); }
-
-/* 디스코드 서버 화면 실측: 메시지 여백 2px 24px 2px 72px, 아바타 40px, 이름 16/500/22, 시간 12/500, 본문 16/22, 그룹 간격 17px, 채널 행 34px */
-.channel-brand { justify-content: flex-start; font-size: 16px; font-weight: 600; }
-.channel-chevron { margin-left: auto; color: var(--slate); font-size: 18px; }
-.channel-details .channel-link { min-height: 36px; }
-.channel-hash { width: 18px; text-align: center; color: var(--steel); font-size: 20px; line-height: 1; flex-shrink: 0; }
+.friend-open { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--surface); color: var(--slate); }
+.friend-row:hover .friend-open { color: var(--ink); background: var(--canvas-dark); }
+.feed { list-style: none; padding: 0; display: flex; flex-direction: column; }
+.msg-avatar { border-radius: 50%; background: var(--surface); flex-shrink: 0; }
+.msg-avatar > img { object-fit: cover; }
+.msg-body { min-width: 0; display: flex; flex-direction: column; }
+.msg-head { display: flex; flex-wrap: wrap; align-items: baseline; font-size: 12px; color: var(--slate); }
 .feed { max-width: none; }
-.msg-row { position: relative; display: block; margin: 0; padding: 2px 24px 2px 56px; min-height: 44px; border-radius: 0 4px 4px 0; }
+.msg-row { position: relative; display: block; margin: 0; padding: 2px 24px 2px 56px; min-height: 44px; border-radius: 0 4px 4px 0; color: var(--ink); text-decoration: none; }
+.msg-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
 .feed li + li { margin-top: 17px; }
 .msg-avatar { position: absolute; left: 0; top: 4px; margin: 0; }
 .msg-body { gap: 0; }
@@ -1207,37 +1214,34 @@ input, select, textarea { border-radius: 4px; }
 .home-section-heading h2, .home-week h2 { font-size: 12px; font-weight: 600; color: var(--slate); margin: 0; }
 .home-week { margin-top: 8px; }
 
-/* 디스코드 전반: 임베드형 카드(왼쪽 4px 막대), 옅은 호버, 파란 포커스 링 대신 라벤더 링, 얇은 스크롤 */
-:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.hub-destination { border: 0; border-left: 4px solid var(--primary); border-radius: 4px; background: var(--surface); transition: background .15s; }
+
+/* 재망호 형태 토큰: 주요 행동 pill, 입력 8px, 콘텐츠 카드 12px. */
+.btn-primary { border-radius: 999px; box-shadow: none; }
+.btn-primary:hover { background: var(--primary-hover); box-shadow: none; }
+.btn-secondary, .btn-ghost { border-radius: 8px; }
+.btn-secondary { background: var(--surface-soft); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--slate) 12%, transparent); }
+.btn-ghost-active { background: color-mix(in srgb, var(--slate) 24%, transparent); }
+input, select, textarea, .game-search, .game-search-field { border-radius: 8px; }
+.game-search-field:focus-within { border-color: var(--primary); }
+.hub-destination { border: 0; border-left: 4px solid var(--primary); border-radius: 12px; background: var(--surface); }
 .hub-destination:hover { background: var(--surface-soft); }
-.hub-destination h2, .hub-destination h3 { font-size: 16px; font-weight: 600; }
-.home-steam, .home-data-notice { border: 0; border-left: 4px solid var(--steel); border-radius: 4px; }
-tbody tr:hover, .friend-row:hover, .msg-row:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
-/* 디스코드 글자 위계: 제목 32/24/20, 구역 16, 본문 16/22, 보조 14·12. 자간은 0 */
-.display-lg { font-size: 32px; font-weight: 700; letter-spacing: 0; }
-.heading-1 { font-size: 28px; font-weight: 700; letter-spacing: 0; }
-.heading-2 { font-size: 24px; font-weight: 700; letter-spacing: 0; }
-.heading-3 { font-size: 20px; font-weight: 700; letter-spacing: 0; }
-.heading-4 { font-size: 16px; font-weight: 600; }
-.body-md, .body-md-medium { font-size: 16px; line-height: 1.375; }
-.body-sm, .body-sm-medium { font-size: 14px; line-height: 1.43; }
-@media (max-width: 1024px), (pointer: coarse) { .channel-user-btn { width: 44px; height: 44px; } }
-
-/* 디스코드 버튼 실측(친구 화면): 반경 8px, 높이 32px, 여백 4px 12px, 글자 16/500. 주요는 호버 때 더 어두워지고,
-   보조·탭은 평소 투명 → 호버 회색 12% → 선택 24%. 터치 환경과 좁은 화면은 44px 터치 영역을 유지한다. */
-.btn { font-size: 16px; font-weight: 500; border-radius: 8px; }
-.btn-primary:hover { background-color: var(--primary-pressed); }
-.btn-secondary { background-color: color-mix(in srgb, var(--slate) 24%, transparent); }
-.btn-secondary:hover { background-color: color-mix(in srgb, var(--slate) 32%, transparent); }
-.btn-ghost:hover, .channel-link:hover { background-color: color-mix(in srgb, var(--slate) 12%, transparent); }
-.btn-ghost-active, .channel-link[aria-current] { background-color: color-mix(in srgb, var(--slate) 24%, transparent); }
-@media (min-width: 1025px) and (pointer: fine) {
-  .btn { min-height: 32px; padding-top: 4px; padding-bottom: 4px; }
-  .btn-primary, .btn-secondary, .btn-ghost { padding-left: 12px; padding-right: 12px; }
-  .dc-components .btn { min-height: 32px; padding: 4px 12px; font-size: 16px; }
+.hub-destination h2 { font-size: 18px; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+* { scrollbar-width: thin; scrollbar-color: var(--hairline-strong) transparent; }
+.dc-message { max-width: 640px; }
+.dc-embed { border-radius: 12px; }
+.dc-text { line-height: 1.5; }
+.home-community .home-section-heading h2 { font-size: 18px; color: var(--ink); }
+.dc-components .btn { min-height: 44px; }
+.discovery-deck .discovery-rail-btn { min-height: 32px; border-radius: 999px; }
+.discovery-deck .discovery-rail-btn:hover { background: var(--surface-soft); border-color: var(--primary); }
+.discovery-deck .discovery-rail-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--accent-pink) 12%, var(--surface)); }
+.dc-components .btn:disabled { opacity: .45; cursor: default; }
+@media (max-width: 1024px), (pointer: coarse) {
+  .channel-user-btn, .channel-header-link { width: 44px; height: 44px; }
+  .discovery-deck .discovery-rail-btn, .discovery-progress button, .discovery-provenance summary { min-height: 44px; }
 }
-
 /* 디스코드 멤버 목록 실측: 그룹 라벨 14/500 회색(여백 20 4 4 16), 행 42px·둥글기 8px, 아바타 32px(간격 12px) */
 .member-list { display: flex; flex-direction: column; }
 .member-group { padding: 20px 4px 4px 8px; font-size: 14px; font-weight: 500; color: var(--slate); }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { UiIcon, VisualImage } from '@/components/VisualImage';
 import { listPeople } from '@/server/people';
 
 export default async function PeoplePage() {
@@ -11,8 +12,9 @@ export default async function PeoplePage() {
         {people.map((p) => (
           <li key={p.id}>
             <Link href={`/people/${p.id}`} className="friend-row">
-              {p.image ? <img src={p.image} alt="" width={36} height={36} className="friend-avatar" /> : <span className="friend-avatar friend-avatar-empty" aria-hidden="true">{p.name.slice(0, 1)}</span>}
+              <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={40} height={40} className="friend-avatar" />
               <span className="friend-text"><b>{p.name}</b><small>롤 {p.lolCount} · Steam {p.steamCount}</small></span>
+              <span className="friend-open" aria-hidden="true"><UiIcon name="arrow-right" /></span>
             </Link>
           </li>
         ))}
