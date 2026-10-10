@@ -899,10 +899,11 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .home-discovery-grid { display: grid; grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .home-discovery-grid > *, .home-action-stack { min-width: 0; }
 .home-action-stack { display: flex; flex-direction: column; gap: 20px; padding: 20px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px; }
-.discovery-deck { padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.discovery-deck { padding: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.discovery-deck > * { width: 100%; max-width: 400px; }
 .discovery-deck.is-empty .discovery-content { grid-template-columns: 1fr; }
 .discovery-deck.is-empty .discovery-story h2 { font-size: 20px; }
-.discovery-stage { --kind: var(--steel); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "progress progress" "body rail" "notes notes" "host host"; gap: 0 12px; min-height: 480px; padding: 12px 20px 16px; border-radius: 12px; border: 1px solid var(--hairline); background: linear-gradient(165deg, color-mix(in srgb, var(--kind) 16%, var(--surface)), var(--canvas-dark) 85%); touch-action: pan-y; user-select: none; }
+.discovery-stage { --kind: var(--steel); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "progress progress" "body rail" "notes notes" "host host"; gap: 0 12px; min-height: 560px; padding: 12px 20px 16px; border-radius: 16px; border: 1px solid var(--hairline); background: radial-gradient(120% 70% at 50% 30%, color-mix(in srgb, var(--kind) 26%, var(--surface)), var(--canvas-dark) 90%); touch-action: pan-y; user-select: none; }
 .discovery-stage-award { --kind: var(--accent-pink); }
 .discovery-stage-highlight { --kind: var(--primary); }
 .discovery-stage-play { --kind: var(--surface-soft); }
@@ -912,7 +913,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .discovery-progress button { display: block; width: 100%; height: 24px; padding: 10px 0; background: none; border: 0; cursor: pointer; }
 .discovery-progress button::after { content: ""; display: block; height: 4px; border-radius: 2px; background: var(--hairline-strong); opacity: .5; }
 .discovery-progress button.is-passed::after { background: var(--ink); opacity: 1; }
-.discovery-stage-body { grid-area: body; display: flex; align-items: center; min-width: 0; padding: 16px 0; animation: discovery-slide 200ms ease-out; }
+.discovery-stage-body { grid-area: body; display: flex; min-width: 0; padding: 12px 0; animation: discovery-slide 200ms ease-out; }
 @keyframes discovery-slide { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
 .discovery-rail { grid-area: rail; align-self: end; display: flex; flex-direction: column; gap: 16px; padding-bottom: 16px; }
 .discovery-rail-btn { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; color: var(--ink); cursor: pointer; font: inherit; font-size: 11px; line-height: 1.2; padding: 4px 0; min-height: 44px; }
@@ -921,43 +922,47 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .discovery-rail-btn:disabled { opacity: .5; cursor: default; }
 .discovery-notes { grid-area: notes; font-size: 12px; color: var(--slate); line-height: 1.6; }
 .discovery-notes input { width: 100%; margin-top: 8px; }
-.discovery-intro { grid-area: host; display: flex; gap: 12px; align-items: center; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.discovery-intro { grid-area: host; display: flex; gap: 12px; align-items: center; padding-top: 4px; }
 .discovery-intro > div { min-width: 0; }
 .discovery-dialogue { flex: 1; }
 .discovery-dialogue p:last-child { color: var(--ink); font-size: 14px; line-height: 1.5; margin-top: 2px; word-break: keep-all; overflow-wrap: anywhere; }
 .discovery-mascot { display: block; width: 120px; height: auto; aspect-ratio: 1942 / 809; object-fit: contain; border-radius: 8px; flex-shrink: 0; }
-.discovery-content { width: 100%; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 24px; align-items: center; }
-.discovery-art { min-width: 0; min-height: 220px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; overflow-wrap: anywhere; }
+.discovery-content { width: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
+.discovery-art { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; overflow-wrap: anywhere; }
 .discovery-emblem { font-size: 80px; line-height: 1; color: var(--ink); }
 .discovery-art-award .discovery-emblem { color: var(--accent-pink); }
 .discovery-art-play .discovery-emblem { font-size: 64px; }
-.discovery-prize { word-break: keep-all; font-size: clamp(28px, 4vw, 56px); font-weight: 800; letter-spacing: -1px; color: var(--ink); line-height: 1.2; overflow-wrap: anywhere; }
+.discovery-prize { word-break: keep-all; font-size: clamp(32px, 9vw, 44px); font-weight: 800; letter-spacing: -1px; color: var(--ink); line-height: 1.15; overflow-wrap: anywhere; }
 .discovery-art-caption { color: var(--slate); font-size: 12px; line-height: 1.6; }
 .discovery-people { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .discovery-people > div { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100px; }
 .discovery-people span { color: var(--ink); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .discovery-people.is-protagonist > div { max-width: 100%; }
 .discovery-people.is-protagonist span { font-size: 24px; line-height: 1.3; }
-.discovery-people.is-sealed .discovery-avatar { filter: blur(12px); opacity: .6; }
+.discovery-people { position: relative; }
+.discovery-art-award.is-revealed:has(.is-protagonist) .discovery-art-caption { display: none; }
+.discovery-people.is-sealed .discovery-avatar { filter: blur(14px); opacity: .55; transform: scale(.94); }
+.discovery-people.is-sealed::after { content: "?"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 96px; font-weight: 800; color: var(--ink); text-shadow: 0 2px 24px var(--canvas-dark); pointer-events: none; }
 .discovery-art.is-revealed .discovery-people, .discovery-result:not([hidden]) { animation: discovery-reveal 220ms ease-out; }
 @keyframes discovery-reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .discovery-art.is-revealed .discovery-people, .discovery-result:not([hidden]), .discovery-stage-body { animation: none; }
 }
-.discovery-avatar { border-radius: 50%; border: 2px solid var(--hairline-strong); background: var(--surface-soft); flex-shrink: 0; }
+.discovery-avatar { border-radius: 50%; border: 3px solid var(--hairline-strong); background: var(--surface-soft); flex-shrink: 0; transition: filter .5s ease, opacity .5s ease, transform .5s ease; }
 .discovery-avatar > img { object-fit: cover; }
 .discovery-avatar .visual-fallback { font-size: 28px; color: var(--ink); }
-.discovery-story { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
+.discovery-story { display: flex; flex-direction: column; align-items: stretch; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
+.discovery-story > .btn { width: 100%; min-height: 52px; font-size: 16px; }
 .discovery-meta { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 12px; color: var(--slate); }
 .discovery-meta > span { font-weight: 650; color: var(--ink); }
-.discovery-story h2 { font-size: clamp(24px, 2.1vw, 32px); font-weight: 750; letter-spacing: -.8px; line-height: 1.3; text-wrap: balance; word-break: keep-all; }
+.discovery-story h2 { font-size: 28px; font-weight: 800; letter-spacing: -.8px; line-height: 1.3; text-wrap: balance; word-break: keep-all; }
 .discovery-deck.is-revealed .discovery-story h2 { color: var(--ink); }
 .discovery-tease, .discovery-notice { color: var(--slate); font-size: 13px; line-height: 1.6; }
 .discovery-result { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; }
 .discovery-result[hidden] { display: none; }
 .discovery-result p { font-size: 16px; line-height: 1.6; font-weight: 600; }
 .discovery-result .btn { white-space: normal; padding: 8px 0; text-align: left; }
-.discovery-provenance { font-size: 12px; color: var(--slate); line-height: 1.6; }
+.discovery-provenance { order: 5; font-size: 12px; color: var(--slate); line-height: 1.6; }
 .discovery-provenance summary { cursor: pointer; min-height: 32px; display: list-item; padding-top: 8px; }
 .discovery-provenance p { margin-top: 8px; }
 .discovery-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--hairline); padding-top: 12px; }
@@ -1009,26 +1014,24 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .home-record strong { font-size: 13px; line-height: 1.6; font-weight: 500; }
 .home-record-cta { font-size: 12px; color: var(--slate); margin-top: auto; }
 .home-records-empty { padding: 16px 0; color: var(--slate); font-size: 14px; }
+@media (min-width: 1025px) {
+  .discovery-stage { grid-template-columns: minmax(0, 1fr); grid-template-areas: "progress" "body" "notes" "host"; min-height: 580px; }
+  .discovery-rail { position: absolute; left: calc(100% + 16px); bottom: 0; padding-bottom: 0; }
+}
 @media (max-width: 1200px) { .discovery-content { gap: 16px; } .home-record { flex-direction: column; } .home-record-art { flex-direction: row; } }
 @media (max-width: 768px) {
-  .discovery-content { grid-template-columns: 1fr; gap: 16px; }
-  .discovery-stage { min-height: 0; padding: 8px 16px 12px; }
+  .discovery-stage { min-height: 0; padding: 8px 16px 8px; }
+  .discovery-content { gap: 12px; }
+  .discovery-story { gap: 8px; }
+  .discovery-story h2 { font-size: 24px; }
+  .discovery-story > .btn { min-height: 48px; }
+  .discovery-people.is-protagonist .discovery-avatar { width: 120px !important; height: 120px !important; }
+  .discovery-people.is-sealed::after { font-size: 72px; }
   .discovery-mascot { width: 96px; }
   .discovery-rail { padding-bottom: 8px; gap: 8px; }
-  .discovery-art { min-height: 180px; padding: 16px; }
-  .discovery-art:not(.is-revealed) { min-height: 160px; }
   .discovery-emblem { font-size: 56px; }
-  .discovery-story h2 { font-size: 26px; }
-  .discovery-deck.is-revealed .discovery-story h2 { font-size: 20px; }
   .discovery-deck.is-revealed .discovery-story { gap: 8px; }
   .discovery-deck.is-revealed .discovery-tease { display: none; }
-  .discovery-deck:has(.discovery-art-award .is-protagonist) .discovery-result > p { display: none; }
-  .discovery-art:has(.is-protagonist) { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 12px; min-height: 160px; align-content: center; }
-  .discovery-art .is-protagonist { grid-row: 1 / 3; }
-  .discovery-art .is-protagonist .discovery-avatar { width: 88px !important; height: 88px !important; }
-  .discovery-art .is-protagonist span { font-size: 18px; }
-  .discovery-art:has(.is-protagonist) .discovery-prize { align-self: end; }
-  .discovery-art:has(.is-protagonist) .discovery-art-caption { align-self: start; }
   .home-records { grid-template-columns: 1fr; }
   .home-record { flex-direction: row; }
 }
@@ -1062,7 +1065,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .home-action-stack, .hub-destination { padding: 20px 16px; }
   .discovery-deck { gap: 12px; }
   .discovery-intro h1 { font-size: 28px; }
-  .discovery-story h2 { font-size: 26px; }
   .discovery-mascot { width: 128px; max-width: 38%; }
   .discovery-intro { gap: 8px; }
   .discovery-dialogue p:last-child { font-size: 13px; }

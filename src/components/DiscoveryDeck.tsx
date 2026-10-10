@@ -18,7 +18,7 @@ function hostLine(card: DiscoveryCard, revealed: boolean) {
 }
 
 function People({ card, compact = false, sealed = false }: { card: DiscoveryCard; compact?: boolean; sealed?: boolean }) {
-  const size = compact ? 48 : card.people.length === 1 ? 160 : 72;
+  const size = compact ? 48 : card.people.length === 1 ? 168 : 76;
   return <div className={`discovery-people ${compact ? 'is-compact' : card.people.length === 1 ? 'is-protagonist' : ''} ${sealed ? 'is-sealed' : ''}`} aria-hidden={sealed || undefined}>
     {card.people.slice(0, compact ? 1 : 3).map((p, i) => <div key={`${p.userId ?? p.name}:${i}`}>
       <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={size} height={size} className="discovery-avatar" />
@@ -31,7 +31,7 @@ function People({ card, compact = false, sealed = false }: { card: DiscoveryCard
 function ContentVisual({ card, revealed }: { card: DiscoveryCard; revealed: boolean }) {
   return <div className={`discovery-art discovery-art-${card.kind} ${revealed ? 'is-revealed' : ''}`}>
     {card.kind === 'play' ? <div className="discovery-play-covers">{[{ id: 413150, name: 'Stardew Valley' }, { id: 1966720, name: 'Lethal Company' }, { id: 105600, name: 'Terraria' }].map(game => <VisualImage key={game.id} src={`/images/games/${game.id}.jpg`} alt={`${game.name} · 편집자의 제안`} fallback={game.name} width={184} height={86} />)}</div> : card.people.length ? <People card={card} sealed={!revealed} /> : null}
-    <strong className="discovery-prize">{revealed ? card.metric : card.kind === 'award' ? card.metric : card.kind === 'play' ? '오늘의 크루픽' : '?'}</strong>
+    {(revealed || card.kind === 'award' || card.kind === 'play') && <strong className="discovery-prize">{revealed || card.kind === 'award' ? card.metric : '오늘의 크루픽'}</strong>}
     <span className="discovery-art-caption">{revealed ? card.context : card.kind === 'award' ? '칭호의 주인공을 공개해봐' : card.kind === 'play' ? '그림은 편집자의 제안 · 보유 여부는 멤버 선택 후 확인' : '기록 속 주인공을 확인해봐'}</span>
     {revealed && card.comparison && <div className="discovery-comparison" role="img" aria-label={`평소 중앙값 ${card.comparison.usual}개, 이 순간 ${card.comparison.current}개`}>
       <div><span>평소</span><i style={{ width: `${100 * card.comparison.usual / card.comparison.current}%` }} /><b>{card.comparison.usual}</b></div>
