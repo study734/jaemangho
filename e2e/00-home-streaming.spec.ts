@@ -44,12 +44,14 @@ test('최근 활동 조회 실패는 게임 찾기와 발견을 막거나 빈 �
   await db.query('alter table steam_members rename to e2e_unavailable_steam_members');
   try {
     await page.goto('/');
-    await expect(page.getByText('최근 활동과 접속 기록을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.')).toBeVisible();
+    // 스트리밍 중 숨겨진 임시 HTML에도 같은 문구가 있을 수 있다. 실제 멤버 패널의 접근 가능한 안내를 확인한다.
+    const notice = page.getByRole('complementary', { name: '멤버 활동과 최근 접속' }).getByRole('status').filter({ hasText: '최근 활동과 접속 기록을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.' });
+    await expect(notice).toBeVisible();
     await expect(page.getByRole('button', { name: '게임 뽑기 알아보기' })).toBeVisible();
     await expect(page.getByRole('link', { name: '같이 할 게임 찾기', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: '요즘 우리' })).toHaveCount(0);
     await mkdir('output/playwright', { recursive: true });
-    await page.getByText('최근 활동과 접속 기록을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.').scrollIntoViewIfNeeded();
+    await notice.scrollIntoViewIfNeeded();
     await page.screenshot({ path: 'output/playwright/home-feed-failure.png' });
   } finally {
     await db.query('alter table e2e_unavailable_steam_members rename to steam_members');

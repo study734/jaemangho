@@ -71,7 +71,7 @@ export function SteamActivitySettings({ linkResult }: { linkResult?: string }) {
 }
 
 const styles = {
-  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
+  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '8px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
   head: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: '16px' },
   hint: { color: 'var(--slate)', fontSize: '13px', overflowWrap: 'anywhere' as const },
   warning: { color: 'var(--accent-pink)', fontSize: '13px' },

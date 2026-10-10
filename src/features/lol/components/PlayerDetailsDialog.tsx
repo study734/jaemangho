@@ -64,7 +64,7 @@ const styles = {
     margin: 'auto',
     backgroundColor: 'var(--surface)',
     color: 'var(--ink)',
-    borderRadius: '12px',
+    borderRadius: '8px',
     padding: 0,
     width: '640px',
     maxWidth: '90%',

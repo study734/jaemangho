@@ -346,7 +346,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   tabPanel: { flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 },
   count: { color: 'var(--accent-pink)', fontWeight: 700 },
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' },
-  card: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: '16px' },
+  card: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '8px', padding: '16px' },
   cardLabel: { fontSize: '12px', color: 'var(--slate)' },
   cardValue: { fontSize: '20px', fontWeight: 700, color: 'var(--ink)', margin: '6px 0' },
   td: { padding: '12px', borderBottom: '1px solid var(--hairline)', overflowWrap: 'anywhere' },

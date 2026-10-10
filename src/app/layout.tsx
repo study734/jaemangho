@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'jaemangho',
+  title: '재망호',
   icons: { icon: '/favicon.svg' },
 };
 

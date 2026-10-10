@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <LolProvider>
-      <Frame isAdmin={result.viewer.isAdmin}>{children}</Frame>
+      <Frame isAdmin={result.viewer.isAdmin} userName={result.viewer.name}>{children}</Frame>
     </LolProvider>
   );
 }

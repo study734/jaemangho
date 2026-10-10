@@ -5,7 +5,7 @@ test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
 test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·다음 행동을 연결한다', async ({ page, context }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const user = await createUser('discovery', '발견 친구');
   await loginAs(context, user);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -29,10 +29,12 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await page.setViewportSize({ width: 1504, height: 1045 });
     await page.goto('/');
     const deck = page.getByRole('region', { name: '오늘은 무슨 일이 있었을까?' });
+    // 홈의 출처들은 각각 60초 캐시라 카드가 한꺼번에 나타나지 않는다. 네 장이 모두 모일 때까지 기다린다.
     await expect.poll(async () => {
       await page.reload();
-      return deck.getByText('새벽 2~6시, 가장 많이 말한 사람', { exact: true }).count();
-    }, { timeout: 90_000, intervals: [1000, 5000] }).toBe(1);
+      return deck.getByRole('button', { name: '4번째 발견' }).count();
+    }, { timeout: 150_000, intervals: [1000, 5000] }).toBe(1);
+    await expect(deck.getByText('새벽 2~6시, 가장 많이 말한 사람', { exact: true })).toHaveCount(1);
     const reveal = deck.locator('button[aria-controls]');
     await expect(deck.getByText('발견 친구님 · 12 새벽 메시지')).not.toBeVisible();
     await expect(deck.locator('.discovery-people')).toHaveAttribute('aria-hidden', 'true');
@@ -56,7 +58,7 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await expect(reveal).toBeFocused();
     await expect(reveal).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('Tab');
-    await expect(deck.getByRole('link', { name: '시상식 전체 보기' })).toBeFocused();
+    await expect(deck.getByRole('button', { name: '다음 발견' })).toBeFocused();
     await expect(deck.getByText('발견 친구님 · 12 새벽 메시지')).toBeVisible();
     await expect(deck.getByRole('heading', { name: '새벽 2~6시, 가장 많이 말한 사람' })).toBeVisible();
     await expect(deck.locator('.discovery-prize')).toHaveText('새벽 갤러');
@@ -92,8 +94,14 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
       if (width === 1504) {
         const play = await page.locator('.home-play').boundingBox();
         const search = await page.getByRole('search').boundingBox();
+        const actions = await page.locator('.home-action-stack').boundingBox();
+        const discovery = await deck.boundingBox();
         expect(play!.height).toBeLessThan(250);
-        expect(search!.y).toBeLessThan(700);
+        // 게임 도구는 발견 아래 중앙에 있고 오른쪽은 멤버 활동만 표시한다.
+        expect(actions!.y).toBeGreaterThanOrEqual(discovery!.y + discovery!.height);
+        expect(search!.x).toBeGreaterThan(play!.x + play!.width);
+        await expect(page.locator('.home-channel-feed').getByRole('search')).toBeVisible();
+        await expect(page.locator('.home-member-panel').getByRole('search')).toHaveCount(0);
         await expect(page.locator('.home-record-award').getByText('발견 친구님 · 12 새벽 메시지')).toBeVisible();
       }
     }

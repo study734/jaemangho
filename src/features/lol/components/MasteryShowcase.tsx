@@ -412,7 +412,7 @@ const styles: { [key: string]: any } = {
     backgroundColor: 'var(--canvas-dark)',
     border: '1px solid var(--hairline)',
     padding: '24px',
-    borderRadius: '12px',
+    borderRadius: '8px',
     position: 'relative' as const,
     overflow: 'hidden',
   },

@@ -45,6 +45,23 @@ test('없는 멤버 프로필은 404', async ({ page, context }) => {
   expect((await page.goto('/people/e2e_nobody'))?.status()).toBe(404);
 });
 
+test('친구 목록은 프로필 이미지 실패와 긴 이름에도 사용할 수 있다', async ({ page, context }) => {
+  const name = '아주긴친구이름'.repeat(12);
+  const me = await createUser('people_image_failure', name);
+  await db.query(`update "user" set image = '/images/missing-member.png' where id = $1`, [me.id]);
+  await loginAs(context, me);
+  await page.goto('/people');
+  const row = page.locator('.friend-row').filter({ hasText: name });
+  await expect(row.locator('.visual-fallback')).toHaveText('아');
+  for (const width of [1504, 1024, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await row.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
+  await row.click();
+  await expect(page).toHaveURL(/\/people\/e2e_people_image_failure$/);
+});
+
 test('프로필에 직접 진입해도 해당 계정의 티어를 표시하고 전체 명단은 조회하지 않는다', async ({ page, context }) => {
   const me = await createUser('people_rank', 'E2E티어');
   await db.query(`insert into members (id, game_name, tag_line, owner_id) values ('e2e_profile_rank', 'E2E프로필롤', 'KR1', $1)`, [me.id]);

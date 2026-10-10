@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HomeCard } from '@/components/HomeCard';
+import { JaesuniMessage } from '@/components/JaesuniMessage';
 import { ServiceMark, UiIcon, VisualImage } from '@/components/VisualImage';
 import { LolHomeSummary } from '@/features/lol';
 import { scoreLabel } from '@/lib/chat-format';
@@ -27,7 +28,7 @@ const sentence = (a: Activity) => {
   if (a.kind === 'steam') return `${who}님이 Steam 멤버 ${a.target}을(를) 등록했어요`;
   return `${who}님이 접속했어요`;
 };
-const TAG = { lol: '롤', steam: 'Steam', login: '접속' } as const;
+const ACTIVITY_LABEL = { lol: '소환사 등록', steam: 'Steam 멤버 등록', login: '사이트 접속' } as const;
 
 function timeAgo(iso: string) {
   const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -40,7 +41,7 @@ const Ago = ({ iso }: { iso: string }) => <span style={styles.ago}>{timeAgo(iso)
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={styles.panel}>
+    <section className="home-chat-section">
       <h3 className="heading-5" style={styles.panelTitle}>{title}</h3>
       {children}
     </section>
@@ -104,7 +105,7 @@ function ChatPanels({ chat, moments, notice }: { chat: ChatHighlights; moments: 
 
 export function HomeCommunity({ chat, moments, notice, unavailable = false }: { chat: ChatHighlights | null; moments: HotMoment[]; notice: string; unavailable?: boolean }) {
   return (
-        <section className="home-community" style={styles.panel} aria-labelledby="community-title">
+        <section className="home-community home-channel-summary" aria-labelledby="community-title">
           <div className="home-section-heading community-graphic-heading"><div>
             <h2 id="community-title" className="visual-heading"><ServiceMark service="discord" size={32} />이번 주 디스코드 활동</h2>
             <Link href="/community" className="btn btn-link">커뮤 보기</Link>
@@ -115,40 +116,52 @@ export function HomeCommunity({ chat, moments, notice, unavailable = false }: { 
   );
 }
 
-export function HomeRecent({ activity, people }: { activity: Activity[]; people: Person[] }) {
+export function HomeRecent({ activity }: { activity: Activity[] }) {
+  const recent = activity.slice(0, 5);
   return (
-      <div className="home-grid home-lower-grid">
-        <Panel title="최근 활동">
-          {activity.length === 0 ? <p style={styles.hint}>아직 활동이 없습니다.</p> : (
-            <ul style={styles.list}>{activity.map((a, i) => (
-              <li key={i} style={styles.row}>
-                <span style={styles.tag}>{TAG[a.kind]}</span>
-                <span style={styles.text}>{sentence(a)}</span><Ago iso={a.at} />
-              </li>
-            ))}</ul>
-          )}
-        </Panel>
-        <Panel title="최근 접속한 멤버">
-          {people.length === 0 ? <p style={styles.hint}>아직 접속 기록이 없어요.</p> : (
-            <ul style={styles.list}>{people.map((p) => (
-              <li key={p.id} style={styles.row}>
-                <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={32} height={32} className="member-avatar" />
-                <Link href={`/people/${p.id}`} style={{ ...styles.text, color: 'var(--ink)' }}>{p.name}</Link><Ago iso={p.at} />
-              </li>
-            ))}</ul>
-          )}
-          <Link href="/people" className="btn btn-link"><UiIcon name="people" />전체 멤버 보기</Link>
-        </Panel>
-      </div>
+    <section className="home-activity" aria-labelledby="activity-title">
+      <h2 id="activity-title" className="member-group">최근 활동 — {recent.length}</h2>
+      {activity.length === 0 ? <p style={styles.hint}>아직 활동이 없습니다.</p> : (
+        <ul className="member-activity-cards">{recent.map((a, i) => (
+          <li key={`${a.kind}:${a.at}:${i}`} className="member-activity-card" aria-label={sentence(a)}>
+            <div className="member-activity-copy"><span className="member-activity-actor">{a.actor || '누군가'}</span><strong>{ACTIVITY_LABEL[a.kind]}</strong>{a.target && <span className="member-activity-target">{a.target}</span>}<Ago iso={a.at} /></div>
+            {a.kind === 'login' ? <UiIcon name="people" size={32} /> : <ServiceMark service={a.kind === 'lol' ? 'leagueoflegends' : 'steam'} size={32} />}
+          </li>
+        ))}</ul>
+      )}
+    </section>
   );
 }
 
-export function Home({ name, discovery, community, recent, week }: { name: string; discovery: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode }) {
+// 디스코드 멤버 목록의 문법: 그룹 라벨(이름 — 수), 32px 아바타 행. 로그인 기록이라 접속 중 표시(상태 점)는 쓰지 않는다.
+export function HomeMembers({ people }: { people: Person[] }) {
   return (
-    <div className="home-page" style={styles.container}>
-      <div className="home-discovery-grid">
+    <section className="member-list" aria-labelledby="members-title">
+      <h2 id="members-title" className="member-group">최근 접속 — {people.length}</h2>
+      {people.length === 0 ? <p className="member-empty">아직 접속 기록이 없어요.</p> : (
+        <ul>{people.map((p) => (
+          <li key={p.id}>
+            <Link href={`/people/${p.id}`} className="member-row">
+              <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={32} height={32} className="member-avatar" />
+              <span className="member-name">{p.name}</span>
+              <span className="member-ago">{timeAgo(p.at)}</span>
+            </Link>
+          </li>
+        ))}</ul>
+      )}
+      <Link href="/people" className="member-all">전체 멤버 보기 →</Link>
+    </section>
+  );
+}
+
+export function Home({ name, discovery, community, recent, week, members }: { name: string; discovery: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode; members: ReactNode }) {
+  return (
+    <div className="home-page">
+      <div className="home-channel-feed">
+        <div className="channel-welcome"><span className="channel-welcome-icon" aria-hidden="true">#</span><h2>우리의 아지트에 온 걸 환영해!</h2><p>친구들의 발견과 함께한 기록이 모이는 홈 채널이에요.</p></div>
         {discovery}
-        <aside className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
+        <JaesuniMessage className="home-tools-message" line="같이 할 게임 찾기는 여기 있어. 멤버를 고르면 공통 게임에서 골라줄게.">
+        <section className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
         <section className="home-play" aria-labelledby="play-title">
           <h2 id="play-title">지금 같이 놀기</h2>
           <p>{name}님, 멤버만 고르면 시작할 수 있어요.</p>
@@ -165,33 +178,37 @@ export function Home({ name, discovery, community, recent, week }: { name: strin
         <div className="home-steam-meta"><div className="home-steam-summary"><SteamHomeSummary /></div><Link href="/steam" className="btn btn-link">공통 게임 찾기<UiIcon name="arrow-right" /></Link></div>
         <SteamHomeSearch />
       </section>
-        </aside>
+        </section>
+        </JaesuniMessage>
+        {week}
+        <div className="home-grid">
+          <JaesuniMessage line="친구들의 롤 현황을 모아뒀어.">
+          <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card home-channel-summary" icon={<ServiceMark service="leagueoflegends" size={24} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
+          </JaesuniMessage>
+          <JaesuniMessage line="디스코드에서 함께한 기록은 여기서 확인할 수 있어.">
+          {community}
+          </JaesuniMessage>
+        </div>
       </div>
-
-      {week}
-
-      <div className="home-grid">
-        <HomeCard title="롤" subtitle="친구들의 랭크와 게임 현황" className="home-lol-card" icon={<ServiceMark service="leagueoflegends" size={40} />} href="/lol" cta="롤 현황 보기"><LolHomeSummary /></HomeCard>
-        {community}
-      </div>
-
-      {recent}
+      <aside id="home-member-panel" className="home-member-panel" aria-label="멤버 활동과 최근 접속">
+        {recent}
+        {members}
+      </aside>
     </div>
   );
 }
 
 const styles = {
-  container: { flexGrow: 1, display: 'flex', flexDirection: 'column' as const, gap: '24px', overflowY: 'auto' as const, minHeight: 0 },
   header: { borderBottom: '1px solid var(--hairline)', paddingBottom: '20px', display: 'flex', flexDirection: 'column' as const, gap: '8px' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   hint: { color: 'var(--slate)', fontSize: '14px' },
   side: { display: 'flex', flexDirection: 'column' as const, gap: '24px', minWidth: 0 },
-  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '12px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
+  panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '8px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
   panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const },
   row: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '1px solid var(--hairline)', fontSize: '14px', color: 'var(--ink)' },
   rank: { color: 'var(--steel)', width: '16px', fontSize: '12px' },
-  tag: { fontSize: '11px', fontWeight: 700, color: 'var(--primary)', border: '1px solid var(--hairline)', borderRadius: '999px', padding: '2px 8px', whiteSpace: 'nowrap' as const },
+  tag: { fontSize: '11px', fontWeight: 700, color: 'var(--primary)', border: '1px solid var(--hairline)', borderRadius: '4px', padding: '2px 8px', whiteSpace: 'nowrap' as const },
   text: { flexGrow: 1, minWidth: 0, overflowWrap: 'anywhere' as const },
   ago: { color: 'var(--steel)', fontSize: '12px', whiteSpace: 'nowrap' as const },
 };
