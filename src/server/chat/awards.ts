@@ -1,5 +1,6 @@
 import type { Sql } from '../db';
 import { db } from '../db';
+import { pool } from '../pool';
 import { type TitleKey, isTitleKey } from '../../lib/titles';
 
 // 한 주(한국 시간 월~일)의 칭호를 계산해 보관한다. 데이터가 너무 적은 주(봇이 안 돌았던 주 등)는 만들지 않는다.
@@ -76,9 +77,20 @@ export async function recordAwards(now = new Date()): Promise<string | null> {
   const [{ week }] = (await sql`select to_char(date_trunc('week', ${now.toISOString()}::timestamptz at time zone 'Asia/Seoul') - interval '7 days', 'YYYY-MM-DD') as week`) as { week: string }[];
   const winners = await compute(sql, week);
   if (!winners.length) return null;
-  await sql`delete from chat_awards where week_start = ${week}::date`;
-  await sql`insert into chat_awards (week_start, title, author_id, author_name, value)
-    select ${week}::date, * from unnest(${winners.map((w) => w.title)}::text[], ${winners.map((w) => w.authorId)}::text[], ${winners.map((w) => w.authorName)}::text[], ${winners.map((w) => w.value)}::int[])`;
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query('delete from chat_awards where week_start = $1::date', [week]);
+    await client.query(`insert into chat_awards (week_start, title, author_id, author_name, value)
+      select $1::date, * from unnest($2::text[], $3::text[], $4::text[], $5::int[])`,
+    [week, winners.map(w => w.title), winners.map(w => w.authorId), winners.map(w => w.authorName), winners.map(w => w.value)]);
+    await client.query('commit');
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    client.release();
+  }
   return week;
 }
 

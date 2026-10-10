@@ -1,4 +1,4 @@
-import { cleanup, createUser, db, expect, loginAs, test } from './fixtures';
+import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixtures';
 
 const STEAM_ID = '76561199900000001';
 
@@ -43,4 +43,17 @@ test('멤버 목록에서 프로필로 들어가 연결된 계정을 보고, 주
 test('없는 멤버 프로필은 404', async ({ page, context }) => {
   await loginAs(context, await createUser('people_404', 'E2E404'));
   expect((await page.goto('/people/e2e_nobody'))?.status()).toBe(404);
+});
+
+test('프로필에 직접 진입해도 해당 계정의 티어를 표시하고 전체 명단은 조회하지 않는다', async ({ page, context }) => {
+  const me = await createUser('people_rank', 'E2E티어');
+  await db.query(`insert into members (id, game_name, tag_line, owner_id) values ('e2e_profile_rank', 'E2E프로필롤', 'KR1', $1)`, [me.id]);
+  await loginAs(context, me);
+  await mockRiot(page, { gameName: 'E2E프로필롤', tagLine: 'KR1' });
+  const rosterRequests: string[] = [];
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/members') rosterRequests.push(request.url()); });
+  await page.goto(`/people/${me.id}`);
+  await expect(page.getByText('E2E프로필롤#KR1')).toBeVisible();
+  await expect(page.getByText(/55LP/)).toBeVisible();
+  expect(rosterRequests).toEqual([]);
 });

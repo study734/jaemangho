@@ -26,6 +26,36 @@ const req = (over: Partial<RiotRequest> = {}): RiotRequest => ({
 });
 
 describe('proxyRiot', () => {
+  it('동시에 캐시로 응답한 요청은 각각 hit 통계에 포함한다', async () => {
+    const { store, calls } = fakeStore({ 'kr/lol/league/v4/entries/by-puuid/abc?': { status: 200, body: [] } });
+    const f = fakeFetch(200, []);
+    await Promise.all(Array.from({ length: 8 }, () => proxyRiot(req(), { apiKey: 'K', store, fetchFn: f })));
+    expect(calls.bumps).toHaveLength(8);
+    expect(calls.bumps.every(kind => kind === 'hit')).toBe(true);
+    expect(f).not.toHaveBeenCalled();
+  });
+  it('같은 캐시 키의 동시 요청은 외부 호출과 통계 기록을 한 번만 수행한다', async () => {
+    const { store, calls } = fakeStore();
+    let resolve!: (value: Response) => void;
+    const f = vi.fn(() => new Promise<Response>(done => { resolve = done; })) as typeof fetch;
+    const requests = Array.from({ length: 8 }, () => proxyRiot(req(), { apiKey: 'K', store, fetchFn: f }));
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(1));
+    resolve(new Response(JSON.stringify([{ tier: 'GOLD' }])));
+    const results = await Promise.all(requests);
+    expect(results.every(result => result.status === 200)).toBe(true);
+    expect(calls.bumps).toEqual(['miss']);
+    expect(calls.put).toHaveLength(1);
+  });
+
+  it('공유 요청이 실패해도 다음 요청은 다시 호출할 수 있다', async () => {
+    const { store } = fakeStore();
+    const f = fakeFetch(429, {});
+    await Promise.all([proxyRiot(req(), { apiKey: 'K', store, fetchFn: f }), proxyRiot(req(), { apiKey: 'K', store, fetchFn: f })]);
+    expect(f).toHaveBeenCalledTimes(1);
+    await proxyRiot(req(), { apiKey: 'K', store, fetchFn: f });
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
   it('캐시에 있으면 Riot을 부르지 않고 HIT로 응답한다', async () => {
     const { store, calls } = fakeStore({ 'kr/lol/league/v4/entries/by-puuid/abc?': { status: 200, body: [{ tier: 'GOLD' }] } });
     const f = fakeFetch(200, []);

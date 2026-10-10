@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { openTestDb, testDbUrl } from '../testing/db';
 
 const WEEK = '2026-10-05'; // 한국 시간 월요일
@@ -83,6 +83,27 @@ describe.skipIf(!testDbUrl)('개념글·뜨거운 순간·웃음·주간 칭호 
     expect(await awards.awardsForUser('tw_chat')).toEqual([{ title: 'talker', count: 1, lastWeek: WEEK }]);
     expect(await awards.awardsForUser('tw_lurk')).toEqual([{ title: 'lurker', count: 1, lastWeek: WEEK }]);
     expect(await awards.awardsForUser('tw_nobody')).toEqual([]);
+  });
+
+  it('기존 칭호 삭제 후 새 결과 저장이 실패해도 기존 결과를 유지한다', async () => {
+    const before = await awards.listAwards();
+    const client = await pool.connect();
+    const query = client.query.bind(client);
+    const insertFailure = new Error('test award insert failure');
+    const querySpy = vi.spyOn(client, 'query').mockImplementation(((text: string, values?: unknown[]) => {
+      if (text.startsWith('insert into chat_awards')) return Promise.reject(insertFailure);
+      return query(text, values);
+    }) as typeof client.query);
+    const connect = pool.connect.bind(pool);
+    const connectSpy = vi.spyOn(pool, 'connect').mockImplementation(((...args: unknown[]) =>
+      args.length ? Reflect.apply(connect, pool, args) : Promise.resolve(client)) as typeof pool.connect);
+    try {
+      await expect(awards.recordAwards(NOW)).rejects.toBe(insertFailure);
+    } finally {
+      connectSpy.mockRestore();
+      querySpy.mockRestore();
+    }
+    expect(await awards.listAwards()).toEqual(before);
   });
 
   it('메시지가 너무 적은 주(봇이 안 돌았던 주)는 칭호를 만들지 않는다', async () => {

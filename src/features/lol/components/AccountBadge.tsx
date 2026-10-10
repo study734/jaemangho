@@ -1,11 +1,27 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { RankLabel } from './RankLabel';
 import { useLol } from '../state/LolProvider';
+import { createLolData, type Overview } from '../api/lolData';
+import { createRiotClient } from '../api/riot';
 
-// 프로필 등 다른 화면에 놓는 롤 계정 한 줄: 소환사명, 티어, 승률. 티어는 롤 화면이 이미 불러온 값을 쓴다.
+const lol = createLolData(createRiotClient());
+
+// 이미 불러온 티어를 재사용하고, 프로필 직접 진입 시 이 계정만 조회한다.
 export function LolAccountBadge({ id, gameName, tagLine }: { id: string; gameName: string; tagLine: string }) {
-  const m = useLol().members.find((x) => x.id === id);
+  const loaded = useLol().members.find((x) => x.id === id);
+  const [overview, setOverview] = useState<{ key: string; data: Overview } | null>(null);
+  const key = `${gameName}#${tagLine}`;
+  useEffect(() => {
+    if (loaded) return;
+    let cancelled = false;
+    lol.overview({ gameName, tagLine })
+      .then(data => { if (!cancelled) setOverview({ key, data }); })
+      .catch(() => {}); // 계정 이름은 Riot 장애에도 계속 표시한다.
+    return () => { cancelled = true; };
+  }, [loaded, gameName, tagLine, key]);
+  const m = loaded ?? (overview?.key === key ? overview.data : null);
   const total = m ? m.wins + m.losses : 0;
   return (
     <span style={{ display: 'flex', gap: '12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
