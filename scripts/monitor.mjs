@@ -27,6 +27,10 @@ export async function monitor({ url, stateFile, secret, webhook, fetchFn = fetch
           headers: { Authorization: `Bearer ${secret}` }, redirect: 'error', signal: AbortSignal.timeout(60_000),
         });
         if (!checked.ok) status = 'monitor_failed';
+        else {
+          const result = await checked.json();
+          if (result.skipped !== false || !Number.isInteger(result.active) || result.active < 0) status = 'monitor_failed';
+        }
       }
     }
   } catch { status = 'unavailable'; }

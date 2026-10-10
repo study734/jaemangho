@@ -10,6 +10,7 @@ const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, M
 const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60).toLocaleString()}시간${minutes % 60 ? ` ${minutes % 60}분` : ''}`;
 const randomRoll = () => Math.random();
 const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
+const GAME_PAGE_SIZE = 50;
 
 export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: string; linkResult?: string }) {
   const [query, setQuery] = useState(initialQuery);
@@ -18,6 +19,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<Mode>('common');
   const [result, setResult] = useState<{ mode: Mode; ids: string[]; data: GamesResult } | null>(null);
+  const [visibleLimit, setVisibleLimit] = useState(GAME_PAGE_SIZE);
   const [preference, setPreference] = useState<Preference>('balanced');
   const [scope, setScope] = useState<OwnershipScope>('all');
   const [recommendations, setRecommendations] = useState<{ ids: string[]; preference: Preference; scope: OwnershipScope; data: RecommendationsResult } | null>(null);
@@ -75,6 +77,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
 
   const compare = async () => {
     if (busy || !selected.length) return;
+    setVisibleLimit(GAME_PAGE_SIZE);
     setBusy('compare');
     setError(null);
     setRecommendations(null); resetExtras();
@@ -111,6 +114,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
 
   const nameOf = (id: string) => members.find((m) => m.steamId === id)?.name ?? id;
   const visibleGames = result?.data.games.filter((g) => g.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) ?? [];
+  const displayedGames = visibleGames.slice(0, visibleLimit);
   const visibleRecommendations = recommendations?.data.games.filter(g => g.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) ?? [];
 
   return (
@@ -126,7 +130,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
 
       <div className="steam-query-area">
         <label htmlFor="steam-game-query">결과에서 게임 찾기</label>
-        <div className="game-search"><div className="game-search-field"><UiIcon name="search" /><input id="steam-game-query" type="search" value={query} disabled={busy !== null} onChange={(e) => { setQuery(e.target.value); resetExtras(); }} placeholder="게임 이름" maxLength={120} /></div>{query && <button className="btn btn-ghost" disabled={busy !== null} onClick={() => { setQuery(''); resetExtras(); }}>지우기</button>}</div>
+        <div className="game-search"><div className="game-search-field"><UiIcon name="search" /><input id="steam-game-query" type="search" value={query} disabled={busy !== null} onChange={(e) => { setQuery(e.target.value); setVisibleLimit(GAME_PAGE_SIZE); resetExtras(); }} placeholder="게임 이름" maxLength={120} /></div>{query && <button className="btn btn-ghost" disabled={busy !== null} onClick={() => { setQuery(''); setVisibleLimit(GAME_PAGE_SIZE); resetExtras(); }}>지우기</button>}</div>
         {!result && !recommendations && <p className="game-search-hint">함께할 멤버를 선택하고 비교하거나 추천받으면{query.trim() ? ` “${query.trim()}”을(를)` : ' 게임을'} 결과에서 찾아요.</p>}
       </div>
 
@@ -271,10 +275,10 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
             <p style={styles.hint}>{result.data.excluded.length === result.ids.length ? '공개된 게임 목록이 없어 비교할 수 없습니다.' : result.mode === 'common' ? '모두가 가진 게임이 없습니다.' : '조건에 맞는 게임이 없습니다.'}</p>
           ) : (
             <>
-              <p style={styles.hint} role="status">{visibleGames.length.toLocaleString()}개{query.trim() && ` / 전체 ${result.data.games.length.toLocaleString()}개`} {result.mode === 'common' ? '(합산 플레이 시간 순)' : ''}</p>
+              <p style={styles.hint} role="status">{displayedGames.length.toLocaleString()}개 표시 / 검색 결과 {visibleGames.length.toLocaleString()}개{query.trim() && ` · 전체 ${result.data.games.length.toLocaleString()}개`} {result.mode === 'common' ? '(합산 플레이 시간 순)' : ''}</p>
               {visibleGames.length === 0 && <p style={styles.hint}>검색한 이름과 일치하는 게임이 없습니다. 검색어를 바꿔 보세요.</p>}
               <ul style={styles.gameList}>
-                {visibleGames.map((g) => (
+                {displayedGames.map((g) => (
                   <li key={g.appId} style={styles.game}>
                     <VisualImage src={`https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${g.appId}/header.jpg`} width={120} height={56} className="result-game-cover" />
                     <div className="result-game-info">
@@ -285,6 +289,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
                   </li>
                 ))}
               </ul>
+              {displayedGames.length < visibleGames.length && <button className="btn btn-secondary" onClick={() => setVisibleLimit((limit) => limit + GAME_PAGE_SIZE)}>게임 더 보기 ({(visibleGames.length - displayedGames.length).toLocaleString()}개 남음)</button>}
             </>
           )}
         </section>

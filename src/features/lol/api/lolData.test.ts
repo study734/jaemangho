@@ -76,6 +76,16 @@ describe('details', () => {
     expect(d.matches.map((m) => m.matchId)).toEqual(['KR_1', 'KR_2']);
     expect(d.activeGame?.championName).toBe('Ahri');
   });
+  it('매치 상세 요청을 함께 시작하고 응답 완료 순서와 관계없이 최근 순서를 유지한다', async () => {
+    let finishFirst!: (value: ReturnType<typeof matchOf>) => void;
+    const match = vi.fn((id: string) => id === 'KR_1'
+      ? new Promise<ReturnType<typeof matchOf>>(resolve => { finishFirst = resolve; })
+      : Promise.resolve(matchOf(id)));
+    const pending = createLolData(fakeRiot({ matchIds: async () => ['KR_1', 'KR_2'], match })).details(member);
+    await vi.waitFor(() => expect(match).toHaveBeenCalledTimes(2));
+    finishFirst(matchOf('KR_1'));
+    expect((await pending)?.matches.map(history => history.matchId)).toEqual(['KR_1', 'KR_2']);
+  });
   it('일부가 실패해도 나머지는 돌려준다 (부분 실패 허용)', async () => {
     const lol = createLolData(
       fakeRiot({

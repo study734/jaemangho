@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { createLolData, type Overview, type Summoner } from '../api/lolData';
 import { createRiotClient } from '../api/riot';
 import { rosterApi, toMember } from '../api/roster';
@@ -32,20 +33,25 @@ export function useLol(): LolState {
 
 const lol = createLolData(createRiotClient());
 
+export const needsLolData = (pathname: string) => pathname === '/' || pathname === '/lol' || pathname.startsWith('/lol/');
+
 export function LolProvider({ children }: { children: ReactNode }) {
+  const needsData = needsLolData(usePathname());
+  const initialRefreshStarted = useRef(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!needsData || rosterReady) return;
     rosterApi.list()
       .then((list) => {
         setMembers(list.map(toMember));
         setRosterReady(true);
       })
       .catch(() => { setIsLoading(false); setError('소환사 목록을 불러오지 못했습니다. 새로고침해 주세요.'); });
-  }, []);
+  }, [needsData, rosterReady]);
 
   // 저장 실패(중복 Riot ID, 세션 만료 등) 시 서버 기준으로 목록을 다시 맞춘다
   const persist = (p: Promise<unknown>) =>
@@ -79,10 +85,12 @@ export function LolProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (rosterReady) refresh();
+    if (needsData && rosterReady && !initialRefreshStarted.current) {
+      initialRefreshStarted.current = true;
+      void refresh();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterReady]);
+  }, [needsData, rosterReady]);
 
   const state: LolState = {
     members,

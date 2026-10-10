@@ -7,5 +7,5 @@ export async function GET(request: Request) {
   const auth = authorizeMonitor(request.headers.get('authorization'));
   if (auth === 'unconfigured') return Response.json({ error: 'Not configured' }, { status: 503 });
   if (auth !== 'ok') return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  try { return Response.json(await checkOperations('external')); } catch (error) { return serverError(error); }
+  try { return Response.json(await checkOperations('watchdog')); } catch (error) { return serverError(error); }
 }

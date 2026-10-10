@@ -34,6 +34,7 @@ test('홈 게임 검색어가 Steam 비교 결과에 이어지고 표지 실패�
 });
 
 test('등록 소환사와 디스코드 집계가 채워져도 홈의 표와 목록을 읽을 수 있다', async ({ page, context }) => {
+  test.setTimeout(120_000);
   const names = ['재망호 선장', '초록항해', '바다친구', '오늘도듀오'];
   await loginAs(context, await createUser('filled_design', names[0]));
   for (let i = 1; i < names.length; i++) await createUser(`filled_design_${i}`, names[i]);
@@ -48,6 +49,12 @@ test('등록 소환사와 디스코드 집계가 채워져도 홈의 표와 목�
     const table = page.getByRole('table', { name: '등록 소환사 랭크 요약' });
     await expect(table.getByRole('row')).toHaveCount(5);
     await expect(table.getByText('55', { exact: true }).first()).toBeVisible();
+    // DB 직접 삽입은 공유 캐시를 무효화하지 않는다. 60초 캐시 만료 뒤 요청이
+    // 갱신을 시작하므로, 고정 대기 대신 재요청해 실제 새 집계가 표시되는지 확인한다.
+    await expect.poll(async () => {
+      await page.reload();
+      return page.getByRole('link', { name: '재망호 선장님의 메시지 보러 가기' }).count();
+    }, { timeout: 90_000, intervals: [1000, 5000], message: '공유 채팅 캐시가 갱신되어 새 메시지를 표시해야 합니다.' }).toBe(1);
     await expect(page.getByRole('link', { name: '재망호 선장님의 메시지 보러 가기' })).toHaveAttribute('href', /discord\.com\/channels/);
     await expect.poll(() => page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' }).evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await mkdir('output/playwright', { recursive: true });

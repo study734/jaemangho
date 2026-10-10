@@ -24,6 +24,8 @@ export interface RiotResult {
   cache?: 'HIT' | 'MISS';
 }
 
+const inFlight = new WeakMap<RiotStore, Map<string, Promise<RiotResult>>>();
+
 // 크루원 전원이 같은 응답을 공유하도록 캐시한다 (Riot rate limit을 아끼기 위함).
 // 캐시하는 것: 성공 응답(엔드포인트별 TTL)과 404(최대 60초: 없는 소환사, 게임 중 아님).
 // 캐시하지 않는 것: 401/403/429/5xx와 네트워크 오류. 이런 오류는 기록만 한다.
@@ -32,17 +34,30 @@ export async function proxyRiot(
   deps: { apiKey: string | undefined; store?: RiotStore; fetchFn?: typeof fetch }
 ): Promise<RiotResult> {
   const store = deps.store ?? dbStore;
-  const fetchFn = deps.fetchFn ?? fetch;
-
-  const cacheKey = `${req.region}${req.path}?${req.params}`;
-  const hit = await store.get(cacheKey);
+  const key = `${req.region}${req.path}?${req.params}`;
+  const hit = await store.get(key);
   if (hit) {
     await store.bump('hit');
     return { status: hit.status, body: hit.body, cache: 'HIT' };
   }
-
   if (!deps.apiKey) return { status: 500, body: { error: 'Server is missing RIOT_API_KEY' } };
+  let pending = inFlight.get(store);
+  if (!pending) { pending = new Map(); inFlight.set(store, pending); }
+  const existing = pending.get(key);
+  if (existing) return existing;
+  const work = requestRiot(req, { ...deps, apiKey: deps.apiKey }, store);
+  pending.set(key, work);
+  try { return await work; } finally { pending.delete(key); }
+}
 
+async function requestRiot(
+  req: RiotRequest,
+  deps: { apiKey: string; fetchFn?: typeof fetch },
+  store: RiotStore,
+): Promise<RiotResult> {
+  const fetchFn = deps.fetchFn ?? fetch;
+
+  const cacheKey = `${req.region}${req.path}?${req.params}`;
   await store.bump('miss');
   let status = 500;
   let body: unknown;

@@ -11,6 +11,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
 
   const cleanup = async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    await pool.query(`delete from chat_sync_state where channel_id like 'tcm_%'`);
     await pool.query(`delete from chat_highlights where id like 'tcm_%'`); // 동기화가 개념글 보관함에도 넣는다
     await pool.query(`delete from "user" where id like 'tcm_%'`);
   };
@@ -100,6 +101,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
 
   it('한 번 429를 받아도 기다렸다가 이어서 끝까지 가져온다 (rateLimited 아님)', async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    await pool.query(`delete from chat_sync_state where channel_id like 'tcm_%'`);
     sleeps.length = 0;
     const result = await sync.syncChat(
       opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1'), msg('tcm_2', 3, 'tcm_a1')], { rateLimitOnce: true }))
@@ -111,11 +113,17 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
 
   it('기다려도 계속 429면 이미 받은 페이지는 남기고 rateLimited로 알린다', async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    await pool.query(`delete from chat_sync_state where channel_id like 'tcm_%'`);
     const result = await sync.syncChat(
       opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1')], { rateLimitAfterFirstPage: true }))
     );
     expect(result).toEqual({ channels: 1, messages: 2, rateLimited: true });
     expect(await ids()).toEqual(['tcm_4', 'tcm_5']);
+    const resumedFetch = discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 5, 'tcm_a1')]);
+    const resumed = await sync.syncChat(opts(resumedFetch));
+    expect(resumed.rateLimited).toBe(false);
+    expect(await ids()).toEqual(['tcm_3', 'tcm_4', 'tcm_5']);
+    expect(String(vi.mocked(resumedFetch).mock.calls[1][0])).toContain('before=tcm_4');
   });
 
   it('60일이 지난 기록은 지운다', async () => {
@@ -126,6 +134,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
 
   it('집계: 명예의 전당은 반응 많은 순, 수다 통계는 메시지 수 순, 로그인한 멤버는 프로필 id가 붙는다', async () => {
     await pool.query(`delete from chat_messages where id like 'tcm_%'`);
+    await pool.query(`delete from chat_sync_state where channel_id like 'tcm_%'`);
     await pool.query(`insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") values ('tcm_u1', '집계철수', 'tcm_u1@test.invalid', false, now(), now())`);
     await pool.query(
       `insert into account (id, "accountId", "providerId", "userId", "createdAt", "updatedAt") values ('tcm_acc', 'tcm_a1', 'discord', 'tcm_u1', now(), now())`
@@ -146,5 +155,37 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     expect(mine[0].authorUserId).toBeNull();
     const talker = h?.talkers.find((t) => t.name === '이름_tcm_a1');
     expect(talker).toMatchObject({ count: 2, userId: 'tcm_u1' });
+  });
+
+  it('다른 채널이 최신이어도 처음 수집하는 채널은 8일을 조회한다', async () => {
+    await pool.query(`insert into chat_sync_state (channel_id, completed_at) values ('tcm_active', now())`);
+    const fetchFn = discord([msg('tcm_new_1', 6, 'tcm_a1')]);
+    const wrapped = (async (...args: Parameters<typeof fetch>) => {
+      if (String(args[0]).includes('/guilds/')) return new Response(JSON.stringify([{ id: 'tcm_new', name: '⛵새채널', type: 0 }]));
+      return fetchFn(...args);
+    }) as typeof fetch;
+    await sync.syncChat(opts(wrapped));
+    expect((await pool.query(`select id from chat_messages where channel_id = 'tcm_new'`)).rows).toEqual([{ id: 'tcm_new_1' }]);
+  });
+
+  it('60페이지 제한 후 다음 실행은 저장한 커서부터 이어 받아 오래된 기록을 채운다', async () => {
+    await pool.query(`delete from chat_sync_state where channel_id = 'tcm_c1'`);
+    const messages = Array.from({ length: 125 }, (_, i) => msg(`tcm_bulk_${i}`, 0.1 + i / 30, 'tcm_a1'));
+    const now = new Date();
+    const first = await sync.syncChat({ ...opts(discord(messages)), now });
+    expect(first).toMatchObject({ messages: 120, truncated: true });
+    const resumedNow = new Date(now.getTime() + DAY);
+    const newMessage = { ...msg('tcm_after_pause', 0, 'tcm_a1'), timestamp: new Date(resumedNow.getTime() - 60_000).toISOString() };
+    const fetchFn = discord([newMessage, ...messages]);
+    const resumed = await sync.syncChat({ ...opts(fetchFn), now: resumedNow });
+    expect(resumed.rateLimited).toBe(false);
+    expect(resumed.truncated).toBeUndefined();
+    expect(String(vi.mocked(fetchFn).mock.calls[1][0])).toContain('before=tcm_bulk_119');
+    expect((await pool.query(`select id from chat_messages where id like 'tcm_bulk_%'`)).rows).toHaveLength(125);
+    expect((await pool.query(`select id from chat_messages where id = 'tcm_after_pause'`)).rows).toHaveLength(1);
+    const [state] = (await pool.query(`select completed_at, before_id, cutoff_at from chat_sync_state where channel_id = 'tcm_c1'`)).rows;
+    expect(new Date(state.completed_at).toISOString()).toBe(resumedNow.toISOString());
+    expect(state.before_id).toBeNull();
+    expect(state.cutoff_at).toBeNull();
   });
 });

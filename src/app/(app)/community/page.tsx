@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { unstable_cache } from 'next/cache';
 import { scoreLabel } from '@/lib/chat-format';
 import { chatNotice } from '@/server/chat/notice';
 import { HIGHLIGHT_TOP, listHighlights } from '@/server/chat/highlights';
 import { getFunniestMessages, getHotMoments } from '@/server/chat/moments';
+
+const cachedHotMoments = unstable_cache(() => getHotMoments(), ['community-hot-moments'], { revalidate: 60 });
+const cachedFunniestMessages = unstable_cache(() => getFunniestMessages(), ['community-funniest-messages'], { revalidate: 60 });
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', timeZone: 'Asia/Seoul' });
 const when = (iso: string) => new Date(iso).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Seoul' });
@@ -12,8 +16,8 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const [{ items, total, pages }, moments, funny] = await Promise.all([
     listHighlights(page),
-    getHotMoments().catch(() => []), // 이 두 목록이 실패해도 개념글은 보인다
-    getFunniestMessages().catch(() => []),
+    cachedHotMoments().catch(() => []), // 이 두 목록이 실패해도 개념글은 보인다
+    cachedFunniestMessages().catch(() => []),
   ]);
   return (
     <div style={styles.container}>

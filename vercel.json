@@ -4,6 +4,10 @@
   "buildCommand": "node scripts/migrate.mjs && next build",
   "crons": [
     {
+      "path": "/api/cron/ops-watchdog",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/chat",
       "schedule": "0 19 * * *"
     }

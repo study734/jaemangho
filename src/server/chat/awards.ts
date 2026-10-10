@@ -1,5 +1,6 @@
 import type { Sql } from '../db';
 import { db } from '../db';
+import { pool } from '../pool';
 import { type TitleKey, isTitleKey } from '../../lib/titles';
 
 // 한 주(한국 시간 월~일)의 칭호를 계산해 보관한다. 데이터가 너무 적은 주(봇이 안 돌았던 주 등)는 만들지 않는다.
@@ -45,7 +46,7 @@ async function compute(sql: Sql, weekStart: string): Promise<Winner[]> {
     // 웃음 유발자: 그 사람 말 직후 2분 안에 다른 사람들이 보낸 ㅋ의 합이 가장 큰 사람 (웃음 분석을 켰을 때만 데이터가 있다)
     sql`select m.author_id, max(m.author_name) as author_name, sum(l.s)::int as value from chat_messages m
         cross join lateral (select coalesce(sum(o.laugh), 0)::int as s from chat_messages o
-          where o.channel_id = m.channel_id and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
+          where o.channel_id = m.channel_id and o.laugh > 0 and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
         where m.created_at >= ${lo} and m.created_at < ${hi} group by m.author_id having sum(l.s) >= ${MIN.jester} order by value desc, m.author_id limit 1`,
     sql`select author_id, max(author_name) as author_name, sum(laugh)::int as value from chat_messages
         where created_at >= ${lo} and created_at < ${hi} group by author_id having sum(laugh) >= ${MIN.laugher} order by value desc, author_id limit 1`,
@@ -76,9 +77,20 @@ export async function recordAwards(now = new Date()): Promise<string | null> {
   const [{ week }] = (await sql`select to_char(date_trunc('week', ${now.toISOString()}::timestamptz at time zone 'Asia/Seoul') - interval '7 days', 'YYYY-MM-DD') as week`) as { week: string }[];
   const winners = await compute(sql, week);
   if (!winners.length) return null;
-  await sql`delete from chat_awards where week_start = ${week}::date`;
-  await sql`insert into chat_awards (week_start, title, author_id, author_name, value)
-    select ${week}::date, * from unnest(${winners.map((w) => w.title)}::text[], ${winners.map((w) => w.authorId)}::text[], ${winners.map((w) => w.authorName)}::text[], ${winners.map((w) => w.value)}::int[])`;
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query('delete from chat_awards where week_start = $1::date', [week]);
+    await client.query(`insert into chat_awards (week_start, title, author_id, author_name, value)
+      select $1::date, * from unnest($2::text[], $3::text[], $4::text[], $5::int[])`,
+    [week, winners.map(w => w.title), winners.map(w => w.authorId), winners.map(w => w.authorName), winners.map(w => w.value)]);
+    await client.query('commit');
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    client.release();
+  }
   return week;
 }
 
