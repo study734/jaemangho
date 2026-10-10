@@ -45,7 +45,7 @@ async function compute(sql: Sql, weekStart: string): Promise<Winner[]> {
     // 웃음 유발자: 그 사람 말 직후 2분 안에 다른 사람들이 보낸 ㅋ의 합이 가장 큰 사람 (웃음 분석을 켰을 때만 데이터가 있다)
     sql`select m.author_id, max(m.author_name) as author_name, sum(l.s)::int as value from chat_messages m
         cross join lateral (select coalesce(sum(o.laugh), 0)::int as s from chat_messages o
-          where o.channel_id = m.channel_id and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
+          where o.channel_id = m.channel_id and o.laugh > 0 and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
         where m.created_at >= ${lo} and m.created_at < ${hi} group by m.author_id having sum(l.s) >= ${MIN.jester} order by value desc, m.author_id limit 1`,
     sql`select author_id, max(author_name) as author_name, sum(laugh)::int as value from chat_messages
         where created_at >= ${lo} and created_at < ${hi} group by author_id having sum(laugh) >= ${MIN.laugher} order by value desc, author_id limit 1`,

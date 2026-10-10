@@ -33,10 +33,13 @@ export async function getHotMoments(limit = 5, now = new Date(), guildId = proce
 // 웃음 유발 메시지: 그 메시지 직후 2분 안에 다른 사람들이 보낸 ㅋ가 가장 많은 메시지. 웃음 분석을 켰을 때만 데이터가 있다(아니면 빈 목록).
 export async function getFunniestMessages(limit = 5, now = new Date(), guildId = process.env.DISCORD_GUILD_ID ?? ''): Promise<FunnyMessage[]> {
   const sql = await db();
+  const since = new Date(now.getTime() - 8 * 86_400_000).toISOString();
+  const [hasLaugh] = await sql`select 1 from chat_messages where laugh > 0 and created_at > ${since}::timestamptz limit 1`;
+  if (!hasLaugh) return [];
   const rows = await sql`select m.id, m.channel_id as "channelId", m.author_name as "authorName", m.created_at as at, l.s as laugh
     from chat_messages m
     cross join lateral (select coalesce(sum(o.laugh), 0)::int as s from chat_messages o
-      where o.channel_id = m.channel_id and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
+      where o.channel_id = m.channel_id and o.laugh > 0 and o.author_id <> m.author_id and o.created_at > m.created_at and o.created_at <= m.created_at + interval '2 minutes') l
     where m.created_at > ${now.toISOString()}::timestamptz - interval '8 days' and l.s >= 20
     order by l.s desc, m.created_at desc limit ${limit}`;
   return rows.map((r) => ({ url: link(guildId, r.channelId, r.id), authorName: r.authorName as string, at: new Date(r.at as string | Date).toISOString(), laugh: r.laugh as number }));
