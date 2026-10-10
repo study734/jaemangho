@@ -10,8 +10,8 @@ test('관리자는 대시보드에서 접속자를 보고 차단/해제할 수 �
   page.on('dialog', (dialog) => dialog.accept());
 
   await page.goto('/lol');
-  await page.getByRole('link', { name: '설정 · 관리자' }).click(); // 상단 주제 메뉴
-  await page.getByRole('link', { name: '관리자', exact: true }).click(); // 좌측 상세 메뉴
+  await page.locator('.channel-user').getByRole('button', { name: '설정', exact: true }).click();
+  await page.getByRole('dialog', { name: '사용자 설정' }).getByRole('link', { name: '관리자 화면' }).click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { name: '관리자 대시보드' })).toBeVisible();
 
