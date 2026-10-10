@@ -13,7 +13,7 @@ describe('독립 운영 감시', () => {
     const sent: string[] = [];
     const fetchFn = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       if (String(url).includes('webhooks')) { sent.push(String(init?.body)); return new Response(null, { status: 204 }); }
-      return new Response('{}', { status: healthy ? 200 : 503 });
+      return new Response(JSON.stringify({ skipped: false, active: 0 }), { status: healthy ? 200 : 503 });
     });
     const options = { url: 'https://site.example', stateFile, secret: 'secret', webhook: 'https://discord.com/api/webhooks/123456789012345678/token', fetchFn };
     try {
@@ -40,6 +40,16 @@ describe('독립 운영 감시', () => {
       expect((await monitor(options)).notificationFailed).toBe(false);
       await monitor(options);
       expect(deliveries).toBe(2);
+    } finally { await rm(directory, { recursive: true }); }
+  });
+});
+
+describe('내부 점검 완료 확인', () => {
+  it.each([{ skipped: true, active: 0 }, {}, { skipped: false, active: -1 }])('완료되지 않은 점검은 실패로 기록한다: %j', async (body) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'jmh-monitor-'));
+    try {
+      const fetchFn = vi.fn().mockImplementation(async () => new Response(JSON.stringify(body)));
+      expect((await monitor({ url: 'https://site.example', stateFile: path.join(directory, 'state.json'), secret: 'secret', fetchFn })).status).toBe('monitor_failed');
     } finally { await rm(directory, { recursive: true }); }
   });
 });

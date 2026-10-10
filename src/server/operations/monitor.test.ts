@@ -5,6 +5,12 @@ const input: MonitorInput = { envProblems: 0, chatEnabled: false, lastSuccess: n
 const hook = 'https://discord.com/api/webhooks/123456789012345678/test-token';
 
 describe('운영 점검 정책', () => {
+  it('외부 점검 기록 없음과 2시간 초과를 감지하고 경계에서는 알리지 않는다', () => {
+    const now = Date.parse('2026-10-10T12:00:00Z');
+    expect(findings({ ...input, externalCheck: null }, now).map((f) => f.key)).toEqual(['monitor.stale']);
+    expect(findings({ ...input, externalCheck: '2026-10-10T09:59:59Z' }, now).map((f) => f.key)).toEqual(['monitor.stale']);
+    expect(findings({ ...input, externalCheck: '2026-10-10T10:00:00Z' }, now)).toEqual([]);
+  });
   it('채팅 미설정은 동기화 장애로 취급하지 않는다', () => expect(findings(input)).toEqual([]));
   it('전체 성공 시각과 부분 완료 상태를 별도로 감지한다', () => {
     const now = Date.parse('2026-10-07T00:00:00Z');
