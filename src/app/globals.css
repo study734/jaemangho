@@ -1067,9 +1067,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Discord 채널 구조. 기존 재망호 토큰과 모바일 탐색을 유지한다. */
-.app-frame { flex-direction: row; }
+.app-frame { --server-rail-width: 72px; flex-direction: row; }
 .app-column { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.server-rail { width: 72px; flex-shrink: 0; padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--canvas-dark); }
+.server-rail { width: var(--server-rail-width); flex-shrink: 0; padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--canvas-dark); }
 .server-shortcut { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface-soft); color: var(--ink); transition: border-radius .15s, background .15s; }
 .server-shortcut:hover, .server-shortcut[aria-current] { border-radius: 16px; background: var(--primary-pressed); }
 .server-shortcut::before { content: ''; position: absolute; left: -12px; width: 4px; height: 0; background: var(--ink); border-radius: 0 4px 4px 0; transition: height .15s; }
@@ -1094,13 +1094,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .channel-details .channel-link { min-height: 36px; }
 .channel-hash { width: 20px; text-align: center; color: var(--steel); font-size: 22px; line-height: 1; flex-shrink: 0; }
 .channel-sidebar .sidebar-summary { margin: 12px 12px 0; }
-.channel-user { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 8px; background: var(--canvas-dark); border-top: 1px solid var(--hairline); }
+.channel-user { position: relative; z-index: 1; flex-shrink: 0; display: flex; align-items: center; gap: 4px; margin: 8px 8px 8px calc(8px - var(--server-rail-width)); padding: 8px; background: var(--surface-soft); border: 1px solid var(--hairline); border-radius: 12px; }
 .channel-user-avatar { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-weight: 700; font-size: 14px; margin-right: 4px; }
 .channel-user-name { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .channel-user-name b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .channel-user-name small { font-size: 12px; color: var(--slate); }
 .channel-user-btn, .channel-header-link { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--slate); cursor: pointer; }
-.channel-user-btn:hover, .channel-user-btn[aria-current], .channel-header-link:hover { background: var(--surface-soft); color: var(--ink); }
+.channel-user-btn:hover, .channel-user-btn[aria-current] { background: var(--surface); color: var(--ink); }
+.channel-header-link:hover { background: var(--surface-soft); color: var(--ink); }
 .channel-header { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 24px; border-bottom: 1px solid var(--hairline); background: var(--canvas-dark); }
 .channel-title { font-size: 16px; font-weight: 600; white-space: nowrap; }
 .channel-title::before { content: '#'; margin-right: 12px; color: var(--steel); font-size: 24px; font-weight: 400; vertical-align: middle; }
