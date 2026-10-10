@@ -4,6 +4,45 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리지 않는다', async ({ page, context }) => {
+  const name = 'LongUnbrokenMemberName'.repeat(5);
+  const user = await createUser('home_long_name', name);
+  await loginAs(context, user);
+  await db.query(`update "user" set image = '/images/games/413150.jpg' where id = $1`, [user.id]);
+  await page.goto('/?discovery=play%3Asteam');
+  await mkdir('output/playwright', { recursive: true });
+  for (const width of [1504, 1024, 390, 320]) {
+    await page.setViewportSize({ width, height: 1045 });
+    expect(await page.locator('.home-steam-top').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
+    expect(await page.locator('.home-card-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
+    expect(await page.locator('.community-graphic-heading').evaluate(el => getComputedStyle(el).backgroundImage)).toBe('none');
+    for (const selector of ['.home-card-heading', '.community-graphic-heading']) {
+      expect(await page.locator(selector).evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
+    }
+    for (const selector of ['.home-play', '.discovery-deck', '.game-cover-grid']) {
+      expect(await page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    await expect(page.locator('.home-play').getByText(`${name}님, 멤버만 고르면 시작할 수 있어요.`)).toBeVisible();
+    await page.locator('.discovery-deck').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `output/playwright/home-long-name-${width}.png` });
+    const avatar = page.locator('.member-avatar img').first();
+    await avatar.scrollIntoViewIfNeeded();
+    await expect.poll(() => avatar.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    const box = await avatar.boundingBox();
+    expect(box!.width).toBe(box!.height);
+    await page.screenshot({ path: `output/playwright/home-long-member-${width}.png` });
+  }
+  await page.route('**/images/games/413150.jpg', route => route.abort());
+  await page.reload();
+  const fallback = page.locator('.member-avatar .visual-fallback').first();
+  await expect.poll(async () => {
+    await page.locator('.member-avatar').first().evaluate(el => el.scrollIntoView({ block: 'center' }));
+    return fallback.isVisible();
+  }).toBe(true);
+  await expect(fallback).toHaveText('L');
+  await page.screenshot({ path: 'output/playwright/home-member-image-failure.png' });
+});
+
 test('홈 게임 검색어가 Steam 비교 결과에 이어지고 표지 실패에도 검색을 쓸 수 있다', async ({ page, context }) => {
   await loginAs(context, await createUser('visual_search', '재망호 검색'));
   await page.route('**/api/steam/members**', (route) => route.fulfill({ json: [{ steamId: '76561190000000001', name: '철수', avatar: null }] }));
@@ -104,15 +143,16 @@ test('모바일에서 메뉴와 주요 행동을 쓸 수 있고 본문이 넘치
     expect(await covers.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     const logout = await page.getByRole('button', { name: '로그아웃' }).boundingBox();
     expect(logout!.height).toBeGreaterThanOrEqual(44);
-    const picture = await page.locator('.jaesuni-visual').boundingBox();
-    const copy = await page.locator('.jaesuni-copy').boundingBox();
-    expect(copy!.y).toBeGreaterThanOrEqual(picture!.y + picture!.height);
+    const discovery = await page.locator('.discovery-deck').boundingBox();
+    const play = await page.locator('.home-play').boundingBox();
+    expect(play!.y).toBeGreaterThanOrEqual(discovery!.y + discovery!.height);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await mkdir('output/playwright', { recursive: true });
   await page.screenshot({ path: 'output/playwright/home-option1-mobile.png', fullPage: true });
-  const nav = page.getByRole('navigation', { name: '주제' });
-  await nav.getByRole('link', { name: '설정', exact: true }).click();
+  const nav = page.getByRole('navigation', { name: '주요 메뉴' });
+  await expect(nav.getByRole('link')).toHaveCount(4);
+  await page.getByRole('banner').getByRole('link', { name: '설정', exact: true }).click();
   await expect(page).toHaveURL(/\/lol\/settings$/);
 });
 
@@ -122,10 +162,12 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await page.route(/\/_next\/image\?.*jaesuni-home/, (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
-  await expect(page.getByText('왔네! 마침 보여줄 거 있었는데.')).toBeVisible();
-  const hero = await page.locator('.jaesuni-hero').boundingBox();
-  const title = await page.getByRole('heading', { level: 1 }).boundingBox();
-  expect(title!.y - hero!.y).toBeLessThan(160);
+  await expect(page.locator('.discovery-dialogue')).toContainText('재망호 발견 · 재순이');
+  await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
+  const stage = await page.locator('.discovery-stage').boundingBox();
+  const title = await page.locator('.discovery-dialogue').boundingBox();
+  expect(title!.y).toBeGreaterThan(stage!.y);
+  expect(title!.y + title!.height).toBeLessThanOrEqual(stage!.y + stage!.height);
   await page.getByRole('link', { name: '같이 할 게임 찾기', exact: true }).click();
   await expect(page).toHaveURL(/\/steam$/);
 });

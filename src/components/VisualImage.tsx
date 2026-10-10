@@ -7,7 +7,10 @@ export function VisualImage({ src, alt = '', fallback = '', width = 32, height =
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   return (
     <span className={`visual-image ${className}`} style={{ width, height }} aria-hidden={alt ? undefined : true}>
-      {src && src !== failedSrc ? <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" onError={() => setFailedSrc(src)} /> : <span className="visual-fallback" aria-label={alt || undefined}>{fallback}</span>}
+      {src && src !== failedSrc ? <img ref={node => {
+        // 서버 HTML에서 이미 실패한 이미지도 클라이언트 연결 시 복구한다.
+        if (node?.complete && node.naturalWidth === 0) setFailedSrc(src);
+      }} src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" onError={() => setFailedSrc(src)} /> : <span className="visual-fallback" aria-label={alt || undefined}>{fallback}</span>}
     </span>
   );
 }

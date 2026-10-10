@@ -2,6 +2,8 @@
 // 새 화면이 생기면 여기에 한 줄 더한다.
 export const TRACKED = {
   '/': '홈',
+  '/play': '같이 놀기',
+  '/memories': '우리 기록',
   '/lol': '롤 대시보드',
   '/lol/squad': '소환사 관리',
   '/lol/synergy': '듀오 시너지',

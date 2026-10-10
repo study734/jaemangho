@@ -6,7 +6,7 @@ export interface NavItem {
   icon: ReactNode;
 }
 
-export type SectionId = 'home' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
+export type SectionId = 'home' | 'play' | 'memories' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
 
 // 상단 메뉴바의 큰 주제와, 각 주제의 좌측 상세 메뉴
 export interface Section {
@@ -150,6 +150,8 @@ const ADMIN: NavItem = {
 export function sectionsFor(isAdmin: boolean): Section[] {
   return [
     { id: 'home', label: '홈', items: HOME },
+    { id: 'play', label: '같이 놀기', items: [{ ...STEAM[0], href: '/play', label: '같이 놀기' }, ...STEAM, ...LOL] },
+    { id: 'memories', label: '우리 기록', items: [{ ...COMMUNITY[0], href: '/memories', label: '우리 기록' }, ...COMMUNITY] },
     { id: 'lol', label: '롤', items: LOL },
     { id: 'steam', label: 'Steam', items: STEAM },
     { id: 'community', label: '커뮤', items: COMMUNITY },
@@ -162,6 +164,8 @@ export function sectionsFor(isAdmin: boolean): Section[] {
 // 주소로 지금 주제를 정한다. 설정(/lol/settings)은 주소가 /lol 아래지만 "설정" 주제에 속한다.
 export function sectionOf(pathname: string): SectionId {
   if (pathname === '/') return 'home';
+  if (pathname === '/play') return 'play';
+  if (pathname === '/memories') return 'memories';
   if (pathname.startsWith('/admin') || pathname.startsWith('/lol/settings')) return 'settings';
   if (pathname.startsWith('/steam')) return 'steam';
   if (pathname.startsWith('/community')) return 'community';
@@ -170,3 +174,17 @@ export function sectionOf(pathname: string): SectionId {
 }
 
 export const isActive = (href: string, pathname: string) => (href === '/lol' || href === '/' || href === '/community' ? pathname === href : pathname.startsWith(href));
+
+export const PRIMARY_DESTINATIONS = [
+  { id: 'home', href: '/', label: '홈', icon: 'house-door' },
+  { id: 'play', href: '/play', label: '같이 놀기', icon: 'controller' },
+  { id: 'memories', href: '/memories', label: '우리 기록', icon: 'star' },
+  { id: 'people', href: '/people', label: '멤버', icon: 'people' },
+] as const;
+
+export function primarySectionOf(pathname: string) {
+  const section = sectionOf(pathname);
+  if (section === 'lol' || section === 'steam') return 'play';
+  if (section === 'community') return 'memories';
+  return section;
+}
