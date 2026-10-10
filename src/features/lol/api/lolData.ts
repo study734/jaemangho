@@ -62,18 +62,19 @@ export function createLolData(riot: RiotClient): LolData {
         .then((game) => (game ? toActiveGame(game, puuid) : null))
         .catch((err) => (warn('Active game fetch error')(err), null));
 
-      const matches: MatchHistory[] = [];
+      let matches: MatchHistory[] = [];
       try {
-        // 순서를 유지하며 하나씩 가져온다 (요청 큐가 어차피 직렬화한다)
-        for (const matchId of (await riot.matchIds(puuid)) ?? []) {
+        const matchIds = (await riot.matchIds(puuid)) ?? [];
+        const histories = await Promise.all(matchIds.map(async matchId => {
           try {
             const match = await riot.match(matchId);
-            const history = match && toMatchHistory(matchId, match, puuid);
-            if (history) matches.push(history);
+            return match && toMatchHistory(matchId, match, puuid);
           } catch (err) {
             warn(`Failed to fetch match detail ${matchId}`)(err);
+            return null;
           }
-        }
+        }));
+        matches = histories.filter((history): history is MatchHistory => history !== null);
       } catch (err) {
         warn('Match list fetch error')(err);
       }

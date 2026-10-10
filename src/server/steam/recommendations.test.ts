@@ -46,12 +46,23 @@ describe('Steam 추천 서비스', () => {
     const result = await recommendGames(ids, 'balanced');
     expect(result).toMatchObject({ totalCommon: 4, checked: 4, unverified: 1, games: [{ appId: 3, support: 'coop' }] });
   });
-  it('외부 호출 범위와 결과 개수를 제한하고 처리 완료 순서에 흔들리지 않는다', async () => {
+  it('추천 12개가 확정되면 다음 후보의 스토어 조회를 생략하고 순서를 유지한다', async () => {
     vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: Array.from({ length: 50 }, (_, i) => ({ appId: i + 1, name: `g${i}`, minutes: 60 })) });
+    vi.mocked(getPlaySupport).mockImplementation(async appId => {
+      await new Promise(resolve => setTimeout(resolve, appId % 2 ? 1 : 0));
+      return 'coop';
+    });
     const result = await recommendGames(ids, 'balanced');
-    expect(result).toMatchObject({ totalCommon: 50, checked: CANDIDATE_LIMIT });
-    expect(getPlaySupport).toHaveBeenCalledTimes(CANDIDATE_LIMIT);
+    expect(result).toMatchObject({ totalCommon: 50, checked: 16 });
+    expect(getPlaySupport).toHaveBeenCalledTimes(16);
     if ('games' in result) expect(result.games.map(g => g.appId)).toEqual(Array.from({ length: 12 }, (_, i) => i + 1));
+  });
+  it('지원 가능한 게임이 부족하면 최대 40개까지 확인한다', async () => {
+    vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: Array.from({ length: 50 }, (_, i) => ({ appId: i + 1, name: `g${i}`, minutes: 60 })) });
+    vi.mocked(getPlaySupport).mockResolvedValue('single');
+    const result = await recommendGames(ids, 'balanced');
+    expect(result).toMatchObject({ totalCommon: 50, checked: CANDIDATE_LIMIT, games: [] });
+    expect(getPlaySupport).toHaveBeenCalledTimes(CANDIDATE_LIMIT);
   });
   it('일부 보유 게임에 미보유 멤버를 연결하고 공개 후보 목록은 호출하지 않는다', async () => {
     vi.mocked(getLibrary).mockResolvedValueOnce({ ok: true, games: [{ appId: 1, name: 'one', minutes: 480 }] })

@@ -26,6 +26,7 @@ export interface RecommendationsResult {
 // 호출 수/지연을 제한한다. 모든 공통 게임을 추천했다고 표현하지 않도록 검사 범위를 함께 반환한다.
 export const CANDIDATE_LIMIT = 40;
 const RESULT_LIMIT = 12;
+const SUPPORT_BATCH_SIZE = 8;
 export async function recommendGames(ids: string[], preference: Preference, scope: OwnershipScope = 'all'): Promise<RecommendationsResult | { unknownIds: string[] }> {
   const unique = [...new Set(ids)];
   const known = new Set(await registeredIds(unique));
@@ -46,19 +47,19 @@ export async function recommendGames(ids: string[], preference: Preference, scop
   const totalCommon = rankCandidates(visible, 'balanced').length;
   const shortlist = candidates.slice(0, CANDIDATE_LIMIT);
   const inspected: Recommendation[] = [];
-  let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(8, shortlist.length) }, async () => {
-    while (cursor < shortlist.length) {
-      const candidate = shortlist[cursor++];
+  let supported = 0;
+  for (let start = 0; start < shortlist.length && supported < RESULT_LIMIT; start += SUPPORT_BATCH_SIZE) {
+    const batch = await Promise.all(shortlist.slice(start, start + SUPPORT_BATCH_SIZE).map(async candidate => {
       const { ownerIndexes, ...entry } = candidate;
-      inspected.push({ ...entry, score: scope === 'unowned' ? null : entry.score,
-        missingIds: unique.filter((_, index) => !ownerIndexes.includes(index)), support: await getPlaySupport(candidate.appId) });
-    }
-  }));
+      return { ...entry, score: scope === 'unowned' ? null : entry.score,
+        missingIds: unique.filter((_, index) => !ownerIndexes.includes(index)), support: await getPlaySupport(candidate.appId) };
+    }));
+    inspected.push(...batch);
+    supported += batch.filter(game => game.support === 'coop' || game.support === 'multiplayer').length;
+  }
   // 미확인 후보는 검증된 추천에 섞지 않는다. 스토어 실패는 라이브러리 오류와 구분한다.
-  const order = new Map(shortlist.map((candidate, index) => [candidate.appId, index]));
   const games = inspected.filter(game => game.support === 'coop' || game.support === 'multiplayer')
-    .sort((a, b) => order.get(a.appId)! - order.get(b.appId)!).slice(0, RESULT_LIMIT);
-  return { games, excluded: [], totalCommon, totalCandidates: candidates.length, checked: shortlist.length, recentUnavailable,
+    .slice(0, RESULT_LIMIT);
+  return { games, excluded: [], totalCommon, totalCandidates: candidates.length, checked: inspected.length, recentUnavailable,
     unverified: inspected.filter(game => game.support === 'unknown').length };
 }
