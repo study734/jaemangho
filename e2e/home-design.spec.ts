@@ -29,10 +29,10 @@ test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼�
   await toggle.click();
   await expect(members).toBeVisible();
   await expect(page.locator('.channel-user')).toBeVisible();
-  const rail = page.getByRole('navigation', { name: '빠른 채널 이동' });
-  await rail.getByRole('link', { name: 'Steam 게임 채널' }).click();
+  const rail = page.getByRole('navigation', { name: '서버 목록' });
+  await page.locator('.channel-sidebar').getByRole('link', { name: 'Steam 공통 게임' }).click();
   await expect(page).toHaveURL(/\/steam$/);
-  await expect(rail.getByRole('link', { name: 'Steam 게임 채널' })).toHaveAttribute('aria-current', 'page');
+  await expect(rail.getByRole('link', { name: '재망호 서버' })).toHaveAttribute('aria-current', 'true');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(rail).toBeHidden();
   await expect(page.getByRole('navigation', { name: '주요 메뉴' })).toBeVisible();

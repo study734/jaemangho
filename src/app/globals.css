@@ -1075,14 +1075,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .server-shortcut::before { content: ''; position: absolute; left: -12px; width: 4px; height: 0; background: var(--ink); border-radius: 0 4px 4px 0; transition: height .15s; }
 .server-shortcut:hover::before { height: 20px; }
 .server-shortcut[aria-current]::before { height: 36px; }
-.server-divider { width: 32px; height: 2px; background: var(--hairline); }
 .channel-sidebar { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
 .channel-brand { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--hairline); color: var(--ink); font-size: 16px; font-weight: 600; text-decoration: none; }
 .channel-brand-caption { margin-left: auto; color: var(--steel); font-size: 12px; font-weight: 400; }
 .channel-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
 .channel-sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; }
-.channel-details { margin-top: 8px; }
-.channel-label { padding: 8px 8px 4px; color: var(--steel); font-size: 12px; font-weight: 600; }
+.channel-category { margin: 8px 0; }
+.channel-category-label { min-height: 32px; display: flex; align-items: center; gap: 6px; padding: 4px 12px; color: var(--steel); font-size: 12px; font-weight: 600; cursor: pointer; list-style: none; }
+.channel-category-label::-webkit-details-marker { display: none; }
+.channel-category-label::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+.channel-category[open] > .channel-category-label::before { transform: rotate(45deg); }
+.channel-category-label:hover { color: var(--ink); }
+.channel-sidebar .channel-details { padding: 0 8px; }
 .channel-link { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 4px 8px; border-radius: 8px; color: var(--slate); font-size: 15px; font-weight: 500; text-decoration: none; }
 .channel-link:hover { background: color-mix(in srgb, var(--slate) 12%, transparent); color: var(--ink); }
 .channel-link[aria-current] { background: color-mix(in srgb, var(--slate) 24%, transparent); color: var(--ink); }

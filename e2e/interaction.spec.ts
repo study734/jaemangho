@@ -3,7 +3,7 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
-test('주요 메뉴는 PC 상단과 모바일 하단에, 상세 메뉴는 기존 위치에 표시된다', async ({ page, context }) => {
+test('PC는 서버의 채널 목록을, 모바일은 주요 탭과 상세 메뉴를 표시한다', async ({ page, context }) => {
   await loginAs(context, await createUser('top_navigation', 'E2E상단메뉴'));
   await mockRiot(page);
   await page.goto('/lol');
@@ -23,8 +23,11 @@ test('주요 메뉴는 PC 상단과 모바일 하단에, 상세 메뉴는 기존
       expect(header!.x + header!.width).toBe(width);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    const primary = width <= 768 ? page.getByRole('navigation', { name: '주요 메뉴' }) : topics;
-    await expect(primary.getByRole('link', { name: '같이 놀기', exact: true })).toHaveAttribute('aria-current', 'page');
+    if (width <= 768) {
+      await expect(page.getByRole('navigation', { name: '주요 메뉴' }).getByRole('link', { name: '같이 놀기', exact: true })).toHaveAttribute('aria-current', 'page');
+    } else {
+      await expect(details.getByRole('link', { name: '대시보드', exact: true })).toHaveAttribute('aria-current', 'page');
+    }
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   const main = await page.getByRole('main').boundingBox();
@@ -34,7 +37,7 @@ test('주요 메뉴는 PC 상단과 모바일 하단에, 상세 메뉴는 기존
   await expect(page).toHaveURL(/\/memories$/);
   await page.getByRole('main').getByRole('link', { name: /개념글 보관함/ }).click();
   await expect(page.getByRole('heading', { name: '개념글', exact: true })).toBeVisible();
-  await expect(topics.getByRole('link', { name: '우리 기록', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.channel-sidebar').getByRole('link', { name: '개념글', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 test('티어 랭킹은 데스크톱에서 LP까지 보이고 긴 이름도 줄바꿈한다', async ({ page, context }) => {
