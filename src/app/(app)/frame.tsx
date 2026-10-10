@@ -101,7 +101,7 @@ const styles: { [key: string]: CSSProperties } = {
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'var(--canvas-dark)',
+    backgroundColor: 'var(--surface-soft)',
     position: 'relative',
     overflow: 'hidden',
   },

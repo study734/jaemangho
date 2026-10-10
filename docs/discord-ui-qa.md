@@ -7,6 +7,7 @@
 - PC: 재망호 서버 레일 72px, 채널 목록 232px, 가운데 기록 피드, 오른쪽 멤버 활동 열 264px. 가운데 피드의 발견 다음에 게임 찾기·검색을 둔다. 피드와 오른쪽 열은 각각 스크롤하며 사용자 패널은 왼쪽 하단에 남는다. 피드에 더 많은 공간을 배분해 발견과 랭크 표의 가독성을 우선했다.
 - 1024px 이하: 발견 → 게임 찾기·Steam 검색 → 기록·현황 → 멤버 활동의 한 열. 모바일에서는 기존 상단 바와 하단 네 탭을 유지한다.
 - 재망호 색상 토큰, 주요 행동 pill, 입력 8px, 카드 12px을 유지한다. 새 채팅·온라인 상태·기능 없는 도구 버튼은 추가하지 않는다.
+- 후속으로 제공된 어두운 테마 화면의 면 구분을 적용한다. 서버 레일·왼쪽 채널 목록·상단 헤더는 `--canvas-dark`, 본문 피드와 오른쪽 멤버 패널은 `--surface-soft`로 통일한다. 임베드는 `--surface`이며 메시지 입력창은 추가하지 않는다.
 
 사용자 제공 두 Discord 화면을 기준으로 오른쪽을 멤버 전용 패널로 보정했다. 왼쪽의 별도 멤버 메뉴·아이콘은 제거하고, 오른쪽에는 실제 등록·사이트 접속 활동 카드 최대 5개와 최근 접속 멤버를 둔다. Discord의 온라인 상태·역할·실시간 게임을 추측하지 않는다. 헤더 버튼은 PC에서 패널을 접고 펼친다. 검은색 테마 자체는 적용하지 않고 기존 토큰을 유지했다.
 
@@ -18,6 +19,7 @@
 
 ## 실제 화면과 흐름
 
+- `output/playwright/discord-dark-surfaces-desktop.png`, `discord-dark-surfaces-tablet.png`, `discord-dark-surfaces-mobile.png`: 후속 배경 면 통일을 1504px·1024px·390px에서 확인했다. 브라우저 계산 색상은 왼쪽·헤더가 `rgb(23, 24, 36)`, 본문·오른쪽이 `rgb(41, 44, 66)`으로 각각 동일하다. 모바일 가로 넘침과 채팅 입력창이 없음을 확인했다.
 - `output/playwright/jaesuni-steam-1504.png`, `jaesuni-lol-1024.png`, `jaesuni-community-390.png`: 실제 기능 채널의 재순이 메시지·임베드와 반응형 배치.
 - `output/playwright/server-channels-desktop.png`, `server-channels-tablet.png`, `server-channels-mobile.png`: 단일 재망호 서버의 Steam 채널을 1504px·1024px·390px에서 확인했다.
 - `output/playwright/member-panel-desktop.png`, `member-panel-tablet.png`, `member-panel-mobile.png`: 후속 수정의 1504px·1024px·390px 빈 홈.
