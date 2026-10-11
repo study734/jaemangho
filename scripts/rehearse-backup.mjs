@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import pg from 'pg';
 import { createBackup, verifyRestore } from './backup.mjs';
+import { encryptBackup, decryptBackup } from './backup-crypto.mjs';
+import { backupCycle } from './backup-cycle.mjs';
 import { migrate } from './migrate.mjs';
 
 // CI가 생성한 로컬 서비스 DB만 허용한다. 운영 주소나 운영 백업을 받지 않는다.
@@ -48,10 +50,20 @@ try {
   const expected = await snapshot(source);
   const file = path.join(directory, 'fake.dump');
   await createBackup({ url: source, file });
-  const report = await verifyRestore({ sourceUrl: source, targetUrl: target, file, confirmIsolated: true });
+  const key = randomBytes(32).toString('base64');
+  const encrypted = path.join(directory, 'fake.dump.aes');
+  const decrypted = path.join(directory, 'decrypted.dump');
+  await encryptBackup({ file, output: encrypted, key });
+  await decryptBackup({ file: encrypted, output: decrypted, key });
+  const report = await verifyRestore({ sourceUrl: source, targetUrl: target, file: decrypted, confirmIsolated: true });
+  const outputDirectory = path.join(directory, 'cycle');
+  const cycle = await backupCycle({ sourceUrl: source, testUrl: base.href, key, outputDirectory });
+  assert.equal(cycle.migrations, report.migrations);
+  const stored = await backupCycle({ sourceUrl: source, testUrl: base.href, key, outputDirectory: path.join(directory, 'stored-check'), restoreFile: path.join(outputDirectory, 'backup.dump.aes') });
+  assert.equal(stored.migrations, report.migrations);
   assert.deepEqual(await snapshot(target), expected, 'Restored data and migration checksums must match');
   assert.equal(report.users, 1); assert.equal(report.members, 1); assert.equal(report.view_rows, 1);
-  const summary = 'PASS: pg_dump → pg_restore; 사용자·세션·소환사·열람 데이터와 마이그레이션 체크섬 일치';
+  const summary = 'PASS: pg_dump → AES-256-GCM → pg_restore + 보관 파일 재검증; 사용자·세션·소환사·열람 데이터와 마이그레이션 체크섬 일치';
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Recovery rehearsal\n\n${summary}\n`);
 } finally {

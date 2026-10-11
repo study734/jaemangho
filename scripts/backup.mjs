@@ -40,7 +40,7 @@ const checksum = async (file) => {
 export async function createBackup({ url, file }) {
   if (!url) throw new Error('DB 주소가 설정되지 않았습니다');
   requireDirect(url);
-  const env = connectionEnv(url);
+  const env = { ...connectionEnv(url), PGOPTIONS: '-c default_transaction_read_only=on' };
   file = path.resolve(file);
   await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
   const backup = await open(file, 'wx', 0o600); // 기존 파일과 심볼릭 링크는 덮어쓰지 않는다.

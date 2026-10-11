@@ -1,0 +1,88 @@
+name: Stored backup restore verification
+
+on:
+  schedule:
+    - cron: '47 18 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-restore-check
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && vars.OPS_BACKUP_ENABLED == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: node:24-trixie
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@postgres:5432/test?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: PostgreSQL 17 복구 도구 설치
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends postgresql-client-17
+      - run: npm ci
+      - name: 알림 상태 복원
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ops-automation
+          key: production-restore-check-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: production-restore-check-state-
+      - name: 보관한 운영 백업 선택
+        id: selection
+        run: node scripts/select-backup.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: 검증한 main 백업 내려받기
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.selection.outputs.run_id }}
+          artifact-ids: ${{ steps.selection.outputs.artifact_id }}
+          merge-multiple: true
+          path: output/stored
+      - name: 보관 파일 복호화·격리 복원·최신 마이그레이션 검증
+        run: node scripts/backup-cycle.mjs verify-stored output/stored
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+      - name: 보관 파일 복원 검증 결과 보관
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: restore-verification-${{ github.run_id }}
+          path: output/backup/verification.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: 개입 필요 또는 정상화 알림
+        if: always() && !cancelled()
+        run: node scripts/workflow-notify.mjs
+        env:
+          OPS_JOB: restore
+          OPS_RESULT: ${{ job.status }}
+          OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+      - name: 알림 상태 저장
+        if: always() && !cancelled()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ops-automation
+          key: production-restore-check-state-${{ github.run_id }}-${{ github.run_attempt }}

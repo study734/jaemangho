@@ -4,6 +4,7 @@ import { pool } from '../pool';
 import { envProblems } from '../env';
 import { chatConfigured } from './jobs';
 import { chatDiagnosis, recoveryTitle } from '../../lib/operations-diagnostics';
+import { operatorNotice } from './escalation';
 import { chatRecoveryPlan } from '../../lib/chat-recovery';
 import type { JobEntry } from '../../lib/operations';
 
@@ -116,11 +117,13 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
     await sql`update ops_alerts set active = false, resolved_at = now() where active and notification_error is null
       and not (key = any(${current.map((f) => f.key)}::text[]))`;
     // 전송 실패는 15분 뒤 재시도. 성공한 동일 상태는 보내지 않고, 장애→복구 전환만 보낸다.
-    const pending = await sql`select key, title, active from ops_alerts
+    const pending = await sql`select key, title, active, first_seen as "firstSeen" from ops_alerts
       where (notified_state is distinct from active) and (active or notified_state = true)
         and (notified_at is null or notified_at < now() - interval '15 minutes')`;
     for (const p of pending) {
-      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.active ? p.title : recoveryTitle(p.key as string, p.title as string)}`);
+      const notice = operatorNotice(p.key as string, new Date(p.firstSeen as string).toISOString(), latest[0] as unknown as JobEntry | undefined);
+      if (p.active && !notice.notify) continue;
+      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.active ? `${p.title}\n${notice.detail}` : recoveryTitle(p.key as string, p.title as string)}`);
       if (delivery === 'disabled') continue;
       await sql`update ops_alerts set notified_at = now(), notified_state = case when ${delivery === 'sent'} then ${p.active}::boolean else notified_state end,
         notification_error = ${delivery === 'sent' ? null : delivery} where key = ${p.key}`;

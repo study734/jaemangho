@@ -40,3 +40,11 @@ next-env.d.ts
 *.backup
 /output/playwright/
 /.playwright-cli/
+
+# 자동 운영 실행기의 로컬 상태·암호화 백업
+/.ops-release/
+/.ops-automation/
+/output/backup/
+/output/stored/
+*.dump.aes
+.wrangler/
