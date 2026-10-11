@@ -29,7 +29,11 @@ describe('자동 운영 증거 조회', () => {
     clock += 59 * 60_000;
     await read();
     expect(fetchFn).toHaveBeenCalledTimes(4);
-    for (const call of fetchFn.mock.calls) expect(String(call[0])).toMatch(/^https:\/\/api.github.com\/repos\/study734\/jaemangho\//);
+    for (const call of fetchFn.mock.calls) {
+      const url = new URL(String(call[0]));
+      expect(url.origin).toBe('https://api.github.com');
+      expect(url.pathname.startsWith('/repos/study734/jaemangho/')).toBe(true);
+    }
     clock += 2 * 60_000;
     await read();
     expect(fetchFn).toHaveBeenCalledTimes(8);
