@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { BASE_URL, E2E_DATABASE_URL, E2E_ENV, PORT } from './e2e/env';
 
-// 운영과 같은 방식(next build + next start)으로 서버를 띄우고 실제 브라우저(Chromium)로 시험한다.
+// 운영 빌드를 실제 브라우저(Chromium)로 시험한다. E2E 서버는 파일 캐시만 사용해 테스트 사이를 격리한다.
 // 디스코드 로그인은 외부 서비스라 쓰지 않고, DB에 사용자·세션을 심은 뒤 서명된 세션 쿠키를 브라우저에 넣는다.
 export default defineConfig({
   testDir: 'e2e',
@@ -22,6 +22,6 @@ export default defineConfig({
     // 이미 떠 있는 서버(예: DEV_LOGIN=1 개발 서버)를 재사용하면 로그인 보호 시험이 거짓으로 실패/통과한다. 포트가 차 있으면 시작 단계에서 멈춘다.
     reuseExistingServer: false,
     timeout: 240_000,
-    env: { ...(process.env as Record<string, string>), ...E2E_ENV, DATABASE_URL: E2E_DATABASE_URL },
+    env: { ...(process.env as Record<string, string>), ...E2E_ENV, DATABASE_URL: E2E_DATABASE_URL, E2E_DATABASE_URL },
   },
 });

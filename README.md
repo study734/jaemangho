@@ -166,9 +166,11 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 npx playwright install chromium          # 처음 한 번
 TEST_DATABASE_URL=postgres://... npm run test:e2e
 ```
-- 운영과 같은 방식(마이그레이션 -> `next build` -> `next start`)으로 서버를 띄웁니다. `3200` 포트가 이미 쓰이고 있으면(개발 서버 등) 재사용하지 않고 멈춥니다. 먼저 그 서버를 끄세요.
+- 운영과 같은 방식(마이그레이션 -> `next build` -> `next start`)으로 실행합니다. Playwright가 기존 `E2E_DATABASE_URL`을 테스트 빌드·서버에 전달하면 메모리 캐시만 꺼 공통 fixture가 테스트 사이 파일 캐시를 초기화합니다. 인증·라우팅·TTL과 이 변수가 없는 운영 빌드의 기본 설정은 그대로입니다. `3200` 포트가 이미 쓰이고 있으면 재사용하지 않고 멈춥니다.
 - 디스코드 로그인은 외부 서비스라 쓰지 않습니다. DB에 사용자·세션을 만들고 로그인 라이브러리와 같은 방식으로 서명한 세션 쿠키를 브라우저에 넣습니다. Riot 응답은 브라우저의 `/api/riot` 요청을 가짜로 대체합니다(서버 프록시는 단위 테스트가 다룹니다).
 - 테스트가 만드는 데이터는 `e2e_` 접두사로 시작하고 끝나면 지웁니다. 개발 DB가 아닌 별도 DB를 쓰세요.
+- 화면 테스트는 준비한 데이터를 바로 검증합니다. 실제 60초 캐시 유지·만료·갱신은 `e2e/cache-expiry.spec.ts`에서 별도로 검사하며 전체 E2E에도 포함됩니다. 공유 DB를 쓰므로 worker는 1개를 유지합니다.
+- UI 경로·접근 가능한 이름을 바꾸면 관련 E2E도 같은 변경에서 갱신하세요. PR 전에 격리 DB로 `npx playwright test e2e/<관련 파일>.spec.ts --retries=0`을 실행해 변경된 흐름을 먼저 확인하고, 최종 검증은 전체 E2E로 수행합니다.
 - 실패하면 `test-results/`에 스크린샷과 트레이스가 남습니다 (`npx playwright show-trace <trace.zip>`). CI에서는 실패 시 리포트를 아티팩트로 올립니다.
 
 ## 배포

@@ -1,13 +1,11 @@
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { cleanup, createUser, db, expect, loginAs, test } from './fixtures';
 
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
 test('집계가 느려도 게임 찾기는 먼저 보이고 뜨거운 순간은 한 번만 조회한다', async ({ page, context }) => {
-  // 반복 실행에서도 이전 빌드의 디스크 데이터 캐시가 지연 검증을 우회하지 않게 한다.
-  // 단일 worker의 첫 테스트이며 서버는 아직 홈을 요청하지 않았다.
-  await rm('.next/cache/fetch-cache', { recursive: true, force: true });
+  // 공통 cleanup이 캐시를 비우므로 파일 실행 순서와 관계없이 실제 쿼리 지연을 검증한다.
   await loginAs(context, await createUser('streaming', '느린 집계 친구'));
   const lock = await db.connect();
   try {

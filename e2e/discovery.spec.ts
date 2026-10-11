@@ -1,39 +1,21 @@
 import { mkdir } from 'node:fs/promises';
-import { cleanup, createUser, db, expect, loginAs, statusOf, test } from './fixtures';
+import { cleanup, createUser, db, expect, loginAs, seedDiscovery, statusOf, test } from './fixtures';
 
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
 test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·다음 행동을 연결한다', async ({ page, context }) => {
-  test.setTimeout(240_000);
   const user = await createUser('discovery', '발견 친구');
   await loginAs(context, user);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.addInitScript(() => Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }));
   try {
-    await db.query(`update "user" set image = '/brands/discord.svg' where id = $1`, [user.id]);
-    await db.query(`insert into account (id, "accountId", "providerId", "userId", "createdAt", "updatedAt")
-      values ('e2e_discovery_account', 'e2e_discovery_author_0', 'discord', $1, now(), now())`, [user.id]);
-    await db.query(`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions)
-      select 'e2e_discovery_current_' || lpad(n::text, 2, '0'), 'e2e_discovery_channel', 'e2e_discovery_author_' || n % 4,
-      case when n % 4 = 0 then '발견 친구' else '항해 친구 ' || n % 4 end,
-      date_trunc('hour', now()) - interval '1 hour' + n * interval '1 second', 0 from generate_series(0, 39) n`);
-    await db.query(`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions)
-      select 'e2e_discovery_baseline_' || b || '_' || n, 'e2e_discovery_channel', 'e2e_discovery_author_' || n % 4, '항해 친구',
-      date_trunc('hour', now()) - interval '1 hour' - b * interval '1 day' + n * interval '1 second', 0
-      from generate_series(1, 6) b cross join generate_series(0, 11) n`);
-    await db.query(`insert into chat_highlights (id, channel_id, author_id, author_name, created_at, reactions, replies)
-      values ('e2e_discovery_highlight', 'e2e_discovery_channel', 'e2e_discovery_author_0', '발견 친구', now() - interval '2 hours', 5, 3)`);
-    await db.query(`insert into chat_awards (week_start, title, author_id, author_name, value)
-      values ((date_trunc('week', now() at time zone 'Asia/Seoul') - interval '7 days')::date, 'owl', 'e2e_discovery_author_0', '발견 친구', 12)`);
+    await seedDiscovery(user);
     await page.setViewportSize({ width: 1504, height: 1045 });
     await page.goto('/');
     const deck = page.getByRole('region', { name: '오늘은 무슨 일이 있었을까?' });
-    // 홈의 출처들은 각각 60초 캐시라 카드가 한꺼번에 나타나지 않는다. 네 장이 모두 모일 때까지 기다린다.
-    await expect.poll(async () => {
-      await page.reload();
-      return deck.getByRole('button', { name: '4번째 발견' }).count();
-    }, { timeout: 150_000, intervals: [1000, 5000] }).toBe(1);
+    // 새 fixture의 데이터를 렌더링하는지만 검사한다. 실제 TTL은 cache-expiry.spec.ts에서 검증한다.
+    await expect(deck.getByRole('button', { name: '4번째 발견' })).toHaveCount(1);
     await expect(deck.getByText('새벽 2~6시, 가장 많이 말한 사람', { exact: true })).toHaveCount(1);
     const reveal = deck.locator('button[aria-controls]');
     await expect(deck.getByText('발견 친구님 · 12 새벽 메시지')).not.toBeVisible();
@@ -181,7 +163,7 @@ test('반응 저장 실패와 현재 목록에 없는 공유 기록을 명확히
   await loginAs(context, await createUser('discovery_error', '공유 친구'));
   await page.route('**/api/discovery/reaction**', route => route.fulfill({ status: 503, json: { error: 'unavailable' } }));
   await page.goto('/?discovery=award%3A2000-01-03%3Aowl');
-  const deck = page.locator('.discovery-deck:visible');
+  const deck = page.getByRole('region', { name: '오늘은 무슨 일이 있었을까?' });
   await expect(deck.getByText(/공유된 발견이 현재 목록에 없어요/)).toBeVisible();
   await deck.locator('button[aria-controls]').click();
   await expect(deck.getByText(/반응을 불러오지 못했어요/)).toBeVisible();
@@ -208,6 +190,15 @@ test('반응 저장 실패와 현재 목록에 없는 공유 기록을 명확히
     transport.appendChild(el.cloneNode(true));
     document.body.appendChild(transport);
   });
+  // 복제 후에도 같은 선택자와 동작이 유효해야 한다. 숨긴 복제까지 고르면 이 검사가 실패한다.
+  await expect(deck).toHaveCount(1);
+  await expect(deck.getByLabel('공유할 발견 링크')).toHaveValue(/discovery=play%3Asteam/);
+  await deck.getByRole('button', { name: '결과 접기' }).click();
+  await expect(deck.locator('button[aria-controls]')).toHaveAttribute('aria-expanded', 'false');
+  await deck.locator('button[aria-controls]').click();
+  // 접으면 공유 안내가 초기화된다. 다시 공유하여 같은 실패 흐름을 실제 보이는 영역에서 검증한다.
+  await deck.getByRole('button', { name: '친구에게 공유' }).click();
+  await expect(deck.getByLabel('공유할 발견 링크')).toHaveValue(/discovery=play%3Asteam/);
   await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
   await page.screenshot({ path: 'output/playwright/discovery-empty-and-share-failure.png' });
 });
