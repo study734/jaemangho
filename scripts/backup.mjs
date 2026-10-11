@@ -74,7 +74,8 @@ export async function verifyRestore({ sourceUrl, targetUrl, file, confirmIsolate
     const tables = await client.query(`select count(*)::int as n from information_schema.tables where table_schema = 'public'`);
     if (tables.rows[0].n) throw new Error('복구 대상 DB가 비어 있지 않습니다. 기존 데이터는 변경하지 않습니다');
     const env = connectionEnv(targetUrl);
-    await runTool('pg_restore', ['--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '--dbname', env.PGDATABASE, file], env);
+    // 스키마를 지정한 archive는 CREATE SCHEMA public도 포함한다. 위의 빈 DB 검사를 통과한 대상만 정리한다.
+    await runTool('pg_restore', ['--clean', '--if-exists', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '--dbname', env.PGDATABASE, file], env);
     await migrate({ url: targetUrl }); // 실제 배포와 같은 체크섬 검증 및 최신 스키마 적용.
     const counts = await client.query(`select (select count(*)::int from "user") as users,
       (select count(*)::int from members) as members, (select count(*)::int from page_views) as view_rows,
