@@ -136,7 +136,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const attention = Number(configuration) + (ops.data ? operationsLog(ops.data, ops.now)
     .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0)
     + (automationEvidence ? (Object.keys(AUTOMATION_WORKFLOWS) as AutomationKind[])
-      .filter(kind => ['attention', 'unknown'].includes(automationDiagnosis(kind, automationEvidence, ops.now).state)).length : 0);
+      .filter(kind => ['attention', 'unknown'].includes(automationDiagnosis(kind, automationEvidence, ops.now).state)).length
+      + Number(automationEvidence.artifacts.available && automationEvidence.artifacts.bytes !== null && automationEvidence.artifacts.bytes >= 400_000_000) : 0);
   const refresh = async () => {
     setRefreshing(true);
     try { await Promise.all([load(), ops.refresh()]); }

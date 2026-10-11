@@ -21,6 +21,10 @@ export function OperationsOverview({ ops, automation }: { ops: Operations; autom
       at: automation.workflows[kind].latest?.at ?? automation.checkedAt,
     });
   }
+  if (automation?.artifacts.available && automation.artifacts.bytes !== null && automation.artifacts.bytes >= 400_000_000) issues.push({
+    id: 'storage.budget', level: 'warning', state: '확인 필요', title: '저장소 보관량이 400MB 예산에 도달했습니다.',
+    detail: '백업 업로드 실패 여부와 계정 전체 보관 용량을 확인하세요. 기존 복구 자료는 자동 삭제하지 않습니다.', at: automation.checkedAt,
+  });
   const latest = data?.jobs[0];
   const plan = chatRecoveryPlan(latest, now);
   const automatic = latest && ['waiting', 'ready', 'running'].includes(plan.state);
@@ -31,7 +35,7 @@ export function OperationsOverview({ ops, automation }: { ops: Operations; autom
       : needsHelp ? `확인이 필요한 항목 ${issues.length}건` : '채팅 자동 복구 대기·진행 중';
   return <Panel title="지금 필요한 조치">
     <p className="ops-overview-headline">{headline}</p>
-    <p style={styles.muted}>앱 점검 결과입니다. 백업·배포 검사와 공급자 사용량은 아래에서 별도로 확인합니다.</p>
+    <p style={styles.muted}>앱 점검과 확인된 자동 보호 기록을 모았습니다. 세부 실행 기록과 공급자 사용량은 아래에서 확인합니다.</p>
     {error && <p>조회가 실패해 이전 기록을 표시하고 있습니다. 새로고침 후 판단하세요.</p>}
     <ul className="ops-action-list" aria-label="필요한 운영 조치">
       {issues.map(issue => <li key={issue.id}>
