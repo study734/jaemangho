@@ -71,7 +71,7 @@ export function useOperations() {
           : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' + verification : '작업을 완료했습니다.' + verification,
       });
     } catch (e) { setNotice({ level: 'error', message: (e as Error).message }); }
-    finally { setBusy(false); await load(); }
+    finally { setBusy(false); if (loading.current) await loading.current; await load(); }
   };
   return { data, error, busy, notice, now, command, refresh: load };
 }

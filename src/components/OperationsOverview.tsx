@@ -10,16 +10,24 @@ import type { Operations } from './OperationsPanel';
 
 const when = (value: string | null | undefined) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
 
-export function OperationsOverview({ ops }: { ops: Operations }) {
+export function OperationsOverview({ ops, automation }: { ops: Operations; automation: AutomationEvidence | null }) {
   const { data, error, now } = ops;
   const issues = data ? operationsLog(data, now).filter(entry => entry.level !== 'info') : [];
+  if (automation) for (const kind of Object.keys(AUTOMATION_WORKFLOWS) as AutomationKind[]) {
+    const diagnosis = automationDiagnosis(kind, automation, now);
+    if (['attention', 'unknown'].includes(diagnosis.state)) issues.push({
+      id: `automation.${kind}`, level: 'warning', state: '확인 필요',
+      title: `${AUTOMATION_WORKFLOWS[kind].label} · ${diagnosis.label}`, detail: diagnosis.action,
+      at: automation.workflows[kind].latest?.at ?? automation.checkedAt,
+    });
+  }
   const latest = data?.jobs[0];
   const plan = chatRecoveryPlan(latest, now);
   const automatic = latest && ['waiting', 'ready', 'running'].includes(plan.state);
   const needsHelp = !automatic || issues.some(issue => !['chat.failed', 'chat.interrupted', 'chat.stale'].includes(issue.id))
     || issues.some(issue => issue.at && now - Date.parse(issue.at) >= 6 * 3_600_000);
   const headline = error || !data ? '현재 상태 확인 필요'
-    : !issues.length ? '최근 점검에서 발견된 문제 없음'
+    : !issues.length ? automation ? '최근 앱 점검·자동 보호에서 발견된 문제 없음' : '앱 점검에서 문제 없음 · 자동 보호는 별도 확인'
       : needsHelp ? `확인이 필요한 항목 ${issues.length}건` : '채팅 자동 복구 대기·진행 중';
   return <Panel title="지금 필요한 조치">
     <p className="ops-overview-headline">{headline}</p>
@@ -30,6 +38,7 @@ export function OperationsOverview({ ops }: { ops: Operations }) {
         <strong>{issue.title}</strong>
         <p>{issue.detail}</p>
         <span className="ops-overview-time">감지: {when(issue.at)}</span>
+        {issue.id.startsWith('automation.') && <p><a href={actionsLink(automation?.workflows[issue.id.slice('automation.'.length) as AutomationKind]?.latest?.id)} target="_blank" rel="noreferrer">해당 자동화 실행 확인</a></p>}
       </li>)}
     </ul>
     {data && !issues.length && !error && <p>현재 앱 점검 기준으로 직접 처리할 항목은 없습니다.</p>}
@@ -42,7 +51,7 @@ export function OperationsOverview({ ops }: { ops: Operations }) {
   </Panel>;
 }
 
-export function AutomationPanel({ now, revision }: { now: number; revision: number }) {
+export function AutomationPanel({ now, revision, onEvidence }: { now: number; revision: number; onEvidence: (evidence: AutomationEvidence | null) => void }) {
   const [evidence, setEvidence] = useState<AutomationEvidence | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,13 +63,13 @@ export function AutomationPanel({ now, revision }: { now: number; revision: numb
         if (!response.ok) throw new Error('inspection_failed');
         const body = await response.json() as AutomationEvidence;
         if (!body.workflows?.backup || !body.workflows.restore || !body.workflows.smoke || !body.artifacts) throw new Error('invalid_evidence');
-        setEvidence(body); setFailed(false); setLoading(false);
-      } catch { if (!controller.signal.aborted) { setFailed(true); setLoading(false); } }
+        setEvidence(body); onEvidence(body); setFailed(false); setLoading(false);
+      } catch { if (!controller.signal.aborted) { setFailed(true); onEvidence(null); setLoading(false); } }
     };
     void Promise.resolve().then(load);
     const timer = setInterval(() => { if (document.visibilityState === 'visible') void load(); }, 60 * 60_000);
     return () => { controller.abort(); clearInterval(timer); };
-  }, [revision]);
+  }, [revision, onEvidence]);
   const artifacts = evidence?.artifacts;
   const artifactMB = artifacts?.bytes === null || artifacts?.bytes === undefined ? null : artifacts.bytes / 1_000_000;
   return <Panel title="자동 운영 보호와 무료 용량" actions={<a className="btn btn-secondary" href={actionsLink()} target="_blank" rel="noreferrer">자동화 실행 기록</a>}>
@@ -70,7 +79,7 @@ export function AutomationPanel({ now, revision }: { now: number; revision: numb
     <ul className="ops-automation-list" aria-label="자동 운영 보호">
       {(Object.keys(AUTOMATION_WORKFLOWS) as AutomationKind[]).map(kind => {
         const config = AUTOMATION_WORKFLOWS[kind];
-        const result = evidence ? automationDiagnosis(kind, evidence, now) : null;
+        const result = evidence && !failed ? automationDiagnosis(kind, evidence, now) : null;
         const item = evidence?.workflows[kind];
         return <li key={kind}>
           <div className="ops-automation-heading"><strong>{config.label}</strong><span>{result?.label ?? (loading ? '조회 중' : '확인 불가')}</span></div>

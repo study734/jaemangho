@@ -5,6 +5,7 @@ import { adminStyles, Panel, ScrollTable } from './AdminUi';
 import { operationsLog } from '@/lib/operations-log';
 import { AuditPanel, BackupNote, ChatSyncPanel, OpsNotice, OpsStatusPanel, SteamPanel, ViewAnalytics, useOperations } from './OperationsPanel';
 import { AutomationPanel, OperationsOverview } from './OperationsOverview';
+import { AUTOMATION_WORKFLOWS, automationDiagnosis, type AutomationEvidence, type AutomationKind } from '@/lib/automation-status';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -70,6 +71,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [automationRevision, setAutomationRevision] = useState(0);
+  const [automationEvidence, setAutomationEvidence] = useState<AutomationEvidence | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -132,7 +134,9 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [tab, setTab] = useState<TabId>('overview');
   const configuration = !!status?.envProblems.length;
   const attention = Number(configuration) + (ops.data ? operationsLog(ops.data, ops.now)
-    .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0);
+    .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0)
+    + (automationEvidence ? (Object.keys(AUTOMATION_WORKFLOWS) as AutomationKind[])
+      .filter(kind => ['attention', 'unknown'].includes(automationDiagnosis(kind, automationEvidence, ops.now).state)).length : 0);
   const refresh = async () => {
     setRefreshing(true);
     try { await Promise.all([load(), ops.refresh()]); }
@@ -195,8 +199,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                 </ul>
               </div>
             )}
-            <OperationsOverview ops={ops} />
-            <AutomationPanel now={ops.now} revision={automationRevision} />
+            <OperationsOverview ops={ops} automation={automationEvidence} />
+            <AutomationPanel now={ops.now} revision={automationRevision} onEvidence={setAutomationEvidence} />
             <OpsStatusPanel ops={ops} onOpenIntegrations={() => setTab('integrations')} />
             {status && (
               <section style={styles.cards}>

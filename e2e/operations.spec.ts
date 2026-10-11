@@ -106,6 +106,9 @@ test('개요에서 자동 보호의 실제 증거·실패·확인 불가와 비�
   await expect(panel).toContainText('최근 실행 확인 필요');
   await expect(panel).toContainText('확인 불가');
   await expect(panel).toContainText('76.0 MB 이상');
+  const actions = page.getByRole('list', { name: '필요한 운영 조치' });
+  await expect(actions).toContainText('암호화 백업 · 최근 실행 확인 필요');
+  await expect(actions).toContainText('보관 백업 복원 검증 · 확인 불가');
   await expect(panel).toContainText('전체 사용량에 따른 자동 감속은 아직 적용되지 않았습니다.');
   await expect(panel.getByRole('link', { name: '암호화 백업 실행 확인' })).toHaveAttribute('href', /actions\/runs\/123$/);
   await expect(page.getByText('현재 DB 크기 (참고)', { exact: true })).toBeVisible();
