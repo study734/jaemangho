@@ -54,6 +54,8 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test -- --maxWorkers=4
+      - name: 비밀값 등록 도구의 숨김 입력·키 보존 검사
+        run: python3 -m unittest discover -s scripts -p register_ops_secrets_test.py
       - run: npm run build
 
   # 실제 브라우저(Chromium)로 로그인 보호·소환사 목록·관리자 화면을 시험한다.

@@ -48,3 +48,7 @@ next-env.d.ts
 /output/stored/
 *.dump.aes
 .wrangler/
+
+# 로컬 운영 설정 도구
+__pycache__/
+*.pyc
