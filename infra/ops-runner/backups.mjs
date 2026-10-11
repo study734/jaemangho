@@ -2,7 +2,7 @@
 export async function backupFreshness({ state, fetchFn = fetch, now = Date.now() }) {
   if (state && now - state.sampledAt < (state.status === 'backup_inspection_failed' ? 15 : 60) * 60_000) return state;
   const api = async route => {
-    const response = await fetchFn(`https://api.github.com/repos/study734/jaemangho/${route}`, { redirect: 'error', signal: AbortSignal.timeout(10_000), headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations' } });
+    const response = await fetchFn(`https://api.github.com/repos/study734/jaemangho/${route}`, { redirect: 'manual', signal: AbortSignal.timeout(10_000), headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations' } });
     if (!response.ok) throw new Error('metadata');
     return response.json();
   };

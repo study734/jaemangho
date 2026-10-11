@@ -13,8 +13,9 @@ const allowedWebhook = value => {
   catch { return false; }
 };
 export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now = Date.now(), backupEnabled = false }) {
+  // workerd는 error 모드를 거부한다. manual + !ok로 3xx를 따라가지 않는다.
   const request = async (path, timeout, auth = true) => {
-    const response = await fetchFn(new URL(path, SITE), { redirect: 'error', signal: AbortSignal.timeout(timeout),
+    const response = await fetchFn(new URL(path, SITE), { redirect: 'manual', signal: AbortSignal.timeout(timeout),
       headers: { 'Cache-Control': 'no-cache', ...(auth ? { Authorization: `Bearer ${secret}` } : {}) } });
     if (!response.ok) throw new Error([401, 403].includes(response.status) ? 'configuration' : 'execution');
     return response.json();
@@ -49,7 +50,7 @@ export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now =
       if (!allowedWebhook(webhook)) throw new Error('webhook');
       const message = status === 'healthy' ? '[재망호 복구] 독립 감시·복구 실행이 정상화되었습니다. 개별 장애는 운영 상태에서 확인하세요.'
         : `[재망호 개입 필요] ${status}: ${instructions[status]} 영향: 자동 운영 보호가 완료되지 않았습니다. 자동 처리: 반복 확인 완료. https://github.com/study734/jaemangho/actions`;
-      const response = await fetchFn(webhook, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: message, allowed_mentions: { parse: [] } }) });
+      const response = await fetchFn(webhook, { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: message, allowed_mentions: { parse: [] } }) });
       if (!response.ok) throw new Error('delivery');
       notified = status;
     } catch { notificationFailed = true; }

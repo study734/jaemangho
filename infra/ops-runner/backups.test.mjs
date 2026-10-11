@@ -6,7 +6,9 @@ function fixture(mode) {
   const artifacts = [artifact('production-backup', 1), artifact('restore-verification', 2)];
   if (mode === 'expired') artifacts[0].created_at = new Date(now - 37 * 3600000).toISOString();
   if (mode === 'no-restore') artifacts.pop();
-  const calls = []; const fetchFn = async input => {
+  const calls = []; const fetchFn = async (input, init) => {
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value in workerd');
+    expect(init.redirect).toBe('manual');
     calls.push(String(input));
     if (mode === 'api-error') return new Response(null, { status: 429 });
     if (String(input).includes('artifacts')) return Response.json({ artifacts });
@@ -26,9 +28,21 @@ it('정상 메타데이터는 한 시간, API 실패는 15분 후 다시 확인�
 
 it('완료되지 않은 새 업로드를 건너뛰고 직전 성공을 확인한다', async () => {
   const artifacts = [artifact('production-backup', 3), artifact('production-backup', 1), artifact('restore-verification', 2)];
-  const fetchFn = async input => {
+  const fetchFn = async (input, init) => {
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value in workerd');
+    expect(init.redirect).toBe('manual');
     if (String(input).includes('artifacts')) return Response.json({ artifacts });
     return Response.json({ path: `.github/workflows/${String(input).endsWith('/2') ? 'production-restore-check' : 'production-backup'}.yml`, head_branch: 'main', head_repository: { full_name: 'study734/jaemangho' }, event: 'schedule', conclusion: String(input).endsWith('/3') ? null : 'success' });
   };
   expect((await backupFreshness({ now, fetchFn })).status).toBe('healthy');
+});
+
+it('GitHub 메타데이터 리디렉션을 따르지 않고 조회 실패로 남긴다', async () => {
+  const calls = [];
+  const fetchFn = async (input, init) => {
+    calls.push(String(input)); expect(init.redirect).toBe('manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://attacker.example/metadata' } });
+  };
+  expect((await backupFreshness({ now, fetchFn })).status).toBe('backup_inspection_failed');
+  expect(calls).toEqual(['https://api.github.com/repos/study734/jaemangho/actions/artifacts?per_page=100']);
 });

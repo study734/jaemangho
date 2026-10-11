@@ -2,10 +2,13 @@ import { expect, it } from 'vitest';
 import { tick } from './tick.mjs';
 import worker, { OperationsRunner } from './worker.mjs';
 const webhook = 'https://discord.com/api/webhooks/123456789012345678/token';
-function requests({ failure = false, badSecret = false, notificationFailure = false, recoveryFailure = false } = {}) {
+function requests({ failure = false, badSecret = false, notificationFailure = false, recoveryFailure = false, redirectAt } = {}) {
   const calls = [];
   return { calls, fetchFn: async (input, init) => {
-    const url = new URL(input); calls.push({ url, init }); expect(init.redirect).toBe('error');
+    const url = new URL(input); calls.push({ url, init });
+    if (init.redirect === 'error') throw new TypeError('Invalid redirect value in workerd');
+    expect(init.redirect).toBe('manual');
+    if (url.pathname === redirectAt || redirectAt === 'webhook' && url.hostname === 'discord.com') return new Response(null, { status: 302, headers: { Location: 'https://attacker.example/redirect' } });
     if (url.hostname === 'discord.com') return new Response(null, { status: notificationFailure ? 503 : 204 });
     expect(url.hostname).toBe('jaemangho.vercel.app');
     if (url.pathname === '/api/health') { expect(init.headers.Authorization).toBeUndefined(); return Response.json({ ok: !failure }); }
@@ -41,4 +44,21 @@ it('공개 접근과 동시 실행을 차단한다', async () => {
   const storage = { get: async key => data.get(key), put: async (key, value) => data.set(key, value), delete: async key => data.delete(key), transaction: async fn => fn(storage) };
   const runner = new OperationsRunner({ storage }, {});
   expect((await runner.fetch(new Request('https://internal/tick', { method: 'POST' }))).status).toBe(409);
+});
+
+it.each([['/api/health', 'unavailable'], ['/api/cron/recovery', 'execution'], ['/api/cron/ops', 'execution']])('운영 API 리디렉션을 따라가지 않는다: %s', async (redirectAt, status) => {
+  const f = requests({ redirectAt });
+  const result = await tick({ secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 1 });
+  expect(result.status).toBe(status);
+  expect(f.calls.every(c => c.url.hostname === 'jaemangho.vercel.app')).toBe(true);
+  if (redirectAt === '/api/cron/recovery') expect(f.calls.at(-1).url.pathname).toBe('/api/cron/ops');
+});
+it('알림 웹훅 리디렉션은 전달 실패로 남기고 외부로 따라가지 않는다', async () => {
+  const f = requests({ failure: true, redirectAt: 'webhook' });
+  const state = await tick({ secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 1 });
+  const result = await tick({ state, secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 600001 });
+  expect(result.notificationFailed).toBe(true); expect(result.notified).toBe('healthy');
+  expect(f.calls.some(c => c.url.hostname === 'attacker.example')).toBe(false);
+  const notification = f.calls.find(c => c.url.hostname === 'discord.com');
+  expect(notification.init.headers.Authorization).toBeUndefined();
 });
