@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import pg from 'pg';
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test';
 import { E2E_DATABASE_URL, E2E_ENV } from './env';
@@ -8,9 +9,15 @@ import { E2E_DATABASE_URL, E2E_ENV } from './env';
 export const db = new pg.Pool({ connectionString: E2E_DATABASE_URL, max: 2, idleTimeoutMillis: 1000 });
 
 export async function cleanup() {
+  await db.query(`delete from chat_messages where id like 'e2e_%'`);
+  await db.query(`delete from chat_highlights where id like 'e2e_%'`);
+  await db.query(`delete from chat_awards where author_id like 'e2e_%'`);
   await db.query(`delete from ops_audit where actor_id like 'e2e_%'`);
   await db.query(`delete from members where id like 'e2e_%' or created_by like 'e2e_%'`);
   await db.query(`delete from "user" where id like 'e2e_%'`); // session/account는 cascade
+  // 실제 TTL은 유지한다. 다른 테스트가 만든 데이터를 TTL 만료까지 기다리지 않게 한다.
+  // E2E 빌드는 메모리 캐시를 사용하지 않으므로 파일 정리만으로 다음 요청이 새 데이터를 읽는다.
+  await rm('.next/cache/fetch-cache', { recursive: true, force: true });
 }
 
 // 세션 쿠키: 로그인 라이브러리가 서명하는 방식(HMAC-SHA256, base64)과 같다.
@@ -57,6 +64,25 @@ export async function mockRiot(page: Page, summoner = { gameName: 'E2E소환사'
       return route.fulfill({ json: [{ queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'II', leaguePoints: 55, wins: 10, losses: 8 }] });
     return route.fulfill({ status: 404, json: {} });
   });
+}
+
+// 발견 화면과 실제 TTL 검증이 같은 네 가지 출처를 준비한다. 테스트마다 cleanup 후 호출한다.
+export async function seedDiscovery(user: TestUser) {
+  await db.query(`update "user" set image = '/brands/discord.svg' where id = $1`, [user.id]);
+  await db.query(`insert into account (id, "accountId", "providerId", "userId", "createdAt", "updatedAt")
+    values ('e2e_discovery_account', 'e2e_discovery_author_0', 'discord', $1, now(), now())`, [user.id]);
+  await db.query(`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions)
+    select 'e2e_discovery_current_' || lpad(n::text, 2, '0'), 'e2e_discovery_channel', 'e2e_discovery_author_' || n % 4,
+    case when n % 4 = 0 then '발견 친구' else '항해 친구 ' || n % 4 end,
+    date_trunc('hour', now()) - interval '1 hour' + n * interval '1 second', 0 from generate_series(0, 39) n`);
+  await db.query(`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions)
+    select 'e2e_discovery_baseline_' || b || '_' || n, 'e2e_discovery_channel', 'e2e_discovery_author_' || n % 4, '항해 친구',
+    date_trunc('hour', now()) - interval '1 hour' - b * interval '1 day' + n * interval '1 second', 0
+    from generate_series(1, 6) b cross join generate_series(0, 11) n`);
+  await db.query(`insert into chat_highlights (id, channel_id, author_id, author_name, created_at, reactions, replies)
+    values ('e2e_discovery_highlight', 'e2e_discovery_channel', 'e2e_discovery_author_0', '발견 친구', now() - interval '2 hours', 5, 3)`);
+  await db.query(`insert into chat_awards (week_start, title, author_id, author_name, value)
+    values ((date_trunc('week', now() at time zone 'Asia/Seoul') - interval '7 days')::date, 'owl', 'e2e_discovery_author_0', '발견 친구', 12)`);
 }
 
 // 브라우저 안에서 fetch한 응답 상태. 로그인한 사용자의 요청은 쿠키가 담긴 브라우저를 통해 시험한다.
