@@ -1,7 +1,20 @@
 import { cleanup, createUser, db, expect, loginAs, test } from './fixtures';
 import { mkdir } from 'node:fs/promises';
+import type { AutomationEvidence } from '../src/lib/automation-status';
 
-test.beforeEach(cleanup);
+const automationEvidence = (): AutomationEvidence => {
+  const at = new Date().toISOString();
+  const run = { id: 123, at, status: 'completed', conclusion: 'success' };
+  return { checkedAt: at, workflows: {
+    backup: { available: true, latest: run, lastSuccess: run, artifactPresent: true },
+    restore: { available: true, latest: run, lastSuccess: run, artifactPresent: true },
+    smoke: { available: true, latest: run, lastSuccess: run },
+  }, artifacts: { available: true, bytes: 76_000_000, complete: true } };
+};
+test.beforeEach(async ({ page }) => {
+  await cleanup();
+  await page.route('**/api/admin/operations?resource=automation', route => route.fulfill({ json: automationEvidence() }));
+});
 test.afterAll(cleanup);
 
 test('운영자는 감시 공백과 채팅 중단 원인·다음 조치 및 Steam 세부 원인을 확인한다', async ({ page, context }) => {
@@ -73,9 +86,50 @@ test('운영 로그는 오류·경고·복구를 구분하고 수준별로 필�
 
 test('운영 API는 관리자만 조회·조작할 수 있다', async ({ context }) => {
   expect((await context.request.get('/api/admin/operations')).status()).toBe(401);
+  expect((await context.request.get('/api/admin/operations?resource=automation')).status()).toBe(401);
   await loginAs(context, await createUser('ops_user', 'E2E일반사용자'));
   expect((await context.request.get('/api/admin/operations')).status()).toBe(403);
+  expect((await context.request.get('/api/admin/operations?resource=automation')).status()).toBe(403);
   expect((await context.request.post('/api/admin/operations?action=check')).status()).toBe(403);
+});
+
+test('개요에서 자동 보호의 실제 증거·실패·확인 불가와 비용 보호의 한계를 구분한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ops_automation', 'E2E자동보호', 'admin'));
+  const evidence = automationEvidence();
+  evidence.workflows.backup.latest = { ...evidence.workflows.backup.latest!, conclusion: 'failure' };
+  evidence.workflows.restore.available = false;
+  evidence.workflows.restore.lastSuccess = null;
+  evidence.artifacts.complete = false;
+  await page.route('**/api/admin/operations?resource=automation', route => route.fulfill({ json: evidence }));
+  await page.goto('/admin');
+  const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: '자동 운영 보호와 무료 용량', exact: true }) });
+  await expect(panel).toContainText('최근 실행 확인 필요');
+  await expect(panel).toContainText('확인 불가');
+  await expect(panel).toContainText('76.0 MB 이상');
+  await expect(panel).toContainText('전체 사용량에 따른 자동 감속은 아직 적용되지 않았습니다.');
+  await expect(panel.getByRole('link', { name: '암호화 백업 실행 확인' })).toHaveAttribute('href', /actions\/runs\/123$/);
+  await expect(page.getByText('현재 DB 크기 (참고)', { exact: true })).toBeVisible();
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await panel.screenshot({ path: `output/playwright/automation-dashboard-${width}.png` });
+    await page.screenshot({ path: `output/playwright/operations-dashboard-${width}.png`, fullPage: true });
+  }
+});
+
+test('숨겨진 관리자 화면은 운영 폴링을 멈추고 다시 보이면 즉시 갱신한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ops_visibility', 'E2E조회절약', 'admin'));
+  const snapshot = await (await context.request.get('/api/admin/operations')).json();
+  let count = 0;
+  await page.route('**/api/admin/operations', route => { count++; return route.fulfill({ json: snapshot }); });
+  await page.clock.install();
+  await page.goto('/admin');
+  await expect.poll(() => count).toBe(1);
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.clock.fastForward(180_000);
+  expect(count).toBe(1);
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+  await expect.poll(() => count).toBe(2);
 });
 
 test('작업 결과는 건너뜀·실패·부분 완료·성공을 구분한다', async ({ page, context }) => {

@@ -37,6 +37,23 @@ describe.skipIf(!testDbUrl)('운영 기능 (DB)', () => {
   });
 
   const fakeDiscord = async (url: string | URL | Request) => new Response(JSON.stringify(String(url).includes('/guilds/') ? [{ id: 'tops_channel', name: '⛵ 테스트', type: 0 }] : []));
+  it('복구 완료 직후 보조 실행은 기록·성공 시각을 늘리지 않고 새 채팅 실패가 생기면 다시 점검한다', async () => {
+    await pool.query(`delete from ops_jobs where job in ('chat', 'recovery')`);
+    vi.stubEnv('DISCORD_BOT_TOKEN', '');
+    try {
+      expect(await jobs.runChatRecovery()).toBe('not_needed');
+      const first = (await pool.query(`select finished_at from ops_jobs where job = 'recovery'`)).rows[0];
+      expect(await jobs.runChatRecovery()).toBe('busy');
+      expect((await pool.query(`select finished_at from ops_jobs where job = 'recovery'`)).rows).toEqual([first]);
+      await pool.query(`insert into ops_jobs (id, job, source, status, started_at, finished_at, error_code)
+        values ('tops_new_failure', 'chat', 'manual', 'failed', clock_timestamp(), clock_timestamp(), 'discord_http_401')`);
+      expect(await jobs.runChatRecovery()).toBe('not_needed');
+      expect((await pool.query(`select count(*)::int as n from ops_jobs where job = 'recovery'`)).rows[0].n).toBe(2);
+      await pool.query(`update ops_jobs set finished_at = now() - interval '11 minutes' where job = 'recovery'`);
+      expect(await jobs.runChatRecovery()).toBe('not_needed');
+      expect((await pool.query(`select count(*)::int as n from ops_jobs where job = 'recovery'`)).rows[0].n).toBe(3);
+    } finally { await pool.query(`delete from ops_jobs where job in ('chat', 'recovery')`); vi.unstubAllEnvs(); }
+  });
   it('동시 외부 점검의 자동 이어받기는 미완료 실행을 한 번만 이어 받고 전체 성공을 남긴다', async () => {
     vi.stubEnv('DISCORD_BOT_TOKEN', 'test-token');
     vi.stubGlobal('fetch', vi.fn(fakeDiscord));

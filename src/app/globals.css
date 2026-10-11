@@ -889,6 +889,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .ops-log-title { margin: 0; color: var(--ink); }
 .ops-log-detail { margin: 4px 0 0; color: var(--slate); font-size: 13px; }
 .ops-log-notice { line-height: 1.6; overflow-wrap: anywhere; }
+.ops-overview-headline { font-size: 20px; font-weight: 700; margin: 12px 0; }
+.ops-action-list, .ops-automation-list { list-style: none; margin: 0; padding: 0; }
+.ops-action-list li, .ops-automation-list li { padding: 16px 0; border-bottom: 1px solid var(--hairline); line-height: 1.6; overflow-wrap: anywhere; }
+.ops-action-list p, .ops-automation-list p, .ops-recovery-summary p { margin: 8px 0; }
+.ops-overview-time { font-size: 13px; color: var(--slate); }
+.ops-automation-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.ops-automation-heading span { color: var(--slate); }
+.ops-recovery-summary { margin-top: 16px; border-left: 4px solid var(--primary); padding-left: 16px; line-height: 1.6; overflow-wrap: anywhere; }
 @media (max-width: 768px) {
   .ops-log-row { flex-direction: column; gap: 8px; }
 }
