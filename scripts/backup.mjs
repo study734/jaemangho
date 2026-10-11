@@ -48,7 +48,8 @@ export async function createBackup({ url, file }) {
   let manifest;
   try {
     manifest = await open(`${file}.sha256`, 'wx', 0o600);
-    await runTool('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--file', file], env);
+    // 재망호 데이터는 public에 있다. Neon 관리 인증 스키마는 앱 백업 계정의 권한 밖이다.
+    await runTool('pg_dump', ['--format=custom', '--schema=public', '--no-owner', '--no-acl', '--file', file], env);
     await chmod(file, 0o600);
     const digest = await checksum(file);
     await manifest.writeFile(`${digest}\n`);
