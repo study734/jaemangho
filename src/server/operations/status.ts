@@ -2,10 +2,11 @@ import { db } from '../db';
 import { chatConfigured } from './jobs';
 import { validWebhook } from './monitor';
 import type { OperationsData } from '../../lib/operations';
+import { usageStatus } from './usage';
 
 export async function operationStatus(): Promise<OperationsData> {
   const sql = await db();
-  const [jobs, success, alerts, checked, audit, cache, stats, errors, recovery] = await Promise.all([
+  const [jobs, success, alerts, checked, audit, cache, stats, errors, recovery, usage] = await Promise.all([
     sql`select id, status, source, started_at as "startedAt", finished_at as "finishedAt", result, error_code as "errorCode"
       from ops_jobs where job = 'chat' order by started_at desc limit 20`,
     sql`select max(finished_at) as at from ops_jobs where job = 'chat' and status = 'success'`,
@@ -17,12 +18,14 @@ export async function operationStatus(): Promise<OperationsData> {
     sql`select day::text, hits, misses, errors from steam_stats order by day desc limit 7`,
     sql`select at, endpoint, code from steam_errors order by at desc limit 10`,
     sql`select finished_at as at, status, result from ops_jobs where job = 'recovery' order by started_at desc limit 1`,
+    usageStatus(),
   ]);
   return {
     jobs, lastSuccess: success[0]?.at ?? null, alerts, checkedAt: checked[0]?.at ?? null, externalCheckedAt: checked[0]?.external ?? null, audit,
     recoveryCheckedAt: recovery[0]?.at ?? null, recoveryStatus: (recovery[0]?.result as { recovery?: string } | undefined)?.recovery ?? recovery[0]?.status ?? null,
     chatConfigured: chatConfigured(), notificationsConfigured: validWebhook(process.env.OPS_ALERT_WEBHOOK_URL),
     steam: { cache: cache[0], stats, errors },
+    usage,
   } as unknown as OperationsData;
 }
 

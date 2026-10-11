@@ -13,9 +13,36 @@ const automationEvidence = (): AutomationEvidence => {
 };
 test.beforeEach(async ({ page }) => {
   await cleanup();
+  // 공급자 사용량은 외부 서비스를 호출하지 않고 정상 샘플로 준비한다.
+  const at = new Date().toISOString();
+  await db.query(`insert into ops_usage (id, checked_at, sample, error_code, mode) values (1, $1, $2::jsonb, null, 'normal')
+    on conflict (id) do update set checked_at = excluded.checked_at, sample = excluded.sample, error_code = null, mode = 'normal'`,
+  [at, JSON.stringify({ at, periodStart: at, computeSeconds: 3600, transferBytes: 1000 })]);
   await page.route('**/api/admin/operations?resource=automation', route => route.fulfill({ json: automationEvidence() }));
 });
-test.afterAll(cleanup);
+test.afterAll(async () => { await cleanup(); await db.query('delete from ops_usage'); });
+
+test('무료 사용량 보호는 예약 수집 중단과 최신 조회 실패를 구분해 알려준다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ops_usage', 'E2E예산보호', 'admin'));
+  const snapshot = await (await context.request.get('/api/admin/operations')).json();
+  const at = new Date().toISOString();
+  await page.route('**/api/admin/operations', route => route.fulfill({ json: { ...snapshot, checkedAt: at, externalCheckedAt: at, alerts: [],
+    usage: { checkedAt: at, sample: { at, periodStart: '2026-10-03T00:00:00Z', computeSeconds: 91 * 3600, transferBytes: 21000000 }, errorCode: 'neon_unavailable', stale: false, mode: 'paused' } } }));
+  await page.goto('/admin');
+  const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: '자동 운영 보호와 무료 용량', exact: true }) });
+  await expect(panel).toContainText('예약 수집 중단');
+  await expect(panel).toContainText('91.00 / 100 CU-hour');
+  await expect(panel).toContainText('최신 사용량 확인 불가');
+  await expect(panel).toContainText('수동 수집·백업·장애 감시는 유지');
+  await expect(page.getByRole('list', { name: '필요한 운영 조치' })).toContainText('무료 예산 보호로 예약 채팅 수집이 중단');
+  await mkdir('output/playwright', { recursive: true });
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await panel.getByRole('heading', { name: 'Neon 예약 수집 예산', exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `output/playwright/usage-protection-${width}.png` });
+  }
+});
 
 test('운영자는 감시 공백과 채팅 중단 원인·다음 조치 및 Steam 세부 원인을 확인한다', async ({ page, context }) => {
   await loginAs(context, await createUser('ops_diagnosis', 'E2E운영진단', 'admin'));
@@ -111,7 +138,7 @@ test('개요에서 자동 보호의 실제 증거·실패·확인 불가와 비�
   await expect(actions).toContainText('암호화 백업 · 최근 실행 확인 필요');
   await expect(actions).toContainText('보관 백업 복원 검증 · 확인 불가');
   await expect(actions).toContainText('저장소 보관량이 400MB 예산에 도달했습니다.');
-  await expect(panel).toContainText('전체 사용량에 따른 자동 감속은 아직 적용되지 않았습니다.');
+  await expect(panel).toContainText('전체 인프라의 무료 한도를 보장하는 기능은 아닙니다.');
   await expect(panel.getByRole('link', { name: '암호화 백업 실행 확인' })).toHaveAttribute('href', /actions\/runs\/123$/);
   await expect(page.getByText('현재 DB 크기 (참고)', { exact: true })).toBeVisible();
   for (const width of [1440, 1024, 390]) {

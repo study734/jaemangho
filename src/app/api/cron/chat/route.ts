@@ -1,6 +1,6 @@
 import { serverError } from '@/server/http';
 import { authorizeCron } from '@/server/chat/cron';
-import { runChatSync, SyncBusyError } from '@/server/operations/jobs';
+import { runChatSync, SyncBusyError, SyncBudgetError } from '@/server/operations/jobs';
 
 export const maxDuration = 60;
 
@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   try {
     return Response.json(await runChatSync('scheduled', { token: auth.config.token, guildId: auth.config.guildId, laugh: process.env.CHAT_LAUGH === '1' }));
   } catch (e) {
+    if (e instanceof SyncBudgetError) return Response.json({ skipped: true, reason: 'usage_budget' }, { headers: { 'Cache-Control': 'no-store' } });
     if (e instanceof SyncBusyError) return Response.json({ error: '동기화가 이미 실행 중입니다.' }, { status: 409 });
     return serverError(e);
   }

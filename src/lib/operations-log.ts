@@ -12,6 +12,7 @@ export interface OperationsLogEntry {
 }
 
 function alertDetail(key: string, data: OperationsData, now: number) {
+  if (key.startsWith('usage.')) return '영향: 예약 채팅 수집·복구가 감속 또는 중단될 수 있습니다. Free usage protection 실행·Neon 실제 사용량을 확인하세요. 조회 실패·12시간 지난 샘플은 정상으로 판단하지 않으며 백업·장애 감시는 유지합니다.';
   if (key.startsWith('chat.')) {
     const latest = data.jobs[0];
     return `영향: 채팅 기반 기록과 집계가 최신이 아닐 수 있습니다. ${latest ? `${chatDiagnosis(latest).reason}. ${chatDiagnosis(latest).action} ${recoveryDiagnosis(latest, now)}` : '연동 탭에서 실행 기록과 봇 설정을 확인하세요.'}`;
@@ -28,6 +29,13 @@ function alertDetail(key: string, data: OperationsData, now: number) {
 // 저장된 장애 심각도와 복구 상태를 화면의 로그 수준으로 변환한다.
 export function operationsLog(data: OperationsData, now: number): OperationsLogEntry[] {
   const entries: OperationsLogEntry[] = [];
+  if (data.usage && (data.usage.mode !== 'normal' || data.usage.stale || data.usage.errorCode)
+    && !data.alerts.some(alert => alert.key.startsWith('usage.') && alert.active)) entries.push({
+    id: 'usage.status', level: 'warning', state: '확인 필요', at: data.usage.checkedAt,
+    title: data.usage.mode === 'paused' ? '무료 예산 보호로 예약 채팅 수집이 중단됐습니다.'
+      : data.usage.mode === 'limited' ? '무료 예산 보호로 예약 채팅 수집을 감속했습니다.' : 'Neon 사용량 보호가 아직 검증되지 않았습니다.',
+    detail: alertDetail('usage.status', data, now),
+  });
   if (!data.checkedAt || now - Date.parse(data.checkedAt) > 3_600_000) {
     entries.push({
       id: 'monitor.internal-stale', level: 'warning', state: '확인 필요', at: data.checkedAt,

@@ -208,6 +208,7 @@ Steam API 키는 서버에서만 사용한다. 보유·최근 기록 캐시는 5
 | `CRON_SECRET` | Cloudflare Worker Secret | 기존 Vercel·GitHub 값과 같은 크론 인증 |
 | `OPS_ALERT_WEBHOOK_URL` | Cloudflare Worker Secret | 앱/Actions가 실패해도 개입 필요 알림 |
 | `VERCEL_TOKEN` | GitHub Actions Secret | 고정된 프로젝트 배포 조회 및 승인된 정책의 롤백·재승격. 프로젝트/팀 접근이 필요함 |
+| `NEON_API_KEY` | GitHub Actions Secret | 재망호 프로젝트의 연산·전송 사용량 조회. 앱·Worker에는 전달하지 않음. 첫 성공 전에는 실제 보호 검증 미완료 |
 | `BACKUP_DATABASE_URL` | GitHub Actions Secret | 백업 전용 계정의 직접 DB 연결 주소. SELECT 권한으로 전체 테이블을 읽을 수 있어야 함 |
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions Secret | 무작위 32바이트의 canonical base64 AES-256-GCM 키. 백업과 별도로 안전하게 보관 |
 | `OPS_AUTO_ROLLBACK` | GitHub Actions Variable | `1`일 때 안전 조건을 통과한 이전 버전으로 자동 롤백. 기본은 비활성 |

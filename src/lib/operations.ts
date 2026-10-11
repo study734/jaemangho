@@ -1,3 +1,4 @@
+import type { UsageBudget } from './usage-budget';
 export interface AuditEntry {
   id: string;
   actorName: string;
@@ -29,6 +30,7 @@ export interface OperationsData {
   audit: AuditEntry[];
   chatConfigured: boolean;
   notificationsConfigured: boolean;
+  usage?: UsageBudget;
   steam: {
     cache: { rows: number; fresh: number };
     stats: { day: string; hits: number; misses: number; errors: number }[];

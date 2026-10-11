@@ -1,0 +1,55 @@
+name: Free usage protection
+
+on:
+  schedule:
+    - cron: '5 0,6,12,18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-usage-protection
+  cancel-in-progress: false
+
+jobs:
+  usage:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: 이전 알림 상태 복원
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ops-automation
+          key: ops-usage-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ops-usage-
+      - name: 실제 Neon 사용량과 예약 수집 예산 갱신
+        run: |
+          if [ -z "$NEON_API_KEY" ]; then
+            echo 'NEON_API_KEY 미등록 — 실제 사용량 보호를 검증하지 못했습니다.' >&2
+            exit 1
+          fi
+          node scripts/usage-monitor.mjs
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      - name: 사용량 점검 실패 또는 정상화 알림
+        if: always() && !cancelled()
+        run: node scripts/workflow-notify.mjs
+        env:
+          OPS_JOB: usage
+          OPS_RESULT: ${{ job.status }}
+          OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+      - name: 알림 상태 저장
+        if: always() && !cancelled()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ops-automation
+          key: ops-usage-${{ github.run_id }}-${{ github.run_attempt }}

@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { recover } from '../../../scripts/recover.mjs';
 
 describe('독립 복구 실행기', () => {
+  it('무료 예산 중단도 정상 정책 결과로 받고 별도 점검을 완료한다', async () => {
+    const fetchFn = vi.fn().mockResolvedValueOnce(Response.json({ recovery: 'budget_paused' })).mockResolvedValueOnce(Response.json({ skipped: false, active: 1 }));
+    expect(await recover({ url: 'https://site.example', secret: 'test', fetchFn })).toEqual({ recovery: 'budget_paused', verified: true });
+  });
   it('복구 후 별도 요청으로 상태를 검증한다', async () => {
     const fetchFn = vi.fn().mockResolvedValueOnce(Response.json({ recovery: 'success' })).mockResolvedValueOnce(Response.json({ skipped: false, active: 0 }));
     expect(await recover({ url: 'https://site.example', secret: 'test', fetchFn })).toEqual({ recovery: 'success', verified: true });

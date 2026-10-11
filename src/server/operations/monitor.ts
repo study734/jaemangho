@@ -7,6 +7,8 @@ import { chatDiagnosis, recoveryTitle } from '../../lib/operations-diagnostics';
 import { operatorNotice } from './escalation';
 import { chatRecoveryPlan } from '../../lib/chat-recovery';
 import type { JobEntry } from '../../lib/operations';
+import { usageStatus } from './usage';
+import type { UsageBudget } from '../../lib/usage-budget';
 
 export interface Finding { key: string; title: string; severity: 'warning' | 'critical' }
 export interface MonitorInput {
@@ -18,10 +20,17 @@ export interface MonitorInput {
   steamErrors: number;
   externalCheck?: string | null;
   recoveryCheck?: string | null;
+  usage?: UsageBudget;
 }
 
 export function findings(input: MonitorInput, now = Date.now()): Finding[] {
   const result: Finding[] = [];
+  if (input.usage) {
+    if (input.usage.errorCode || input.usage.stale) result.push({ key: 'usage.unknown', title: 'Neon 사용량을 확인할 수 없습니다. 사용량 점검 실행과 NEON_API_KEY를 확인하세요.', severity: 'warning' });
+    if (['limited', 'paused'].includes(input.usage.mode)) result.push({ key: 'usage.budget', title: input.usage.mode === 'paused'
+      ? 'Neon 무료 예산 보호로 예약 채팅 수집을 중단했습니다. 최신 사용량이 충분히 낮아지면 자동 재개합니다.'
+      : 'Neon 무료 예산 보호로 예약 채팅 수집·복구를 48시간에 한 번으로 줄였습니다.', severity: 'warning' });
+  }
   if (input.externalCheck !== undefined && (!input.externalCheck || now - new Date(input.externalCheck).getTime() > 2 * 3_600_000))
     result.push({ key: 'monitor.stale', title: '외부 운영 점검의 성공 기록이 없거나 2시간 이상 지났습니다. GitHub Actions 실행을 확인하세요.', severity: 'warning' });
   if (input.envProblems) result.push({ key: 'configuration', title: '환경변수 설정을 확인하세요.', severity: 'warning' });
@@ -102,6 +111,7 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
       sql`select max(finished_at) as at from ops_jobs where job = 'recovery' and status = 'success'`,
     ]);
     const current = findings({
+      usage: await usageStatus(),
       envProblems: envProblems().length, chatEnabled: chatConfigured(),
       lastSuccess: lastSuccess[0]?.at ? new Date(lastSuccess[0].at as string).toISOString() : null,
       latestJob: latest[0] as MonitorInput['latestJob'], riot: riot as MonitorInput['riot'], steamErrors: steam[0].count as number,

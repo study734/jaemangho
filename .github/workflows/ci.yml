@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   check:
-    needs: workflow-policy
+    needs: [workflow-policy, dependency-review]
     if: always() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -42,7 +42,12 @@ jobs:
       - name: 필수 정책 검사 결과 확인
         env:
           POLICY_RESULT: ${{ needs.workflow-policy.result }}
-        run: test "$POLICY_RESULT" = success
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+        run: |
+          test "$POLICY_RESULT" = success
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            test "$DEPENDENCY_RESULT" = success
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -97,6 +102,23 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  dependency-review:
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          fail-on-severity: high
+          fail-on-scopes: runtime,development,unknown
+          license-check: false
+          comment-summary-in-pr: never
 
   workflow-policy:
     runs-on: ubuntu-24.04

@@ -56,6 +56,8 @@ export function recoveryTitle(key: string, original: string) {
     'chat.failed': '최근 채팅 동기화가 실패·부분 완료 상태에서 벗어났습니다.',
     'recovery.stale': '자동 복구 실행 기록이 갱신되었습니다.',
     'chat.recovery': '채팅 자동 복구 중지 상태가 해제되었습니다. 최신 실행 결과를 확인하세요.',
+    'usage.unknown': 'Neon 사용량 조회가 정상화되었습니다.',
+    'usage.budget': '무료 예산 보호에 의한 예약 수집 제한이 해제되었습니다.',
     'chat.interrupted': '오래된 채팅 실행이 정리되었거나 실행 상태가 갱신되었습니다.',
     'riot.key': '이번 점검 구간에서 Riot 인증 오류가 감지되지 않았습니다.',
     'riot.limit': '이번 점검 구간에서 Riot 호출 제한이 경고 기준 미만입니다.',
