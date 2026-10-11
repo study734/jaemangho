@@ -3,13 +3,15 @@ import { db } from '../db';
 import { pool } from '../pool';
 import { envProblems } from '../env';
 import { chatConfigured } from './jobs';
+import { chatDiagnosis, recoveryTitle } from '../../lib/operations-diagnostics';
+import type { JobEntry } from '../../lib/operations';
 
 export interface Finding { key: string; title: string; severity: 'warning' | 'critical' }
 export interface MonitorInput {
   envProblems: number;
   chatEnabled: boolean;
   lastSuccess: string | null;
-  latestJob: { status: string; startedAt: string } | null;
+  latestJob: { status: string; startedAt: string; result?: JobEntry['result']; errorCode?: string | null } | null;
   riot: { status: number; count: number }[];
   steamErrors: number;
   externalCheck?: string | null;
@@ -24,7 +26,7 @@ export function findings(input: MonitorInput, now = Date.now()): Finding[] {
     if (!input.lastSuccess || now - new Date(input.lastSuccess).getTime() > 30 * 3_600_000)
       result.push({ key: 'chat.stale', title: '채팅 동기화 성공 기록이 없거나 30시간 이상 지났습니다.', severity: 'warning' });
     if (input.latestJob?.status === 'failed' || input.latestJob?.status === 'partial')
-      result.push({ key: 'chat.failed', title: '최근 채팅 동기화가 실패하거나 일부만 완료되었습니다.', severity: 'warning' });
+      result.push({ key: 'chat.failed', title: `채팅 동기화 ${input.latestJob.status === 'partial' ? '부분 완료' : '실패'}: ${chatDiagnosis({ status: input.latestJob.status, result: input.latestJob.result ?? null, errorCode: input.latestJob.errorCode ?? null }).reason}`, severity: 'warning' });
     if (input.latestJob?.status === 'running' && now - new Date(input.latestJob.startedAt).getTime() > 5 * 60_000)
       result.push({ key: 'chat.interrupted', title: '채팅 동기화 실행이 중단된 것으로 보입니다. 재실행하세요.', severity: 'warning' });
   }
@@ -83,9 +85,9 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
     const since = window.since ? new Date(window.since).toISOString() : '-infinity';
     const [lastSuccess, latest, riot, steam] = await Promise.all([
       sql`select max(finished_at) as at from ops_jobs where job = 'chat' and status = 'success'`,
-      sql`select status, started_at as "startedAt" from ops_jobs where job = 'chat' order by started_at desc limit 1`,
+      sql`select status, started_at as "startedAt", result, error_code as "errorCode" from ops_jobs where job = 'chat' order by started_at desc limit 1`,
       sql`select status, count(*)::int as count from riot_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz group by status`,
-      sql`select count(*)::int as count from steam_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz`,
+      sql`select count(*)::int as count from steam_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz and code <> 'app_unavailable'`,
     ]);
     const current = findings({
       envProblems: envProblems().length, chatEnabled: chatConfigured(),
@@ -106,7 +108,7 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
       where (notified_state is distinct from active) and (active or notified_state = true)
         and (notified_at is null or notified_at < now() - interval '15 minutes')`;
     for (const p of pending) {
-      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.title}`);
+      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.active ? p.title : recoveryTitle(p.key as string, p.title as string)}`);
       if (delivery === 'disabled') continue;
       await sql`update ops_alerts set notified_at = now(), notified_state = case when ${delivery === 'sent'} then ${p.active}::boolean else notified_state end,
         notification_error = ${delivery === 'sent' ? null : delivery} where key = ${p.key}`;

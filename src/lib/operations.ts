@@ -12,7 +12,9 @@ export interface JobEntry {
   source: 'scheduled' | 'manual';
   startedAt: string;
   finishedAt: string | null;
-  result: { channels: number; messages: number; rateLimited: boolean; warnings?: string[]; truncated?: boolean } | null;
+  result: { channels: number; messages: number; rateLimited: boolean; warnings?: string[]; truncated?: boolean;
+    stopReasons?: string[]; pages?: number; completedChannels?: number; durationMs?: number; budgetMs?: number;
+    retryAfterMs?: number; resumedFrom?: string } | null;
   errorCode: string | null;
 }
 export interface OperationsData {
@@ -20,6 +22,7 @@ export interface OperationsData {
   lastSuccess: string | null;
   alerts: { key: string; title: string; severity: string; active: boolean; firstSeen: string; resolvedAt: string | null; notificationError: string | null }[];
   checkedAt: string | null;
+  externalCheckedAt?: string | null;
   audit: AuditEntry[];
   chatConfigured: boolean;
   notificationsConfigured: boolean;

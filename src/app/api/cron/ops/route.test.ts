@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET as external } from './route';
 import { GET as watchdog } from '../ops-watchdog/route';
 import { authorizeMonitor, checkOperations } from '@/server/operations/monitor';
+import { resumePendingChat } from '@/server/operations/jobs';
 
 vi.mock('@/server/operations/monitor', () => ({ authorizeMonitor: vi.fn(), checkOperations: vi.fn() }));
 vi.mock('@/server/http', () => ({ serverError: vi.fn() }));
+vi.mock('@/server/operations/jobs', () => ({ resumePendingChat: vi.fn() }));
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -14,13 +16,16 @@ describe.each([['external', external], ['watchdog', watchdog]] as const)('%s 점
     const response = await handler(new Request('https://site.example/api/cron/ops'));
     expect(response.status).toBe(status);
     expect(checkOperations).not.toHaveBeenCalled();
+    expect(resumePendingChat).not.toHaveBeenCalled();
   });
   it('기존 인증 헤더를 검사하고 점검 출처를 구분한다', async () => {
     vi.mocked(authorizeMonitor).mockReturnValue('ok');
     vi.mocked(checkOperations).mockResolvedValue({ skipped: false, active: 0 });
+    vi.mocked(resumePendingChat).mockResolvedValue('not_needed');
     const response = await handler(new Request('https://site.example/api/cron/ops', { headers: { Authorization: 'Bearer test' } }));
     expect(authorizeMonitor).toHaveBeenCalledWith('Bearer test');
     expect(checkOperations).toHaveBeenCalledWith(source);
-    expect(await response.json()).toEqual({ skipped: false, active: 0 });
+    expect(await response.json()).toEqual(source === 'external' ? { skipped: false, active: 0, chatRecovery: 'not_needed' } : { skipped: false, active: 0 });
+    expect(resumePendingChat).toHaveBeenCalledTimes(source === 'external' ? 1 : 0);
   });
 });

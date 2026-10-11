@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
 import { operationsLog, type LogLevel } from '@/lib/operations-log';
+import { chatDiagnosis, steamDiagnosis } from '@/lib/operations-diagnostics';
 import { adminStyles as styles, Panel, ScrollTable } from './AdminUi';
 
 const when = (value: string | null) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
 const labels: Record<string, string> = { running: '실행 중', success: '완료', partial: '부분 완료', failed: '실패', started: '진행 또는 결과 확인 필요' };
-const warnings: Record<string, string> = { highlights_failed: '개념글 갱신 실패', awards_failed: '시상식 갱신 실패' };
 const levels = { error: 'Error · 오류', warning: 'Warning · 경고', info: 'Info · 정보' };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -78,6 +78,8 @@ export function OpsStatusPanel({ ops, onOpenIntegrations }: { ops: Operations; o
     {!data && !error && <p>운영 현황을 불러오는 중입니다.</p>}
     {data && <>
       <p style={styles.muted}>마지막 점검: {when(data.checkedAt)} · Discord 알림 주소: {data.notificationsConfigured ? '설정됨' : '미설정'}</p>
+      <p style={styles.muted}>외부 점검 성공: {when(data.externalCheckedAt ?? null)} · 경고 기준 2시간 · 수동 점검과 별도</p>
+      <a href="https://github.com/study734/jaemangho/actions/workflows/ops-monitor.yml" target="_blank" rel="noreferrer" className="btn btn-secondary">외부 점검 실행 기록</a>
       <p style={styles.muted}>현황 조회: {when(new Date(now).toISOString())} · 30초마다 자동 갱신 · 한국 시간</p>
       <p style={styles.muted}>Error: 긴급 오류 · Warning: 확인이 필요한 경고 · Info: 점검 결과와 복구 기록</p>
       <div style={styles.controls} role="group" aria-label="운영 로그 수준 필터">
@@ -108,14 +110,21 @@ export function ChatSyncPanel({ ops }: { ops: Operations }) {
   const running = data?.jobs.some((j) => j.status === 'running' && now - new Date(j.startedAt).getTime() < 5 * 60_000);
   return <Panel title="채팅 동기화" actions={<button className="btn btn-primary" disabled={busy || !data?.chatConfigured || running} onClick={() => command('sync')}>동기화 재실행</button>}>
     <p style={styles.muted}>마지막 전체 성공: {when(data?.lastSuccess ?? null)} · 실행 기록 90일 보관</p>
+    {data?.jobs[0] && <>
+      <p><strong>최근 실행:</strong> {chatDiagnosis(data.jobs[0]).reason}</p>
+      <p style={styles.muted}>{chatDiagnosis(data.jobs[0]).action}</p>
+    </>}
     {data && !data.chatConfigured && <p>Discord 봇이 설정되지 않았습니다. 설정 후 재실행할 수 있습니다.</p>}
-    <ScrollTable head={['시작 (한국 시간)', '실행', '상태', '처리 결과']}>
+    <ScrollTable head={['시작·완료 (한국 시간)', '실행', '상태', '처리 결과·다음 조치']}>
       {data?.jobs.map((j) => <tr key={j.id}>
-        <td style={styles.cell}>{when(j.startedAt)}</td><td style={styles.cell}>{j.source === 'manual' ? '관리자' : '자동'}</td>
+        <td style={styles.cell}>{when(j.startedAt)}<div style={styles.muted}>완료: {when(j.finishedAt)}</div></td><td style={styles.cell}>{j.source === 'manual' ? '관리자' : j.result?.resumedFrom ? '자동 이어받기' : '자동'}</td>
         <td style={styles.cell}>{j.status === 'running' && now - new Date(j.startedAt).getTime() > 5 * 60_000 ? '중단 추정 · 재실행 가능' : labels[j.status]}</td>
-        <td style={styles.cell}>{j.result ? <>{j.result.channels}개 채널 · {j.result.messages}개 메시지
-          {j.result.channels === 0 && ' · 대상 채널 없음'}{j.result.rateLimited && ' · 호출 제한/시간 초과'}{j.result.truncated && ' · 페이지 상한 도달'}
-          {j.result.warnings?.map((w) => <span key={w}> · {warnings[w] ?? w}</span>)}</> : j.errorCode === 'interrupted' ? '중단된 실행' : j.errorCode ? '실패 · 서버 로그 확인' : '처리 중'}</td>
+        <td style={styles.cell}>{j.result && <div>{j.result.channels}개 채널 · {j.result.messages}개 메시지
+          {j.result.pages !== undefined && ` · ${j.result.pages}페이지`}
+          {j.result.completedChannels !== undefined && ` · 완료 채널 ${j.result.completedChannels}/${j.result.channels}`}
+          {j.result.durationMs !== undefined && ` · ${(j.result.durationMs / 1000).toFixed(1)}초`}</div>}
+          <div>{chatDiagnosis(j).reason}</div><p style={styles.muted}>{chatDiagnosis(j).action}</p>
+          {j.errorCode && <div style={styles.muted}>진단 코드: {j.errorCode}</div>}</td>
       </tr>)}
       {data?.jobs.length === 0 && <tr><td style={styles.cell} colSpan={4}>실행 기록이 없습니다.</td></tr>}
     </ScrollTable>
@@ -130,7 +139,7 @@ export function SteamPanel({ ops }: { ops: Operations }) {
       {data?.steam.stats.map((s) => <tr key={s.day}><td style={styles.cell}>{s.day}</td><td style={styles.cell}>{s.hits}</td><td style={styles.cell}>{s.misses}</td><td style={styles.cell}>{s.errors}</td></tr>)}
       {data?.steam.stats.length === 0 && <tr><td style={styles.cell} colSpan={4}>아직 호출 기록이 없습니다.</td></tr>}
     </ScrollTable>
-    {data && data.steam.errors.length > 0 && <details><summary>최근 Steam 오류</summary><ul style={styles.list}>{data.steam.errors.map((e, i) => <li key={i}>{when(e.at)} · {e.endpoint} · {e.code}</li>)}</ul></details>}
+    {data && data.steam.errors.length > 0 && <details><summary>최근 Steam 오류</summary><ul style={styles.list}>{data.steam.errors.map((e, i) => <li key={i}>{when(e.at)} · {e.endpoint} · {e.code}<p style={styles.muted}>{steamDiagnosis(e.code)}</p></li>)}</ul></details>}
   </Panel>;
 }
 

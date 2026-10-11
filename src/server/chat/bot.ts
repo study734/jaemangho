@@ -2,7 +2,17 @@ import { z } from 'zod';
 
 const DISCORD = 'https://discord.com/api/v10';
 
-export class DiscordRateLimitedError extends Error {}
+export class DiscordRateLimitedError extends Error {
+  reason: 'discord_rate_limit' | 'time_budget';
+  retryAfterMs?: number;
+  constructor(reason: 'discord_rate_limit' | 'time_budget' = 'discord_rate_limit', retryAfterMs?: number) {
+    super(reason); this.reason = reason; this.retryAfterMs = retryAfterMs;
+  }
+}
+export class DiscordRequestError extends Error {
+  code: string;
+  constructor(code: string) { super(code); this.code = code; }
+}
 
 const channelSchema = z.array(z.object({ id: z.string(), name: z.string().nullish(), type: z.number() }));
 const messageSchema = z.object({
@@ -45,19 +55,25 @@ const MAX_ATTEMPTS = 4;
 async function get(path: string, token: string, net: Net): Promise<unknown> {
   const { fetchFn = fetch, sleep = realSleep, deadline = Infinity } = net;
   for (let attempt = 1; ; attempt++) {
-    if (Date.now() >= deadline) throw new DiscordRateLimitedError();
-    const res = await fetchFn(`${DISCORD}${path}`, { headers: { Authorization: `Bot ${token}` }, signal: AbortSignal.timeout(8000) });
+    if (Date.now() >= deadline) throw new DiscordRateLimitedError('time_budget');
+    let res: Response;
+    try {
+      res = await fetchFn(`${DISCORD}${path}`, { headers: { Authorization: `Bot ${token}` }, signal: AbortSignal.timeout(Math.max(1, Math.min(8000, deadline - Date.now()))) });
+    } catch (error) {
+      if (Date.now() >= deadline) throw new DiscordRateLimitedError('time_budget');
+      throw new DiscordRequestError(error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'discord_timeout' : 'discord_network');
+    }
     if (res.status === 429) {
       const body = (await res.json().catch(() => ({}))) as { retry_after?: number };
-      const waitMs = Math.ceil((typeof body.retry_after === 'number' ? body.retry_after : 1) * 1000) + 50;
-      if (attempt >= MAX_ATTEMPTS || Date.now() + waitMs > deadline) throw new DiscordRateLimitedError();
+      const waitMs = Math.ceil((typeof body.retry_after === 'number' && Number.isFinite(body.retry_after) && body.retry_after >= 0 ? body.retry_after : 1) * 1000) + 50;
+      if (attempt >= MAX_ATTEMPTS || Date.now() + waitMs > deadline) throw new DiscordRateLimitedError('discord_rate_limit', waitMs);
       await sleep(waitMs);
       continue;
     }
-    if (!res.ok) throw new Error(`Discord API error (${res.status}) for ${path.split('?')[0].replace(/\d{5,}/g, ':id')}`);
+    if (!res.ok) throw new DiscordRequestError(`discord_http_${res.status}`);
     const resetMs = Math.ceil(Number(res.headers.get('x-ratelimit-reset-after') ?? 0) * 1000);
     if (res.headers.get('x-ratelimit-remaining') === '0' && resetMs > 0 && Date.now() + resetMs <= deadline) await sleep(resetMs);
-    return res.json();
+    try { return await res.json(); } catch { throw new DiscordRequestError('discord_invalid_response'); }
   }
 }
 

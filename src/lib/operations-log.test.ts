@@ -14,6 +14,11 @@ const alert: OperationsData['alerts'][number] = {
 };
 
 describe('운영 로그 표시', () => {
+  it('수동 점검이 최신이어도 외부 감시 공백은 숨기지 않고 저장 경고와 중복하지 않는다', () => {
+    const snapshot = { ...data, externalCheckedAt: '2026-10-06T22:00:00Z' };
+    expect(operationsLog(snapshot, now)[0]).toMatchObject({ id: 'monitor.external-stale', level: 'warning' });
+    expect(operationsLog({ ...snapshot, alerts: [{ ...alert, key: 'monitor.stale' }] }, now).filter(entry => entry.id.includes('stale'))).toHaveLength(1);
+  });
   it('발생 중 오류와 경고를 복구 정보보다 먼저 표시한다', () => {
     const entries = operationsLog({ ...data, alerts: [
       { ...alert, key: 'recovered', active: false, severity: 'critical', resolvedAt: data.checkedAt },
@@ -27,7 +32,7 @@ describe('운영 로그 표시', () => {
     expect(entries[2].at).toBe(data.checkedAt);
   });
   it('점검 지연을 경고하고 정상이라는 메시지를 함께 표시하지 않는다', () => {
-    expect(operationsLog({ ...data, checkedAt: null }, now)).toMatchObject([{ id: 'monitor.stale', level: 'warning', at: null }]);
+    expect(operationsLog({ ...data, checkedAt: null }, now)).toMatchObject([{ id: 'monitor.internal-stale', level: 'warning', at: null }]);
     expect(operationsLog({ ...data, checkedAt: '2026-10-06T23:59:59Z' }, now)).toHaveLength(1);
     expect(operationsLog({ ...data, checkedAt: '2026-10-07T00:00:00Z' }, now)[0].id).toBe('monitor.healthy');
   });

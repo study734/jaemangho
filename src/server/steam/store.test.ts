@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { steamCacheGet, steamCachePut } from './cache';
+import { steamCacheGet, steamCachePut, steamStat } from './cache';
 import { getPlaySupport, supportFromCategories } from './store';
 
 vi.mock('./cache', () => ({ steamCacheGet: vi.fn(), steamCachePut: vi.fn(), steamStat: vi.fn() }));
@@ -11,6 +11,18 @@ beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal('fetch', fetchMock); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('Steam 스토어 지원 방식', () => {
+  it('실패 원문 대신 공개 appId와 안전한 원인 코드를 기록한다', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 429 }));
+    await getPlaySupport(10);
+    expect(steamStat).toHaveBeenCalledWith('error', 'store/appdetails/10', 'http_429');
+    fetchMock.mockRejectedValueOnce(new DOMException('secret-url', 'TimeoutError'));
+    await getPlaySupport(20);
+    expect(steamStat).toHaveBeenCalledWith('error', 'store/appdetails/20', 'timeout');
+    fetchMock.mockResolvedValueOnce(new Response('{"30":{"success":false}}'));
+    await getPlaySupport(30);
+    expect(steamStat).toHaveBeenCalledWith('error', 'store/appdetails/30', 'app_unavailable');
+    expect(JSON.stringify(vi.mocked(steamStat).mock.calls)).not.toContain('secret-url');
+  });
   it('온라인 협동/PvP와 같은 화면 전용을 구분한다', () => {
     expect(supportFromCategories([2, 38, 39])).toBe('coop');
     expect(supportFromCategories([1, 36, 24])).toBe('multiplayer');

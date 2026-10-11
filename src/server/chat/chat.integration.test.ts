@@ -64,7 +64,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
       msg('tcm_1', 30, 'tcm_a2', [{ count: 99, emoji: '🔥' }]), // 기간 밖
     ]);
     const result = await sync.syncChat(opts(fetchFn));
-    expect(result).toEqual({ channels: 1, messages: 4, rateLimited: false });
+    expect(result).toMatchObject({ channels: 1, messages: 4, rateLimited: false });
     expect(await ids()).toEqual(['tcm_2', 'tcm_3', 'tcm_4', 'tcm_5']);
     const row = (await pool.query(`select channel_id, author_name, reactions, top_emoji from chat_messages where id = 'tcm_5'`)).rows[0];
     expect(row).toEqual({ channel_id: 'tcm_c1', author_name: '이름_tcm_a1', reactions: 6, top_emoji: '😂' });
@@ -106,7 +106,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     const result = await sync.syncChat(
       opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1'), msg('tcm_2', 3, 'tcm_a1')], { rateLimitOnce: true }))
     );
-    expect(result).toEqual({ channels: 1, messages: 4, rateLimited: false });
+    expect(result).toMatchObject({ channels: 1, messages: 4, rateLimited: false });
     expect(sleeps).toEqual([150]); // retry_after 0.1초 + 여유 50ms
     expect(await ids()).toEqual(['tcm_2', 'tcm_3', 'tcm_4', 'tcm_5']);
   });
@@ -117,7 +117,7 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     const result = await sync.syncChat(
       opts(discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 2, 'tcm_a1')], { rateLimitAfterFirstPage: true }))
     );
-    expect(result).toEqual({ channels: 1, messages: 2, rateLimited: true });
+    expect(result).toMatchObject({ channels: 1, messages: 2, rateLimited: true });
     expect(await ids()).toEqual(['tcm_4', 'tcm_5']);
     const resumedFetch = discord([msg('tcm_5', 0.1, 'tcm_a1'), msg('tcm_4', 1, 'tcm_a1'), msg('tcm_3', 5, 'tcm_a1')]);
     const resumed = await sync.syncChat(opts(resumedFetch));
@@ -180,6 +180,9 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     const resumed = await sync.syncChat({ ...opts(fetchFn), now: resumedNow });
     expect(resumed.rateLimited).toBe(false);
     expect(resumed.truncated).toBeUndefined();
+    // 과거 3일을 처음부터 반복하면 다시 60페이지 상한에 걸린다.
+    expect(vi.mocked(fetchFn).mock.calls.length).toBeLessThan(10);
+    expect(resumed.completedChannels).toBe(1);
     expect(String(vi.mocked(fetchFn).mock.calls[1][0])).toContain('before=tcm_bulk_119');
     expect((await pool.query(`select id from chat_messages where id like 'tcm_bulk_%'`)).rows).toHaveLength(125);
     expect((await pool.query(`select id from chat_messages where id = 'tcm_after_pause'`)).rows).toHaveLength(1);

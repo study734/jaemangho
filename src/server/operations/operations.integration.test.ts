@@ -37,6 +37,32 @@ describe.skipIf(!testDbUrl)('운영 기능 (DB)', () => {
   });
 
   const fakeDiscord = async (url: string | URL | Request) => new Response(JSON.stringify(String(url).includes('/guilds/') ? [{ id: 'tops_channel', name: '⛵ 테스트', type: 0 }] : []));
+  it('동시 외부 점검의 자동 이어받기는 미완료 실행을 한 번만 이어 받고 전체 성공을 남긴다', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'test-token');
+    vi.stubGlobal('fetch', vi.fn(fakeDiscord));
+    try {
+      await pool.query(`delete from ops_jobs where job = 'chat'`);
+      await pool.query(`insert into ops_jobs (id, job, source, status, started_at, finished_at, result)
+        values ('tops_resume', 'chat', 'scheduled', 'partial', now() - interval '20 minutes', now() - interval '16 minutes', '{"channels":1,"messages":5188,"rateLimited":true}'::jsonb)`);
+      const results = await Promise.all([jobs.resumePendingChat(), jobs.resumePendingChat()]);
+      expect(results).toContain('success');
+      const rows = (await pool.query(`select status, result from ops_jobs where job = 'chat' and id <> 'tops_resume'`)).rows;
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe('success');
+      expect(rows[0].result.resumedFrom).toBe('tops_resume');
+      expect(await jobs.resumePendingChat()).toBe('not_needed');
+    } finally { await pool.query(`delete from ops_jobs where job = 'chat'`); vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
+  });
+
+  it('스토어의 게임 정보 없음은 오류 기록을 보관하되 서비스 장애로 알리지 않는다', async () => {
+    vi.stubEnv('OPS_ALERT_WEBHOOK_URL', '');
+    try {
+      await pool.query(`delete from ops_alerts where key = 'steam.upstream'`);
+      await pool.query(`insert into steam_errors (endpoint, code) select 'tops_monitor', 'app_unavailable' from generate_series(1, 3)`);
+      await monitor.checkOperations('external');
+      expect((await pool.query(`select key from ops_alerts where key = 'steam.upstream' and active`)).rows).toEqual([]);
+    } finally { await pool.query(`delete from steam_errors where endpoint = 'tops_monitor'`); vi.unstubAllEnvs(); }
+  });
   it('중복 동기화를 거부하고 전체 성공 시각을 남긴다', async () => {
     let release!: () => void;
     let started!: () => void;

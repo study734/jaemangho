@@ -7,6 +7,10 @@ const responseSchema = z.object({ success: z.literal(true), data: z.object({
   type: z.string(), steam_appid: z.number().int(), categories: z.array(z.object({ id: z.number().int() })),
 }) });
 const pending = new Map<number, Promise<PlaySupport>>();
+class StoreError extends Error {
+  code: string;
+  constructor(code: string) { super(code); this.code = code; }
+}
 
 export function supportFromCategories(ids: number[]): Exclude<PlaySupport, 'unknown'> {
   const has = (id: number) => ids.includes(id);
@@ -32,16 +36,20 @@ export async function getPlaySupport(appId: number): Promise<PlaySupport> {
       const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic,categories&l=koreana`, {
         signal: AbortSignal.timeout(3000), cache: 'no-store',
       });
-      if (!res.ok) throw new Error(String(res.status));
-      const body: unknown = await res.json();
+      if (!res.ok) throw new StoreError(`http_${res.status}`);
+      let body: unknown;
+      try { body = await res.json(); } catch { throw new StoreError('invalid_response'); }
       const record = z.record(z.string(), z.unknown()).safeParse(body);
-      const parsed = responseSchema.safeParse(record.success ? record.data[String(appId)] : undefined);
-      if (!parsed.success || parsed.data.data.steam_appid !== appId) throw new Error('invalid_response');
+      const entry = record.success ? record.data[String(appId)] : undefined;
+      if (entry && typeof entry === 'object' && 'success' in entry && entry.success === false) throw new StoreError('app_unavailable');
+      const parsed = responseSchema.safeParse(entry);
+      if (!parsed.success || parsed.data.data.steam_appid !== appId) throw new StoreError('invalid_response');
       const support = parsed.data.data.type === 'game' ? supportFromCategories(parsed.data.data.categories.map(c => c.id)) : 'single';
       await steamCachePut(key, support, 86400);
       return support;
-    } catch {
-      await steamStat('error', 'store/appdetails', 'unavailable');
+    } catch (error) {
+      const code = error instanceof StoreError ? error.code : error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'timeout' : 'network';
+      await steamStat('error', `store/appdetails/${appId}`, code);
       return 'unknown';
     }
   })();

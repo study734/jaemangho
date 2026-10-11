@@ -35,11 +35,18 @@ export interface SyncResult {
   rateLimited: boolean;
   warnings?: string[];
   truncated?: boolean;
+  stopReasons?: ('discord_rate_limit' | 'time_budget' | 'page_limit')[];
+  pages?: number;
+  completedChannels?: number;
+  durationMs?: number;
+  budgetMs?: number;
+  retryAfterMs?: number;
 }
 
 export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const { token, guildId, pageSize = 100, now = new Date(), fetchFn = fetch, laugh = false, sleep, budgetMs = 50_000 } = o;
-  const net = { fetchFn, sleep, deadline: Date.now() + budgetMs };
+  const started = Date.now();
+  const net = { fetchFn, sleep, deadline: started + budgetMs };
   const channels = await findWatchedChannels(guildId, WATCH_MARK, token, net);
   const sql = await db();
   const states = await sql`select channel_id, completed_at, started_at, cutoff_at, before_id, updated_at
@@ -51,9 +58,13 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   let total = 0;
   let rateLimited = false;
   let truncated = false;
+  const stopReasons = new Set<'discord_rate_limit' | 'time_budget' | 'page_limit'>();
+  let pages = 0;
+  let completedChannels = 0;
+  let retryAfterMs: number | undefined;
 
   for (const channel of channels) {
-    if (Date.now() >= net.deadline) { rateLimited = true; break; }
+    if (Date.now() >= net.deadline) { rateLimited = true; stopReasons.add('time_budget'); break; }
     const state = byChannel.get(channel.id);
     let startedAt = state?.started_at ? new Date(state.started_at as string | Date) : now;
     let cutoff = state?.cutoff_at ? new Date(state.cutoff_at as string | Date).getTime()
@@ -66,6 +77,7 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
     try {
       for (let page = 0; page < MAX_PAGES; page++) {
         const { messages, rawCount, oldestId } = await fetchMessagePage(channel.id, token, { before, limit: pageSize, laugh }, net);
+        pages++;
         const recent = messages.filter((m) => new Date(m.createdAt).getTime() >= cutoff);
         if (recent.length) {
           await sql`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions, top_emoji, reply_to, laugh)
@@ -85,7 +97,8 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
           if (needsCurrentSweep) {
             // 이어 받는 동안 새로 생긴 메시지도 확인한 뒤에만 집계를 갱신한다.
             needsCurrentSweep = false;
-            cutoff = syncCutoff(now, startedAt);
+            // 과거 순회에서 이미 읽은 3일을 반복하지 않고 중단 중 도착한 메시지만 겹쳐 확인한다.
+            cutoff = startedAt.getTime() - 60_000;
             startedAt = now;
             before = undefined;
             await sql`update chat_sync_state set started_at = ${now.toISOString()}, cutoff_at = ${new Date(cutoff).toISOString()},
@@ -93,6 +106,7 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
             if (page === MAX_PAGES - 1) truncated = true;
             continue;
           }
+          completedChannels++;
           break;
         }
         before = oldestId;
@@ -104,6 +118,8 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
       if (!(e instanceof DiscordRateLimitedError)) throw e;
       // 기다려도 안 풀리거나 기한이 다 됐다. 저장한 커서부터 다음 실행에서 이어 받는다.
       rateLimited = true;
+      stopReasons.add(e.reason);
+      retryAfterMs = Math.max(retryAfterMs ?? 0, e.retryAfterMs ?? 0) || undefined;
     }
   }
 
@@ -117,5 +133,8 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   }
 
   await sql`delete from chat_messages where created_at < ${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString()}`;
-  return { channels: channels.length, messages: total, rateLimited, ...(warnings.length ? { warnings } : {}), ...(truncated ? { truncated } : {}) };
+  if (truncated) stopReasons.add('page_limit');
+  return { channels: channels.length, messages: total, rateLimited, pages, completedChannels,
+    durationMs: Date.now() - started, budgetMs, ...(stopReasons.size ? { stopReasons: [...stopReasons] } : {}),
+    ...(retryAfterMs ? { retryAfterMs } : {}), ...(warnings.length ? { warnings } : {}), ...(truncated ? { truncated } : {}) };
 }
