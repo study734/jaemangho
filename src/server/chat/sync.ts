@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { syncErrorCode } from '../operations/failures';
 import { recordAwards } from './awards';
 import { DiscordRateLimitedError, fetchMessagePage, findWatchedChannels } from './bot';
 import { recordDailyActivity } from './daily-activity';
@@ -20,6 +21,8 @@ export function syncCutoff(now: Date, completedAt: Date | null): number {
 }
 
 export interface SyncOptions {
+  resumeOnly?: boolean; // 자동 복구에서는 이미 완료한 채널의 새 메시지만 확인한다.
+  onStage?: (stage: string) => Promise<void>;
   token: string;
   guildId: string;
   pageSize?: number;
@@ -34,6 +37,7 @@ export interface SyncResult {
   messages: number;
   rateLimited: boolean;
   warnings?: string[];
+  warningCodes?: string[];
   truncated?: boolean;
   stopReasons?: ('discord_rate_limit' | 'time_budget' | 'page_limit')[];
   pages?: number;
@@ -47,8 +51,10 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const { token, guildId, pageSize = 100, now = new Date(), fetchFn = fetch, laugh = false, sleep, budgetMs = 50_000 } = o;
   const started = Date.now();
   const net = { fetchFn, sleep, deadline: started + budgetMs };
+  await o.onStage?.('discover_channels');
   const channels = await findWatchedChannels(guildId, WATCH_MARK, token, net);
   const sql = await db();
+  await o.onStage?.('load_cursors');
   const states = await sql`select channel_id, completed_at, started_at, cutoff_at, before_id, updated_at
     from chat_sync_state where channel_id = any(${channels.map(channel => channel.id)}::text[])`;
   const byChannel = new Map(states.map(state => [state.channel_id as string, state]));
@@ -63,12 +69,15 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   let completedChannels = 0;
   let retryAfterMs: number | undefined;
 
+  await o.onStage?.('collect_messages');
   for (const channel of channels) {
     if (Date.now() >= net.deadline) { rateLimited = true; stopReasons.add('time_budget'); break; }
     const state = byChannel.get(channel.id);
     let startedAt = state?.started_at ? new Date(state.started_at as string | Date) : now;
     let cutoff = state?.cutoff_at ? new Date(state.cutoff_at as string | Date).getTime()
-      : syncCutoff(now, state?.completed_at ? new Date(state.completed_at as string | Date) : null);
+      : o.resumeOnly && state?.completed_at
+        ? Math.max(now.getTime() - MAX_DAYS * 86_400_000, new Date(state.completed_at as string | Date).getTime() - 60_000)
+        : syncCutoff(now, state?.completed_at ? new Date(state.completed_at as string | Date) : null);
     let before = (state?.before_id as string | null) ?? undefined;
     let needsCurrentSweep = startedAt.getTime() < now.getTime();
     await sql`insert into chat_sync_state (channel_id, started_at, cutoff_at, updated_at)
@@ -125,16 +134,19 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
 
   // 개념글 보관함과 지난주 칭호를 갱신한다. 실패해도 동기화 결과는 돌려준다.
   const warnings: string[] = [];
-  await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); console.error('record highlights failed', e); });
+  const warningCodes: string[] = [];
+  await o.onStage?.('aggregate');
+  await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); warningCodes.push(syncErrorCode(e)); console.error('record highlights failed', e); });
   if (!rateLimited && !truncated && channels.length > 0) {
     // 불완전한 기록으로 기존 주간 결과를 덮어쓰지 않는다.
-    await recordAwards(now).catch((e) => { warnings.push('awards_failed'); console.error('record awards failed', e); });
-    await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); console.error('record daily activity failed', e); });
+    await recordAwards(now).catch((e) => { warnings.push('awards_failed'); warningCodes.push(syncErrorCode(e)); console.error('record awards failed', e); });
+    await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); warningCodes.push(syncErrorCode(e)); console.error('record daily activity failed', e); });
   }
 
+  await o.onStage?.('cleanup');
   await sql`delete from chat_messages where created_at < ${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString()}`;
   if (truncated) stopReasons.add('page_limit');
   return { channels: channels.length, messages: total, rateLimited, pages, completedChannels,
     durationMs: Date.now() - started, budgetMs, ...(stopReasons.size ? { stopReasons: [...stopReasons] } : {}),
-    ...(retryAfterMs ? { retryAfterMs } : {}), ...(warnings.length ? { warnings } : {}), ...(truncated ? { truncated } : {}) };
+    ...(retryAfterMs ? { retryAfterMs } : {}), ...(warnings.length ? { warnings, warningCodes } : {}), ...(truncated ? { truncated } : {}) };
 }

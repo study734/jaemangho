@@ -1,5 +1,5 @@
 import type { OperationsData } from './operations';
-import { chatDiagnosis, recoveryTitle, steamDiagnosis } from './operations-diagnostics';
+import { chatDiagnosis, recoveryDiagnosis, recoveryTitle, steamDiagnosis } from './operations-diagnostics';
 
 export type LogLevel = 'error' | 'warning' | 'info';
 export interface OperationsLogEntry {
@@ -11,11 +11,12 @@ export interface OperationsLogEntry {
   detail?: string;
 }
 
-function alertDetail(key: string, data: OperationsData) {
+function alertDetail(key: string, data: OperationsData, now: number) {
   if (key.startsWith('chat.')) {
     const latest = data.jobs[0];
-    return `영향: 채팅 기반 기록과 집계가 최신이 아닐 수 있습니다. ${latest ? `${chatDiagnosis(latest).reason}. ${chatDiagnosis(latest).action}` : '연동 탭에서 실행 기록과 봇 설정을 확인하세요.'}`;
+    return `영향: 채팅 기반 기록과 집계가 최신이 아닐 수 있습니다. ${latest ? `${chatDiagnosis(latest).reason}. ${chatDiagnosis(latest).action} ${recoveryDiagnosis(latest, now)}` : '연동 탭에서 실행 기록과 봇 설정을 확인하세요.'}`;
   }
+  if (key === 'recovery.stale') return '자동 복구 작업의 실행 공백입니다. 사이트 장애와 구분하며 Actions의 recovery 작업을 확인하세요. 예약이 지연되면 워크플로 수동 실행 또는 동기화 재실행으로 복구합니다.';
   if (key === 'monitor.stale') return '외부 점검 성공이 없거나 2시간을 넘겼습니다. 사이트 장애를 뜻하지 않습니다. GitHub Actions의 Operations monitor 시작 시각·결과를 확인하세요. 수동 점검은 외부 성공 시각을 갱신하지 않습니다.';
   if (key === 'steam.upstream') {
     const recent = data.steam.errors.find(error => error.code !== 'app_unavailable');
@@ -37,7 +38,7 @@ export function operationsLog(data: OperationsData, now: number): OperationsLogE
   if (data.externalCheckedAt !== undefined && (!data.externalCheckedAt || now - Date.parse(data.externalCheckedAt) > 2 * 3_600_000)
     && !data.alerts.some(alert => alert.key === 'monitor.stale' && alert.active)) {
     entries.push({ id: 'monitor.external-stale', level: 'warning', state: '확인 필요', at: data.externalCheckedAt,
-      title: '외부 운영 점검의 성공 기록이 없거나 2시간 이상 지났습니다.', detail: alertDetail('monitor.stale', data) });
+      title: '외부 운영 점검의 성공 기록이 없거나 2시간 이상 지났습니다.', detail: alertDetail('monitor.stale', data, now) });
   }
   for (const alert of data.alerts) {
     entries.push({
@@ -45,7 +46,7 @@ export function operationsLog(data: OperationsData, now: number): OperationsLogE
       level: alert.active ? (alert.severity === 'critical' ? 'error' : 'warning') : 'info',
       state: alert.active ? '발생 중' : '복구', title: alert.active ? alert.title : recoveryTitle(alert.key, alert.title),
       at: alert.active ? alert.firstSeen : alert.resolvedAt,
-      detail: alert.active ? alertDetail(alert.key, data) : '이전 경고가 해소되었습니다. 현재 발생 중인 문제가 아닙니다. 오류 경고 해제는 이번 검사 구간의 기준 충족 여부이며 외부 서비스의 완전한 복구를 보장하지 않습니다.',
+      detail: alert.active ? alertDetail(alert.key, data, now) : '이전 경고가 해소되었습니다. 현재 발생 중인 문제가 아닙니다. 오류 경고 해제는 이번 검사 구간의 기준 충족 여부이며 외부 서비스의 완전한 복구를 보장하지 않습니다.',
     });
     if (alert.notificationError) entries.push({
       id: `${alert.key}.notification`, level: 'warning', state: '전송 확인 필요', at: null,

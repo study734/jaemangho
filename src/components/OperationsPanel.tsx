@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
 import { operationsLog, type LogLevel } from '@/lib/operations-log';
-import { chatDiagnosis, steamDiagnosis } from '@/lib/operations-diagnostics';
+import { chatDiagnosis, recoveryDiagnosis, steamDiagnosis } from '@/lib/operations-diagnostics';
 import { adminStyles as styles, Panel, ScrollTable } from './AdminUi';
 
 const when = (value: string | null) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
-const labels: Record<string, string> = { running: '실행 중', success: '완료', partial: '부분 완료', failed: '실패', started: '진행 또는 결과 확인 필요' };
+const labels: Record<string, string> = { running: '실행 중', success: '완료', partial: '부분 완료', failed: '실패', started: '진행 또는 결과 확인 필요', not_needed: '복구 불필요', waiting: '다음 시도 대기', ready: '시도 가능', manual_required: '수동 조치 필요', exhausted: '자동 복구 상한 도달', busy: '중복 실행 생략' };
+const stageLabels: Record<string, string> = { starting: '실행 시작', discover_channels: '채널 탐색', load_cursors: '커서 조회', collect_messages: '메시지 수집', aggregate: '파생 집계', cleanup: '기록 정리', complete: '실행 종료' };
+const stageName = (stage?: string) => stage ? (stageLabels[stage] ?? stage) : '이전 기록 없음';
 const levels = { error: 'Error · 오류', warning: 'Warning · 경고', info: 'Info · 정보' };
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -47,10 +49,19 @@ export function useOperations() {
     setBusy(true); setNotice(null);
     try {
       const result = await json<{ status?: string; skipped?: boolean }>('/api/admin/operations?action=' + action, { method: 'POST' });
+      let verification = '';
+      let verificationPending = false;
+      if (action === 'sync') {
+        try {
+          const checked = await json<{ skipped?: boolean }>('/api/admin/operations?action=check', { method: 'POST' });
+          verificationPending = !!checked.skipped;
+          verification = checked.skipped ? ' 상태 재점검 대기: 다른 점검이 진행 중입니다.' : ' 상태 재점검을 완료했습니다.';
+        } catch { verificationPending = true; verification = ' 동기화 결과는 저장됐지만 상태 재점검에 실패했습니다. 지금 점검을 실행하세요.'; }
+      }
       setNotice({
-        level: result.skipped || result.status === 'partial' ? 'warning' : 'info',
+        level: verificationPending || result.skipped || result.status === 'partial' ? 'warning' : 'info',
         message: result.skipped ? '다른 점검이 진행 중이라 이번 요청은 실행하지 않았습니다. 잠시 후 현황을 확인하세요.'
-          : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' : '작업을 완료했습니다.',
+          : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' + verification : '작업을 완료했습니다.' + verification,
       });
     } catch (e) { setNotice({ level: 'error', message: (e as Error).message }); }
     finally { setBusy(false); await load(); }
@@ -110,20 +121,28 @@ export function ChatSyncPanel({ ops }: { ops: Operations }) {
   const running = data?.jobs.some((j) => j.status === 'running' && now - new Date(j.startedAt).getTime() < 5 * 60_000);
   return <Panel title="채팅 동기화" actions={<button className="btn btn-primary" disabled={busy || !data?.chatConfigured || running} onClick={() => command('sync')}>동기화 재실행</button>}>
     <p style={styles.muted}>마지막 전체 성공: {when(data?.lastSuccess ?? null)} · 실행 기록 90일 보관</p>
+    <p style={styles.muted}>복구 실행기 완료: {when(data?.recoveryCheckedAt ?? null)} · 최근 결과: {data?.recoveryStatus ? (labels[data.recoveryStatus] ?? data.recoveryStatus) : '기록 없음'}</p>
     {data?.jobs[0] && <>
       <p><strong>최근 실행:</strong> {chatDiagnosis(data.jobs[0]).reason}</p>
       <p style={styles.muted}>{chatDiagnosis(data.jobs[0]).action}</p>
+      <p><strong>복구 상태:</strong> {recoveryDiagnosis(data.jobs[0], now)}</p>
+      <p style={styles.muted}>실행 ID: {data.jobs[0].id} · {data.jobs[0].status === 'failed' ? '실패 단계' : '처리 단계'}: {stageName(data.jobs[0].result?.failure?.stage ?? data.jobs[0].result?.stage)}
+        {data.jobs[0].result?.failure?.httpStatus && ` · HTTP ${data.jobs[0].result.failure.httpStatus}`}
+        {data.jobs[0].result?.failure?.sqlState && ` · SQLSTATE ${data.jobs[0].result.failure.sqlState}`}</p>
     </>}
     {data && !data.chatConfigured && <p>Discord 봇이 설정되지 않았습니다. 설정 후 재실행할 수 있습니다.</p>}
     <ScrollTable head={['시작·완료 (한국 시간)', '실행', '상태', '처리 결과·다음 조치']}>
       {data?.jobs.map((j) => <tr key={j.id}>
         <td style={styles.cell}>{when(j.startedAt)}<div style={styles.muted}>완료: {when(j.finishedAt)}</div></td><td style={styles.cell}>{j.source === 'manual' ? '관리자' : j.result?.resumedFrom ? '자동 이어받기' : '자동'}</td>
         <td style={styles.cell}>{j.status === 'running' && now - new Date(j.startedAt).getTime() > 5 * 60_000 ? '중단 추정 · 재실행 가능' : labels[j.status]}</td>
-        <td style={styles.cell}>{j.result && <div>{j.result.channels}개 채널 · {j.result.messages}개 메시지
+        <td style={styles.cell}>{j.result?.channels !== undefined && <div>{j.result.channels}개 채널 · {j.result.messages}개 메시지
           {j.result.pages !== undefined && ` · ${j.result.pages}페이지`}
           {j.result.completedChannels !== undefined && ` · 완료 채널 ${j.result.completedChannels}/${j.result.channels}`}
           {j.result.durationMs !== undefined && ` · ${(j.result.durationMs / 1000).toFixed(1)}초`}</div>}
           <div>{chatDiagnosis(j).reason}</div><p style={styles.muted}>{chatDiagnosis(j).action}</p>
+          <div style={styles.muted}>실행 ID: {j.id}{j.result?.resumedFrom && ` · 이전 실행: ${j.result.resumedFrom}`}</div>
+          <div style={styles.muted}>{recoveryDiagnosis(j, now)}</div>
+          {j.result?.failure && <div style={styles.muted}>실패 단계: {stageName(j.result.failure.stage)}{j.result.failure.httpStatus && ` · HTTP ${j.result.failure.httpStatus}`}{j.result.failure.sqlState && ` · SQLSTATE ${j.result.failure.sqlState}`}</div>}
           {j.errorCode && <div style={styles.muted}>진단 코드: {j.errorCode}</div>}</td>
       </tr>)}
       {data?.jobs.length === 0 && <tr><td style={styles.cell} colSpan={4}>실행 기록이 없습니다.</td></tr>}

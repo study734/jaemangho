@@ -7,7 +7,7 @@ describe('관리자 진단과 다음 조치', () => {
     expect(chatDiagnosis(job).reason).toContain('이전 기록은 구분 불가');
     expect(chatDiagnosis({ ...job, result: { ...job.result, stopReasons: ['time_budget'] } }).reason).toBe('수집 시간 예산 소진');
     expect(chatDiagnosis({ ...job, result: { ...job.result, stopReasons: ['discord_rate_limit'] } }).reason).toContain('(429)');
-    expect(chatDiagnosis(job).action).toContain('다음 외부 점검');
+    expect(chatDiagnosis(job).action).toContain('별도 복구');
   });
   it('권한 오류와 집계 실패는 자동 재시도 안내로 숨기지 않는다', () => {
     expect(chatDiagnosis({ status: 'failed', errorCode: 'discord_http_403', result: null }).action).toContain('권한');

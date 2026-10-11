@@ -40,3 +40,12 @@ describe('운영 알림 전송', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 });
+
+it('복구 진행 중에는 실패 경고를 해제하지 않으며 상한과 실행기 공백을 별도로 알린다', () => {
+  const now = Date.parse('2026-10-11T03:00:00Z');
+  const base = { envProblems: 0, chatEnabled: true, lastSuccess: new Date(now).toISOString(), riot: [], steamErrors: 0 };
+  const running = { status: 'running', startedAt: new Date(now).toISOString(), result: { resumedFrom: 'root' } };
+  expect(findings({ ...base, latestJob: running }, now).map(f => f.key)).toContain('chat.failed');
+  const failed = { status: 'failed', startedAt: new Date(now - 3_600_000).toISOString(), finishedAt: new Date(now - 60_000).toISOString(), errorCode: 'discord_timeout', result: { recoveryAttempt: 6 } };
+  expect(findings({ ...base, latestJob: failed, recoveryCheck: null }, now).map(f => f.key)).toEqual(['recovery.stale', 'chat.failed', 'chat.recovery']);
+});

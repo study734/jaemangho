@@ -13,18 +13,20 @@ test('운영자는 감시 공백과 채팅 중단 원인·다음 조치 및 Stea
     ...snapshot, checkedAt: at, externalCheckedAt: old, chatConfigured: true, alerts: [
       { key: 'chat.failed', title: '채팅 동기화 부분 완료: 수집 시간 예산 소진', severity: 'warning', active: true, firstSeen: at, resolvedAt: null, notificationError: null },
     ], jobs: [{ id: 'diagnosis', source: 'scheduled', status: 'partial', startedAt: old, finishedAt: at, errorCode: null,
-      result: { channels: 1, messages: 5188, rateLimited: true, stopReasons: ['time_budget'], pages: 52, completedChannels: 0, durationMs: 50000, budgetMs: 50000, resumedFrom: 'previous' } }],
+      result: { channels: 1, messages: 5188, rateLimited: true, stopReasons: ['time_budget'], pages: 52, completedChannels: 0, durationMs: 50000, budgetMs: 50000, resumedFrom: 'previous', recoveryAttempt: 2, recoveryStartedAt: old, stage: 'complete' } }],
     steam: { ...snapshot.steam, errors: [{ at, endpoint: 'store/appdetails/620', code: 'http_429' }] },
   } }));
   await page.goto('/admin');
   const logs = page.getByRole('list', { name: '운영 로그', exact: true });
   await expect(logs).toContainText('사이트 장애를 뜻하지 않습니다');
-  await expect(logs).toContainText('다음 외부 점검');
+  await expect(logs).toContainText('별도 복구');
   await expect(page.getByRole('link', { name: '외부 점검 실행 기록' })).toHaveAttribute('href', /ops-monitor.yml$/);
   await mkdir('output/playwright', { recursive: true });
   await page.screenshot({ path: 'output/playwright/operations-overview.png', fullPage: true });
   await page.getByRole('button', { name: '연동 상태와 실행 기록 보기' }).click();
   await expect(page.getByRole('cell', { name: '자동 이어받기', exact: true })).toBeVisible();
+  await expect(page.getByText('복구 상태:', { exact: true }).locator('..')).toContainText('자동 복구 2/6회');
+  await expect(page.getByText('실행 ID: diagnosis', { exact: false }).first()).toBeVisible();
   await expect(page.getByRole('cell').filter({ hasText: '5188개 메시지' })).toContainText('수집 시간 예산 소진');
   await expect(page.getByRole('cell').filter({ hasText: '5188개 메시지' })).toContainText('완료 채널 0/1');
   await page.getByText('최근 Steam 오류', { exact: true }).click();
@@ -157,4 +159,23 @@ test('운영 화면에서 점검·캐시 초기화·기간 선택·현황 내보
   expect(snapshot.operations.audit.some((a: { action: string }) => a.action === 'monitor.check')).toBe(true);
   expect(JSON.stringify(snapshot)).not.toContain('e2e_tok_ops_admin');
   expect((await db.query(`select result from ops_audit where actor_id = 'e2e_ops_admin' and action = 'snapshot.export' order by id desc limit 1`)).rows[0].result).toBe('success');
+});
+
+test('수동 동기화 성공 뒤 점검 실패는 복구 결과를 뒤집지 않고 확인 필요를 표시한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ops_followup', 'E2E복구검증', 'admin'));
+  const snapshot = await (await context.request.get('/api/admin/operations')).json();
+  const calls: string[] = [];
+  await page.route('**/api/admin/operations**', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { ...snapshot, chatConfigured: true, jobs: [] } });
+    const action = new URL(route.request().url()).searchParams.get('action')!;
+    calls.push(action);
+    return route.fulfill(action === 'sync' ? { json: { status: 'success' } } : { status: 503, json: { error: '점검 실패' } });
+  });
+  await page.goto('/admin');
+  await page.getByRole('button', { name: '연동 상태와 실행 기록 보기' }).click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '동기화 재실행' }).click();
+  const notice = page.getByRole('status').filter({ hasText: '동기화 결과는 저장됐지만' });
+  await expect(notice).toContainText('Warning · 경고');
+  expect(calls).toEqual(['sync', 'check']);
 });

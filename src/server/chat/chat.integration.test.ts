@@ -191,4 +191,19 @@ describe.skipIf(!testDbUrl)('채팅 하이라이트 동기화·집계 (DB)', () 
     expect(state.before_id).toBeNull();
     expect(state.cutoff_at).toBeNull();
   });
+  it('자동 복구는 이미 완료한 채널의 3일 기록을 반복하지 않고 새 메시지만 확인한다', async () => {
+    const now = new Date();
+    await pool.query(`insert into chat_sync_state (channel_id, completed_at) values ('tcm_delta', $1)`, [new Date(now.getTime() - 3_600_000)]);
+    const messages = [msg('tcm_delta_new', 0.01, 'tcm_a1'), ...Array.from({ length: 125 }, (_, i) => msg(`tcm_delta_old_${i}`, 0.1 + i / 100, 'tcm_a1'))];
+    const fetchFn = discord(messages);
+    const wrapped = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      if (String(args[0]).includes('/guilds/')) return Response.json([{ id: 'tcm_delta', name: '⛵ 완료한 채널', type: 0 }]);
+      return fetchFn(...args);
+    });
+    const result = await sync.syncChat({ ...opts(wrapped), now, resumeOnly: true });
+    expect(result).toMatchObject({ channels: 1, messages: 1, pages: 1, completedChannels: 1, rateLimited: false });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect((await pool.query(`select id from chat_messages where channel_id = 'tcm_delta'`)).rows).toEqual([{ id: 'tcm_delta_new' }]);
+  });
+
 });

@@ -54,6 +54,53 @@ describe.skipIf(!testDbUrl)('운영 기능 (DB)', () => {
     } finally { await pool.query(`delete from ops_jobs where job = 'chat'`); vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
   });
 
+  it('HTTP 일시 실패의 단계·상태만 저장하고 대기 후 자동 복구한다', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'test-token');
+    try {
+      await pool.query(`delete from ops_jobs where job in ('chat', 'recovery')`);
+      await expect(jobs.runChatSync('manual', { token: 'do-not-store-secret', guildId: 'test', fetchFn: async () => new Response('private-response', { status: 503 }) })).rejects.toThrow();
+      const failure = (await pool.query(`select id, result from ops_jobs where job = 'chat'`)).rows[0];
+      expect(failure.result.failure).toEqual({ stage: 'discover_channels', code: 'discord_http_503', httpStatus: 503 });
+      expect(JSON.stringify(failure)).not.toContain('do-not-store-secret');
+      await pool.query(`update ops_jobs set started_at = now() - interval '20 minutes', finished_at = now() - interval '16 minutes' where id = $1`, [failure.id]);
+      vi.stubGlobal('fetch', vi.fn(fakeDiscord));
+      expect(await jobs.runChatRecovery()).toBe('success');
+      const recovered = (await pool.query(`select result from ops_jobs where job = 'chat' and status = 'success'`)).rows[0];
+      expect(recovered.result).toMatchObject({ resumedFrom: failure.id, recoveryAttempt: 1 });
+      expect((await pool.query(`select status, result from ops_jobs where job = 'recovery'`)).rows[0]).toMatchObject({ status: 'success', result: { recovery: 'success' } });
+    } finally { await pool.query(`delete from ops_jobs where job in ('chat', 'recovery')`); vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
+  });
+
+  it('채널 탐색 단계의 429 대기 시간도 기록하고 너무 이른 재시도를 막는다', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'test-token');
+    try {
+      await pool.query(`delete from ops_jobs where job = 'chat'`);
+      await expect(jobs.runChatSync('manual', { token: 'test', guildId: 'test', fetchFn: async () => Response.json({ retry_after: 7200 }, { status: 429 }) })).rejects.toThrow();
+      const row = (await pool.query(`select error_code, result from ops_jobs where job = 'chat'`)).rows[0];
+      expect(row.error_code).toBe('discord_rate_limit');
+      expect(row.result.retryAfterMs).toBeGreaterThanOrEqual(7_200_000);
+      await pool.query(`update ops_jobs set finished_at = now() - interval '30 minutes' where job = 'chat'`);
+      expect(await jobs.resumePendingChat()).toBe('waiting');
+    } finally { await pool.query(`delete from ops_jobs where job = 'chat'`); vi.unstubAllEnvs(); }
+  });
+
+  it('강제 종료 실행을 복구하고 소진된 재시도는 Discord를 호출하지 않는다', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'test-token');
+    const fetchFn = vi.fn(fakeDiscord);
+    vi.stubGlobal('fetch', fetchFn);
+    try {
+      await pool.query(`delete from ops_jobs where job = 'chat'`);
+      await pool.query(`insert into ops_jobs (id, job, source, status, started_at, result) values ('tops_killed', 'chat', 'scheduled', 'running', now() - interval '25 minutes', '{"stage":"collect_messages"}')`);
+      expect(await jobs.resumePendingChat()).toBe('success');
+      expect((await pool.query(`select status, error_code from ops_jobs where id = 'tops_killed'`)).rows[0]).toEqual({ status: 'failed', error_code: 'interrupted' });
+      await pool.query(`delete from ops_jobs where job = 'chat'`);
+      await pool.query(`insert into ops_jobs (id, job, source, status, started_at, finished_at, error_code, result) values ('tops_exhausted', 'chat', 'scheduled', 'failed', now() - interval '3 hours', now() - interval '2 hours', 'discord_timeout', '{"recoveryAttempt":6}')`);
+      fetchFn.mockClear();
+      expect(await jobs.resumePendingChat()).toBe('exhausted');
+      expect(fetchFn).not.toHaveBeenCalled();
+    } finally { await pool.query(`delete from ops_jobs where job = 'chat'`); vi.unstubAllGlobals(); vi.unstubAllEnvs(); }
+  });
+
   it('스토어의 게임 정보 없음은 오류 기록을 보관하되 서비스 장애로 알리지 않는다', async () => {
     vi.stubEnv('OPS_ALERT_WEBHOOK_URL', '');
     try {

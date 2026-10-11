@@ -25,7 +25,7 @@ describe.each([['external', external], ['watchdog', watchdog]] as const)('%s 점
     const response = await handler(new Request('https://site.example/api/cron/ops', { headers: { Authorization: 'Bearer test' } }));
     expect(authorizeMonitor).toHaveBeenCalledWith('Bearer test');
     expect(checkOperations).toHaveBeenCalledWith(source);
-    expect(await response.json()).toEqual(source === 'external' ? { skipped: false, active: 0, chatRecovery: 'not_needed' } : { skipped: false, active: 0 });
-    expect(resumePendingChat).toHaveBeenCalledTimes(source === 'external' ? 1 : 0);
+    expect(await response.json()).toEqual({ skipped: false, active: 0 });
+    expect(resumePendingChat).not.toHaveBeenCalled();
   });
 });

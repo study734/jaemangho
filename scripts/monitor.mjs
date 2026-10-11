@@ -11,7 +11,7 @@ function webhookAllowed(value) {
 }
 
 // 앱과 DB가 완전히 내려가도 독립 실행되는 외부 감시. 같은 장애의 반복 알림은 상태 파일로 억제한다.
-export async function monitor({ url, stateFile, secret, webhook, fetchFn = fetch }) {
+export async function monitor({ url, stateFile, secret, webhook, fetchFn = fetch, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   const base = new URL(url);
   if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password) throw new Error('Invalid monitoring URL');
   let state = { notified: 'healthy' };
@@ -19,26 +19,29 @@ export async function monitor({ url, stateFile, secret, webhook, fetchFn = fetch
   let status = 'healthy';
   try {
     const response = await fetchFn(new URL('/api/health', base), { redirect: 'error', signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) status = 'unavailable';
+    if (!response.ok || (await response.json()).ok !== true) status = 'unavailable';
     else {
       if (!secret) status = 'monitor_unconfigured';
       else {
-        const checked = await fetchFn(new URL('/api/cron/ops', base), {
-          headers: { Authorization: `Bearer ${secret}` }, redirect: 'error', signal: AbortSignal.timeout(60_000),
-        });
-        if (!checked.ok) status = 'monitor_failed';
-        else {
+        status = 'monitor_failed';
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const checked = await fetchFn(new URL('/api/cron/ops', base), {
+            headers: { Authorization: `Bearer ${secret}` }, redirect: 'error', signal: AbortSignal.timeout(60_000),
+          });
+          if (!checked.ok) break;
           const result = await checked.json();
-          if (result.skipped !== false || !Number.isInteger(result.active) || result.active < 0) status = 'monitor_failed';
+          if (result.skipped === false && Number.isInteger(result.active) && result.active >= 0) { status = 'healthy'; break; }
+          if (result.skipped !== true || attempt === 2) break;
+          await sleep((attempt + 1) * 1000);
         }
       }
     }
-  } catch { status = 'unavailable'; }
+  } catch { if (status !== 'monitor_failed') status = 'unavailable'; }
   let notificationFailed = false;
   if (webhook && state.notified !== status) {
     try {
       if (!webhookAllowed(webhook)) throw new Error('Invalid webhook');
-      const message = status === 'healthy' ? '[재망호 복구] 사이트와 운영 점검이 정상입니다.' :
+      const message = status === 'healthy' ? '[재망호 복구] 사이트·DB 접근과 운영 점검 실행이 복구되었습니다. 개별 장애는 관리자 운영 상태에서 확인하세요.' :
         status === 'unavailable' ? '[재망호 긴급] 사이트 또는 DB 헬스체크에 실패했습니다.' : '[재망호 운영 알림] 자동 점검의 설정 또는 실행에 문제가 있습니다.';
       const delivery = await fetchFn(webhook, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000), headers: { 'Content-Type': 'application/json' },
