@@ -23,7 +23,7 @@ jobs:
     container: node:24-trixie
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test
@@ -38,12 +38,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: PostgreSQL 17 복구 도구 설치
-        run: |
-          apt-get update
-          apt-get install --yes --no-install-recommends postgresql-client-17
-          pg_dump --version
-          pg_restore --version
+      - name: PostgreSQL 18 복구 도구 설치
+        run: sh scripts/install-pg-client.sh
       - run: npm ci
       - name: 가짜 데이터 백업·복구·스키마 검증
         run: node scripts/rehearse-backup.mjs

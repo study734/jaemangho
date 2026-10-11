@@ -21,7 +21,7 @@ jobs:
     container: node:24-trixie
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test
@@ -37,10 +37,8 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - name: PostgreSQL 17 복구 도구 설치
-        run: |
-          apt-get update
-          apt-get install --yes --no-install-recommends postgresql-client-17
+      - name: PostgreSQL 18 복구 도구 설치
+        run: sh scripts/install-pg-client.sh
       - run: npm ci
       - name: 알림 상태 복원
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
