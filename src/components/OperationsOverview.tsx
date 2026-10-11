@@ -7,6 +7,7 @@ import { chatDiagnosis, recoveryDiagnosis } from '@/lib/operations-diagnostics';
 import { operationsLog } from '@/lib/operations-log';
 import { adminStyles as styles, Panel } from './AdminUi';
 import type { Operations } from './OperationsPanel';
+import type { UsageBudget } from '@/lib/usage-budget';
 
 const when = (value: string | null | undefined) => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '기록 없음';
 
@@ -55,7 +56,7 @@ export function OperationsOverview({ ops, automation }: { ops: Operations; autom
   </Panel>;
 }
 
-export function AutomationPanel({ now, revision, onEvidence }: { now: number; revision: number; onEvidence: (evidence: AutomationEvidence | null) => void }) {
+export function AutomationPanel({ now, revision, onEvidence, usage }: { now: number; revision: number; onEvidence: (evidence: AutomationEvidence | null) => void; usage?: UsageBudget }) {
   const [evidence, setEvidence] = useState<AutomationEvidence | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -97,8 +98,13 @@ export function AutomationPanel({ now, revision, onEvidence }: { now: number; re
     <p>저장소 보관 파일: {artifactMB === null ? '확인 불가' : `${artifactMB.toFixed(1)} MB${artifacts?.complete ? '' : ' 이상 · 일부 목록만 확인'}`}</p>
     {artifactMB !== null && artifactMB >= 400 && <p role="alert">저장소 보관량이 400MB 예산에 도달했습니다. 백업 업로드 실패 여부와 보관 용량을 확인하세요.</p>}
     <p style={styles.muted}>백업은 파일 10MB·예상 보관량 400MB를 넘으면 업로드를 중단합니다. 기존 백업은 자동 삭제하지 않습니다. 이 숫자는 해당 저장소의 파일 크기 합계이며 다른 저장소·Packages·과금 기간 누적 사용량을 포함하지 않습니다.</p>
-    <p>Neon 연산·프로젝트 전체 저장량, Vercel CPU·전송량, Cloudflare 실제 사용량: <strong>이 화면에서 확인 불가</strong></p>
-    <p style={styles.muted}>전체 사용량에 따른 자동 감속은 아직 적용되지 않았습니다. 현재는 DB를 깨우지 않는 5분 감시, 30분 DB 점검, 복구 6회·48시간 상한과 백업 용량 제한으로 사용량을 줄입니다.</p>
+    <h4>Neon 예약 수집 예산</h4>
+    <p>자동 보호: <strong>{!usage || usage.mode === 'unconfigured' ? '아직 검증되지 않음' : usage.mode === 'paused' ? '예약 수집 중단' : usage.mode === 'limited' ? '48시간에 한 번으로 감속' : '예약 수집 정상'}</strong></p>
+    {usage?.sample && <p>확인한 연산: {(usage.sample.computeSeconds / 3600).toFixed(2)} / 100 CU-hour · 전송: {(usage.sample.transferBytes / 1_000_000_000).toFixed(3)} / 5 GB<br />집계 기간 시작: {when(usage.sample.periodStart)} · 사용량 확인: {when(usage.sample.at)}</p>}
+    {(!usage || usage.stale || usage.errorCode) && <p role="alert">최신 사용량 확인 불가. 이전 숫자로 무료 여유를 판단하지 마세요. 사용량 점검의 키·예약 실행을 확인하세요.</p>}
+    <p style={styles.muted}>6시간마다 Neon의 실제 연산·전송 사용량을 확인합니다. 예산 80%에서 예약 채팅 수집·복구를 감속하고 90%에서 중단합니다. 중단은 75% 미만, 감속은 70% 미만의 새 성공 샘플에서 해제합니다. 활성화 후 조회 실패·12시간 지난 샘플은 감속하며 기존 중단을 유지합니다. 수동 수집·백업·장애 감시는 유지합니다.</p>
+    <p>Neon 프로젝트 전체 저장량, Vercel CPU·전송량, Cloudflare 실제 사용량: <strong>이 화면에서 확인 불가</strong></p>
+    <p style={styles.muted}>전체 인프라의 무료 한도를 보장하는 기능은 아닙니다. DB를 깨우지 않는 5분 감시, 30분 DB 점검, 복구 6회·48시간 상한과 백업 용량 제한도 유지합니다.</p>
     <div style={styles.controls}>
       <a className="btn btn-secondary" href="https://console.neon.tech" target="_blank" rel="noreferrer">Neon 사용량</a>
       <a className="btn btn-secondary" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">Vercel 사용량</a>

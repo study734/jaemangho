@@ -3,7 +3,7 @@ import importlib.util
 import io
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 spec = importlib.util.spec_from_file_location('registration', Path(__file__).with_name('register-ops-secrets.py'))
 registration = importlib.util.module_from_spec(spec)
@@ -11,6 +11,39 @@ spec.loader.exec_module(registration)
 
 
 class RegistrationTests(unittest.TestCase):
+    def test_neon_key_is_validated_against_fixed_project_without_logging_value(self):
+        output = io.StringIO()
+        response = MagicMock()
+        response.__enter__.return_value = io.BytesIO(b'{"project":{"id":"calm-cherry-01967053","consumption_period_start":"2026-10-03T00:00:00Z","compute_time_seconds":1,"data_transfer_bytes":2}}')
+        opener = MagicMock()
+        opener.open.return_value = response
+        with patch.object(registration, 'registered', return_value=set()), \
+                patch.object(registration.shutil, 'which', return_value='gh'), \
+                patch.object(registration.sys, 'argv', ['tool', 'neon-key']), \
+                patch.object(registration, 'hidden', return_value='private-neon-key'), \
+                patch.object(registration.urllib.request, 'build_opener', return_value=opener), \
+                patch.object(registration, 'register') as register, contextlib.redirect_stdout(output):
+            registration.main()
+            register.assert_called_once_with('NEON_API_KEY', 'private-neon-key')
+        self.assertEqual(opener.open.call_args.args[0].full_url, 'https://console.neon.tech/api/v2/projects/calm-cherry-01967053')
+        self.assertNotIn('private-neon-key', output.getvalue())
+
+    def test_neon_wrong_project_cannot_be_registered(self):
+        response = MagicMock()
+        response.__enter__.return_value = io.BytesIO(b'{"project":{"id":"wrong-project"}}')
+        opener = MagicMock()
+        opener.open.return_value = response
+        with patch.object(registration, 'registered', return_value=set()), \
+                patch.object(registration.shutil, 'which', return_value='gh'), \
+                patch.object(registration.sys, 'argv', ['tool', 'neon-key']), \
+                patch.object(registration, 'hidden', return_value='private-neon-key'), \
+                patch.object(registration.urllib.request, 'build_opener', return_value=opener), \
+                patch.object(registration, 'register') as register:
+            with self.assertRaises(RuntimeError) as error:
+                registration.main()
+            register.assert_not_called()
+            self.assertNotIn('private-neon-key', str(error.exception))
+
     def test_secret_is_only_passed_over_stdin(self):
         output = io.StringIO()
         with patch.object(registration, 'run') as run, contextlib.redirect_stdout(output):

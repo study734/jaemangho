@@ -39,6 +39,7 @@ Neon Free는 월 100 CU-hour/프로젝트, 최소 컴퓨트 0.25 CU, 5분 유휴
 ```bash
 rtk proxy python3 scripts/register-ops-secrets.py status
 rtk proxy python3 scripts/register-ops-secrets.py vercel-token
+rtk proxy python3 scripts/register-ops-secrets.py neon-key
 rtk proxy python3 scripts/register-ops-secrets.py backup
 ```
 
@@ -60,9 +61,18 @@ SQL은 로그인 가능한 읽기 전용 역할을 추가하며 현재·향후 p
 
 실제 Neon DB는 PostgreSQL 18이다. 백업·보관 파일 복원·가짜 데이터 복원 연습은 모두 PostgreSQL 18과 공식 PGDG의 client 18을 사용한다. pg_dump 17은 더 최신인 서버 18의 백업을 거부하므로 구버전 도구의 복원 연습 성공으로 운영 백업 호환성을 판단하지 않는다. 백업 범위는 재망호의 모든 데이터가 있는 `public` 스키마이며, Neon의 별도 관리 인증 스키마는 포함하지 않는다. 앱은 public의 Better Auth 테이블을 사용한다. 새 기능에서 public 밖에 데이터를 저장하면 백업 범위·읽기 권한·복원 검증을 함께 확장해야 한다. 복원 연습은 별도 관리 스키마를 읽지 못하는 SELECT 전용 역할로 수행한다.
 
+## Neon 사용량 보호 활성화
+
+Neon Console의 API keys에서 대상 프로젝트를 조회할 수 있는 최소 범위의 키를 준비하고 `neon-key` 명령에 숨김 입력한다. 등록 도구는 고정된 프로젝트에 GET 요청만 하고 GitHub `NEON_API_KEY` Secret에 등록한다. API key 자체의 권한이 읽기 전용이라는 보장은 없으므로 계정에서 범위를 확인한다. OAuth 로그인 토큰을 대신 등록하지 않는다. 앱·Worker·DB에는 키를 저장하지 않는다.
+
+CI 통과·PR 머지·운영 배포·Worker의 `budget_paused` 대응 배포 후 **Free usage protection**을 수동 실행한다. 첫 성공과 관리자 화면의 최신 연산·전송 숫자를 확인한다. 이후 UTC 00/06/12/18:05에 실행한다. API 실패도 앱에 확인 불가로 보고해 이미 중단된 수집을 잘못 재개하지 않는다. 등록 이후 키 폐기·만료는 사용량 점검 실패로 알린다.
+
+연산·전송의 80%에서 예약 채팅 수집·복구를 48시간에 한 번으로 줄이고 90%에서 중단한다. 중단은 75% 미만, 감속은 70% 미만의 새 성공 샘플에서 자동 해제한다. 조회 실패·12시간 지난 샘플은 감속하되 기존 중단은 유지한다. 일반 감시·백업·배포 검사와 관리자 수동 수집은 유지한다. 과금 API가 제공되지 않는 다른 공급자·사용자 트래픽의 한도는 보장하지 않는다.
+
 ## 공식 근거
 
 - [Neon 플랜](https://neon.com/docs/introduction/plans), [컴퓨트 절전](https://neon.com/docs/introduction/compute-lifecycle)
+- [Neon Free 프로젝트 사용량](https://neon.com/docs/introduction/usage-calculations), [Neon API keys](https://neon.com/docs/manage/api-keys)
 - [Workers 가격](https://developers.cloudflare.com/workers/platform/pricing/), [Durable Objects 가격](https://developers.cloudflare.com/durable-objects/platform/pricing/)
 - [Vercel Hobby](https://vercel.com/docs/plans/hobby), [Vercel 토큰](https://vercel.com/docs/accounts/access-tokens)
 - [GitHub Actions 과금](https://docs.github.com/en/billing/concepts/product-billing/github-actions)

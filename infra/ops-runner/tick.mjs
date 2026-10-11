@@ -38,7 +38,7 @@ export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now =
     if (status === 'healthy') {
       try {
         recovery = (await request('/api/cron/recovery', 65_000)).recovery;
-        if (!['success', 'partial', 'failed', 'waiting', 'running', 'busy', 'manual_required', 'exhausted', 'not_needed'].includes(recovery)) throw new Error('execution');
+        if (!['success', 'partial', 'failed', 'waiting', 'running', 'busy', 'manual_required', 'exhausted', 'not_needed', 'budget_paused'].includes(recovery)) throw new Error('execution');
       } catch (error) { status = error?.message === 'configuration' ? 'configuration' : 'execution'; }
       // 복구 요청 실패와 무관하게 점검한다. 앱이 필요한 개입만 알린다.
       try {

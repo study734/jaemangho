@@ -6,9 +6,12 @@ import { syncErrorCode } from './failures';
 import { DiscordRateLimitedError } from '../chat/bot';
 export { syncErrorCode } from './failures';
 import { chatRecoveryPlan, type RecoveryJob } from '../../lib/chat-recovery';
+import { usageStatus } from './usage';
+import { scheduledCollectionAllowed } from '../../lib/usage-budget';
 
 export class SyncBusyError extends Error {}
 export class SyncUnconfiguredError extends Error {}
+export class SyncBudgetError extends Error {}
 
 export function chatConfigured() {
   return !!(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_GUILD_ID);
@@ -33,6 +36,11 @@ export async function runChatSync(source: 'scheduled' | 'manual', options?: Sync
   try {
     await client.query('begin');
     await client.query('select pg_advisory_xact_lock($1)', [727275]);
+    if (source === 'scheduled') {
+      const budget = await usageStatus();
+      const last = budget.mode === 'limited' ? (await client.query(`select max(started_at) as at from ops_jobs where job = 'chat' and source = 'scheduled'`)).rows[0]?.at : null;
+      if (!scheduledCollectionAllowed(budget, last ? new Date(last).toISOString() : null)) throw new SyncBudgetError();
+    }
     // 강제 종료도 다음 복구 요청에서 일시 오류로 분류한다.
     await client.query(`update ops_jobs set status = 'failed', error_code = 'interrupted', finished_at = started_at + interval '5 minutes'
       where job = 'chat' and status = 'running' and started_at < now() - interval '5 minutes'`);
@@ -91,6 +99,7 @@ export async function resumePendingChat() {
     return result.status;
   } catch (error) {
     if (error instanceof SyncBusyError) return 'busy';
+    if (error instanceof SyncBudgetError) return 'budget_paused';
     return 'failed';
   }
 }
@@ -108,7 +117,7 @@ export async function runChatRecovery() {
     where not exists (
       select 1 from ops_jobs recent where recent.job = 'recovery' and recent.status = 'success'
         and recent.finished_at > now() - interval '10 minutes'
-        and recent.result->>'recovery' in ('success', 'waiting', 'not_needed')
+        and recent.result->>'recovery' in ('success', 'waiting', 'not_needed', 'budget_paused')
         and not exists (select 1 from ops_jobs chat where chat.job = 'chat' and chat.started_at > recent.finished_at)
     )
     on conflict (job) where status = 'running' do nothing returning id`;

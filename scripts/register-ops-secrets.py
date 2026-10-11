@@ -119,15 +119,29 @@ def load_or_create_key(file):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['status', 'vercel-token', 'backup'])
+    parser.add_argument('command', choices=['status', 'vercel-token', 'neon-key', 'backup'])
     parser.add_argument('--key-file', type=Path, default=Path('~/.config/jaemangho-ops/backup.key'))
     args = parser.parse_args()
     if not shutil.which('gh'):
         raise RuntimeError('GitHub CLI gh가 필요합니다.')
     names = registered()
     if args.command == 'status':
-        for name in ['CRON_SECRET', 'OPS_ALERT_WEBHOOK_URL', 'VERCEL_TOKEN', 'BACKUP_DATABASE_URL', 'BACKUP_ENCRYPTION_KEY']:
+        for name in ['CRON_SECRET', 'OPS_ALERT_WEBHOOK_URL', 'VERCEL_TOKEN', 'BACKUP_DATABASE_URL', 'BACKUP_ENCRYPTION_KEY', 'NEON_API_KEY']:
             print(f'{name}: {"등록됨" if name in names else "미등록"}')
+    elif args.command == 'neon-key':
+        token = hidden('Neon API key (입력 숨김, 프로젝트 사용량 조회만 실행): ')
+        req = urllib.request.Request('https://console.neon.tech/api/v2/projects/calm-cherry-01967053', headers={'Authorization': 'Bearer ' + token})
+        try:
+            with urllib.request.build_opener(NoRedirect).open(req, timeout=20) as response:
+                target = json.load(response).get('project', {})
+        except Exception:
+            raise RuntimeError('키로 Neon 프로젝트를 조회하지 못했습니다. 범위·만료·권한을 확인하세요.') from None
+        if target.get('id') != 'calm-cherry-01967053' or not target.get('consumption_period_start') or not all(
+            isinstance(target.get(field), (int, float)) and not isinstance(target.get(field), bool) and target[field] >= 0
+            for field in ['compute_time_seconds', 'data_transfer_bytes']
+        ):
+            raise RuntimeError('대상 프로젝트의 실제 사용량 필드를 확인하지 못했습니다.')
+        register('NEON_API_KEY', token)
     elif args.command == 'vercel-token':
         token = hidden('Vercel 해당 프로젝트/팀 토큰 (입력 숨김): ')
         req = urllib.request.Request(f'https://api.vercel.com/v13/deployments/jaemangho.vercel.app?teamId={TEAM}&withGitRepoInfo=true', headers={'Authorization': 'Bearer ' + token})

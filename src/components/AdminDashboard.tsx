@@ -201,7 +201,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
               </div>
             )}
             <OperationsOverview ops={ops} automation={automationEvidence} />
-            <AutomationPanel now={ops.now} revision={automationRevision} onEvidence={setAutomationEvidence} />
+            <AutomationPanel now={ops.now} revision={automationRevision} onEvidence={setAutomationEvidence} usage={ops.data?.usage} />
             <OpsStatusPanel ops={ops} onOpenIntegrations={() => setTab('integrations')} />
             {status && (
               <section style={styles.cards}>

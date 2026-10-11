@@ -26,6 +26,14 @@ it('정상 실행과 복구 대기는 조용히 기록한다', async () => {
   const f = requests(); const result = await tick({ secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 1 });
   expect(result.status).toBe('healthy'); expect(result.recovery).toBe('waiting'); expect(f.calls).toHaveLength(5); expect(JSON.stringify(result)).not.toContain('test-secret');
 });
+it('무료 예산에 의한 복구 중단은 실행기 장애로 오인하지 않는다', async () => {
+  const f = requests();
+  const fetchFn = (url, init) => new URL(url).pathname === '/api/cron/recovery'
+    ? Promise.resolve(Response.json({ recovery: 'budget_paused' })) : f.fetchFn(url, init);
+  const result = await tick({ secret: 'test-secret', webhook, fetchFn, now: 1 });
+  expect(result.status).toBe('healthy'); expect(result.recovery).toBe('budget_paused');
+  expect(f.calls.some(call => call.url.hostname === 'discord.com')).toBe(false);
+});
 it('10분 지속 장애·중복 방지·정상화 알림을 기록한다', async () => {
   const f = requests({ failure: true }); let state = await tick({ secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 1 });
   expect(f.calls.filter(c => c.url.hostname === 'discord.com')).toHaveLength(0);

@@ -12,7 +12,7 @@ export async function recover({ url, secret, fetchFn = fetch, sleep = ms => new 
     });
     if (!response.ok) return { recovery: `request_http_${response.status}`, verified: false };
     recovery = (await response.json()).recovery;
-    if (!['not_needed', 'running', 'waiting', 'manual_required', 'exhausted', 'busy', 'success', 'partial', 'failed'].includes(recovery)) {
+    if (!['not_needed', 'running', 'waiting', 'manual_required', 'exhausted', 'busy', 'success', 'partial', 'failed', 'budget_paused'].includes(recovery)) {
       return { recovery: 'invalid_response', verified: false };
     }
   } catch { return { recovery: 'request_failed', verified: false }; }
@@ -36,6 +36,6 @@ export async function recover({ url, secret, fetchFn = fetch, sleep = ms => new 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   recover({ url: process.argv[2], secret: process.env.CRON_SECRET }).then(result => {
     console.log(`[recovery] ${result.recovery}; verification=${result.verified ? 'complete' : 'pending'}`);
-    if (!result.verified || !['success', 'partial', 'not_needed', 'waiting', 'running', 'busy'].includes(result.recovery)) process.exitCode = 1;
+    if (!result.verified || !['success', 'partial', 'not_needed', 'waiting', 'running', 'busy', 'budget_paused'].includes(result.recovery)) process.exitCode = 1;
   }).catch(() => { console.error('[recovery] configuration failed'); process.exitCode = 1; });
 }
