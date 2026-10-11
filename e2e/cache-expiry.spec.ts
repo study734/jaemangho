@@ -1,5 +1,6 @@
 import { cleanup, createUser, db, expect, loginAs, seedDiscovery, test } from './fixtures';
 import { BASE_URL } from './env';
+import { setHomeCacheAge } from './cache-age';
 
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
@@ -29,14 +30,12 @@ test('fixture 정리는 이전 DB 데이터와 홈 캐시를 함께 격리한다
   }
 });
 
-test('홈 집계는 60초 동안 캐시를 재사용하고 실제 만료 뒤 새 DB 값을 표시한다', async ({ page, context }) => {
-  test.setTimeout(110_000);
+test('홈 집계는 60초 TTL을 유지하고 캐시 나이에 따라 재사용·만료·갱신한다', async ({ page, context }) => {
   const user = await createUser('cache_ttl', '캐시 검증 친구');
   await loginAs(context, user);
   await seedDiscovery(user);
   await db.query(`insert into chat_messages (id, channel_id, author_id, author_name, created_at, reactions)
     values ('e2e_cache_ttl_message', 'e2e_cache_ttl_channel', 'e2e_cache_ttl_author', '캐시 이전', now(), 3)`);
-  const started = Date.now();
   await page.goto('/');
   const oldMessage = page.getByRole('link', { name: '캐시 이전님의 메시지 보러 가기' });
   const newMessage = page.getByRole('link', { name: '캐시 갱신님의 메시지 보러 가기' });
@@ -74,14 +73,16 @@ test('홈 집계는 60초 동안 캐시를 재사용하고 실제 만료 뒤 새
   await expect(newMessage).toHaveCount(0);
   expect(await snapshot()).toEqual({ chat: 0, awards: '12 새벽 메시지', highlights: 0, moments: 0 });
 
-  // 실제 시간 대기는 이 테스트에만 둔다. 55초에도 캐시가 유지되어 TTL 단축·캐시 제거도 탐지한다.
-  await page.waitForTimeout(Math.max(0, 55_000 - (Date.now() - started)));
+  // 서버가 읽는 캐시 파일의 나이만 바꾼다. 실제 TTL·내용·갱신 로직은 유지한다.
+  // 파일의 60초 TTL도 확인하므로 TTL 단축·연장이나 캐시 제거를 놓치지 않는다.
+  await setHomeCacheAge(55);
   await page.reload();
   await expect(oldMessage).toBeVisible();
   await expect(newMessage).toHaveCount(0);
   expect(await snapshot()).toEqual({ chat: 0, awards: '12 새벽 메시지', highlights: 0, moments: 0 });
   // 만료 직후의 첫 응답은 이전 값이어도 되지만, 백그라운드 갱신 후에는 새 값이 나와야 한다.
-  await expect.poll(snapshot, { timeout: 30_000, intervals: [1000, 5000] }).toEqual({ chat: 1, awards: '24 새벽 메시지', highlights: 1, moments: 1 });
+  await setHomeCacheAge(65);
+  await expect.poll(snapshot, { timeout: 10_000, intervals: [100, 250, 500] }).toEqual({ chat: 1, awards: '24 새벽 메시지', highlights: 1, moments: 1 });
   await expect(oldMessage).toHaveCount(0);
   await expect(newMessage).toHaveAttribute('href', /e2e_cache_ttl_message$/);
 });
