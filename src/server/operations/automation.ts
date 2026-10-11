@@ -22,9 +22,8 @@ export function createAutomationReader(fetchFn: typeof fetch = fetch, clock = Da
     const now = clock();
     const get = async (route: string) => {
       const response = await fetchFn(`https://api.github.com/repos/${REPOSITORY}/${route}`, {
-        redirect: 'error', signal: AbortSignal.timeout(5000),
+        redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
         headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations-dashboard' },
-        next: { revalidate: 3600 },
       });
       if (!response.ok) throw new Error('metadata_unavailable');
       return record(await response.json());
