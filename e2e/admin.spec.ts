@@ -52,7 +52,7 @@ test('관리자 화면은 등록 소환사 목록과 등록자, 시스템 상태
   await loginAs(context, admin);
 
   await page.goto('/admin');
-  await expect(page.getByText('DB 사용량')).toBeVisible(); // 개요 탭
+  await expect(page.getByText('현재 DB 크기 (참고)', { exact: true })).toBeVisible(); // 공급자 과금 사용량과 구분한다.
   await page.getByRole('tab', { name: '사용자' }).click();
   const row = page.getByRole('row', { name: /E2E목록#KR1/ });
   await expect(row).toContainText('E2E관리자2'); // 등록자 이름이 사용자 정보에서 해석된다

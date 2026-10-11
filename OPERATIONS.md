@@ -154,6 +154,8 @@ PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 
 
 ## 자동 운영 보호 활성화
 
+관리자 화면의 판단 순서, 확인 가능한 증거와 자동화의 남은 한계는 [취미 프로젝트 운영 자동화 검토](docs/operations-automation-review.md)에 정리한다.
+
 코드 구현과 실제 보호 활성화는 별개다. PR 머지, 실행기 배포, Secrets 등록, 첫 실행 확인까지 마쳐야 운영을 맡길 수 있다. 누락된 설정을 자동으로 만들거나 유료 플랜으로 전환하지 않는다.
 
 1. CI 통과 후 PR을 머지한다. Cloudflare Workers **Free** 계정에서 `infra/ops-runner/wrangler.toml`을 대상으로 Wrangler **4.149.0**으로 배포한다. Worker의 `CRON_SECRET`, `OPS_ALERT_WEBHOOK_URL`은 서비스 Secrets로 입력하며 값을 인수·로그에 쓰지 않는다. 배포와 계정 연결은 운영자가 수행한다.

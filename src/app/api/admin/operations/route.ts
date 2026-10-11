@@ -5,6 +5,7 @@ import { audited } from '@/server/operations/audit';
 import { runChatSync, SyncBusyError, SyncUnconfiguredError } from '@/server/operations/jobs';
 import { checkOperations } from '@/server/operations/monitor';
 import { operationSnapshot, operationStatus } from '@/server/operations/status';
+import { automationStatus } from '@/server/operations/automation';
 import { purgeSteamCache } from '@/server/steam/cache';
 import { z } from 'zod';
 
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
   if (admin instanceof Response) return admin;
   const params = new URL(request.url).searchParams;
   try {
+    if (params.get('resource') === 'automation') return Response.json(await automationStatus(), { headers: { 'Cache-Control': 'no-store' } });
     if (params.get('resource') === 'views') {
       const query = parseQuery(params, viewReportSchema);
       if (!query.ok) return query.response;

@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { adminStyles, Panel, ScrollTable } from './AdminUi';
 import { operationsLog } from '@/lib/operations-log';
 import { AuditPanel, BackupNote, ChatSyncPanel, OpsNotice, OpsStatusPanel, SteamPanel, ViewAnalytics, useOperations } from './OperationsPanel';
+import { AutomationPanel, OperationsOverview } from './OperationsOverview';
+import { AUTOMATION_WORKFLOWS, automationDiagnosis, type AutomationEvidence, type AutomationKind } from '@/lib/automation-status';
 
 interface Status {
   cache: { rows: number; fresh: number; bytes: number };
@@ -38,9 +40,6 @@ interface Props {
   onDeleteMember: (id: string) => Promise<void>;
 }
 
-// Neon 무료 플랜 저장 용량: 프로젝트당 1GB (neon.com/docs/introduction/plans, neon.com/faqs/free-plan-limits-and-quotas 에서 확인).
-const DB_LIMIT_BYTES = 1024 * 1024 * 1024;
-
 type TabId = 'overview' | 'people' | 'integrations' | 'records';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: '개요' },
@@ -71,6 +70,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [automationRevision, setAutomationRevision] = useState(0);
+  const [automationEvidence, setAutomationEvidence] = useState<AutomationEvidence | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,11 +134,14 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [tab, setTab] = useState<TabId>('overview');
   const configuration = !!status?.envProblems.length;
   const attention = Number(configuration) + (ops.data ? operationsLog(ops.data, ops.now)
-    .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0);
+    .filter((entry) => entry.level !== 'info' && !(configuration && entry.id === 'configuration')).length : 0)
+    + (automationEvidence ? (Object.keys(AUTOMATION_WORKFLOWS) as AutomationKind[])
+      .filter(kind => ['attention', 'unknown'].includes(automationDiagnosis(kind, automationEvidence, ops.now).state)).length
+      + Number(automationEvidence.artifacts.available && automationEvidence.artifacts.bytes !== null && automationEvidence.artifacts.bytes >= 400_000_000) : 0);
   const refresh = async () => {
     setRefreshing(true);
     try { await Promise.all([load(), ops.refresh()]); }
-    finally { setRefreshing(false); }
+    finally { setRefreshing(false); setAutomationRevision(value => value + 1); }
   };
 
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
@@ -196,6 +200,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                 </ul>
               </div>
             )}
+            <OperationsOverview ops={ops} automation={automationEvidence} />
+            <AutomationPanel now={ops.now} revision={automationRevision} onEvidence={setAutomationEvidence} />
             <OpsStatusPanel ops={ops} onOpenIntegrations={() => setTab('integrations')} />
             {status && (
               <section style={styles.cards}>
@@ -203,9 +209,9 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
                 <Card label="사용자 / 차단" value={`${status.counts.users}명 / ${status.counts.blocked}명`} />
                 <Card label="Riot 캐시" value={`${status.cache.fresh} / ${status.cache.rows}건`} sub={mb(status.cache.bytes)} />
                 <Card
-                  label="DB 사용량 (Neon 무료 한도 대비)"
-                  value={`${mb(status.database.bytes)} / ${mb(DB_LIMIT_BYTES)}`}
-                  ratio={status.database.bytes / DB_LIMIT_BYTES}
+                  label="현재 DB 크기 (참고)"
+                  value={mb(status.database.bytes)}
+                  sub="Neon 프로젝트 전체 과금 사용량과 다릅니다."
                 />
                 {status.stats[0] && <Card label="Riot 호출 (오늘)" value={`Riot ${status.stats[0].misses}회`} sub={`캐시 응답 ${status.stats[0].hits}회 · 적중률 ${hitRate(status.stats[0])}`} />}
                 <Card

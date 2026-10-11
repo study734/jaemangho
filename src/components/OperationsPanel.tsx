@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
 import { operationsLog, type LogLevel } from '@/lib/operations-log';
@@ -28,19 +28,26 @@ export function useOperations() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ level: LogLevel; message: string } | null>(null);
   const [now, setNow] = useState(0);
+  const loading = useRef<Promise<void> | null>(null);
   const load = useCallback(async () => {
-    try {
-      const next = await json<OperationsData>('/api/admin/operations');
-      setData(next);
-      setNow(Date.now());
-      setError(null);
-    } catch { setError('운영 현황을 불러오지 못했습니다. 표시된 정보는 최신이 아닐 수 있습니다.'); }
+    if (loading.current) return loading.current;
+    loading.current = (async () => {
+      try {
+        const next = await json<OperationsData>('/api/admin/operations');
+        setData(next);
+        setNow(Date.now());
+        setError(null);
+      } catch { setError('운영 현황을 불러오지 못했습니다. 표시된 정보는 최신이 아닐 수 있습니다.'); }
+    })().finally(() => { loading.current = null; });
+    return loading.current;
   }, []);
   useEffect(() => {
-    const timer = setInterval(load, 30_000);
+    const visibleLoad = () => { if (document.visibilityState === 'visible') void load(); };
+    const timer = setInterval(visibleLoad, 60_000);
+    document.addEventListener('visibilitychange', visibleLoad);
     // 비동기 조회 결과로만 상태를 갱신한다.
     void Promise.resolve().then(load);
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', visibleLoad); };
   }, [load]);
 
   const command = async (action: string) => {
@@ -64,7 +71,7 @@ export function useOperations() {
           : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' + verification : '작업을 완료했습니다.' + verification,
       });
     } catch (e) { setNotice({ level: 'error', message: (e as Error).message }); }
-    finally { setBusy(false); await load(); }
+    finally { setBusy(false); if (loading.current) await loading.current; await load(); }
   };
   return { data, error, busy, notice, now, command, refresh: load };
 }
@@ -91,7 +98,7 @@ export function OpsStatusPanel({ ops, onOpenIntegrations }: { ops: Operations; o
       <p style={styles.muted}>마지막 점검: {when(data.checkedAt)} · Discord 알림 주소: {data.notificationsConfigured ? '설정됨' : '미설정'}</p>
       <p style={styles.muted}>외부 점검 성공: {when(data.externalCheckedAt ?? null)} · 경고 기준 2시간 · 수동 점검과 별도</p>
       <a href="https://github.com/study734/jaemangho/actions/workflows/ops-monitor.yml" target="_blank" rel="noreferrer" className="btn btn-secondary">외부 점검 실행 기록</a>
-      <p style={styles.muted}>현황 조회: {when(new Date(now).toISOString())} · 30초마다 자동 갱신 · 한국 시간</p>
+      <p style={styles.muted}>현황 조회: {when(new Date(now).toISOString())} · 화면을 보는 동안 60초마다 자동 갱신 · 한국 시간</p>
       <p style={styles.muted}>Error: 긴급 오류 · Warning: 확인이 필요한 경고 · Info: 점검 결과와 복구 기록</p>
       <div style={styles.controls} role="group" aria-label="운영 로그 수준 필터">
         {(['all', 'error', 'warning', 'info'] as const).map((level) => <button key={level}
