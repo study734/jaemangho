@@ -198,3 +198,19 @@ Steam API 키는 서버에서만 사용한다. 보유·최근 기록 캐시는 5
 - 추억 작성·영구 보관·Rewind·개인화는 후속 범위입니다. 게임 표지는 편집자의 제안이며 멤버의 실제 플레이 기록이 아닙니다.
 
 검증과 화면 확인 근거는 [발견 QA 기록](docs/discovery-qa.md)을 참고하세요.
+
+## 자동 운영 보호 설정
+
+앱 환경변수와 분리해 다음 이름을 운영 실행기에 등록합니다. 비밀값은 코드·대화에 넣지 않습니다. 초기 연결 및 활성화 절차는 [OPERATIONS.md](OPERATIONS.md#자동-운영-보호-활성화)를 따릅니다.
+
+| 이름 | 등록 위치 | 용도 |
+|---|---|---|
+| `CRON_SECRET` | Cloudflare Worker Secret | 기존 Vercel·GitHub 값과 같은 크론 인증 |
+| `OPS_ALERT_WEBHOOK_URL` | Cloudflare Worker Secret | 앱/Actions가 실패해도 개입 필요 알림 |
+| `VERCEL_TOKEN` | GitHub Actions Secret | 고정된 프로젝트 배포 조회 및 승인된 정책의 롤백·재승격. 프로젝트/팀 접근이 필요함 |
+| `BACKUP_DATABASE_URL` | GitHub Actions Secret | 백업 전용 계정의 직접 DB 연결 주소. SELECT 권한으로 전체 테이블을 읽을 수 있어야 함 |
+| `BACKUP_ENCRYPTION_KEY` | GitHub Actions Secret | 무작위 32바이트의 canonical base64 AES-256-GCM 키. 백업과 별도로 안전하게 보관 |
+| `OPS_AUTO_ROLLBACK` | GitHub Actions Variable | `1`일 때 안전 조건을 통과한 이전 버전으로 자동 롤백. 기본은 비활성 |
+| `OPS_BACKUP_ENABLED` | GitHub Actions Variable·Worker Variable | `1`일 때 운영 백업·보관 파일 복원 검증 예약 활성화. 기본은 비활성 |
+
+`BACKUP_OUTPUT_DIRECTORY`는 백업 CLI의 출력 디렉터리 선택용 로컬 설정이며 서비스 환경에 등록할 필요가 없습니다. `TEST_DATABASE_URL`은 기존 설정을 쓰되 백업 워크플로가 만든 로컬 PostgreSQL에만 연결합니다. 운영 DB 복원·유료 전환·권한 변경·암호화 키 교체는 사람이 결정합니다.

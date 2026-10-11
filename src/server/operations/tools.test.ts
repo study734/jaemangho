@@ -13,7 +13,7 @@ describe('독립 운영 감시', () => {
     const sent: string[] = [];
     const fetchFn = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       if (String(url).includes('webhooks')) { sent.push(String(init?.body)); return new Response(null, { status: 204 }); }
-      return new Response(JSON.stringify({ skipped: false, active: 0 }), { status: healthy ? 200 : 503 });
+      return new Response(JSON.stringify({ ok: true, skipped: false, active: 0 }), { status: healthy ? 200 : 503 });
     });
     const options = { url: 'https://site.example', stateFile, secret: 'secret', webhook: 'https://discord.com/api/webhooks/123456789012345678/token', fetchFn };
     try {
@@ -48,8 +48,8 @@ describe('내부 점검 완료 확인', () => {
   it.each([{ skipped: true, active: 0 }, {}, { skipped: false, active: -1 }])('완료되지 않은 점검은 실패로 기록한다: %j', async (body) => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'jmh-monitor-'));
     try {
-      const fetchFn = vi.fn().mockImplementation(async () => new Response(JSON.stringify(body)));
-      expect((await monitor({ url: 'https://site.example', stateFile: path.join(directory, 'state.json'), secret: 'secret', fetchFn })).status).toBe('monitor_failed');
+      const fetchFn = vi.fn().mockImplementation(async url => Response.json(String(url).includes('/api/health') ? { ok: true } : body));
+      expect((await monitor({ url: 'https://site.example', stateFile: path.join(directory, 'state.json'), secret: 'secret', fetchFn, sleep: async () => {} })).status).toBe('monitor_failed');
     } finally { await rm(directory, { recursive: true }); }
   });
 });
@@ -70,4 +70,21 @@ describe('백업과 격리 복구 보호', () => {
     await expect(createBackup({ url: 'postgres://user@ep-example-pooler.neon.tech/main', file: 'no-file' })).rejects.toThrow('직접 연결');
     await expect(verifyRestore({ sourceUrl: 'postgres://user@ep-example.neon.tech/main', targetUrl: 'postgres://user@ep-example-pooler.neon.tech/test', file: 'no-file', confirmIsolated: true })).rejects.toThrow('직접 연결');
   });
+});
+
+it('사이트 헬스 성공 뒤 점검 타임아웃은 사이트 장애로 잘못 분류하지 않는다', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'jmh-monitor-timeout-'));
+  try {
+    const fetchFn = vi.fn().mockResolvedValueOnce(Response.json({ ok: true })).mockRejectedValueOnce(new Error('timeout'));
+    expect((await monitor({ url: 'https://site.example', stateFile: path.join(directory, 'state.json'), secret: 'test', fetchFn })).status).toBe('monitor_failed');
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+it('헬스 HTTP 200의 ok=false는 사이트·DB 장애로 처리한다', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'jmh-monitor-health-'));
+  try {
+    const fetchFn = vi.fn().mockResolvedValue(Response.json({ ok: false }));
+    expect((await monitor({ url: 'https://site.example', stateFile: path.join(directory, 'state.json'), secret: 'test', fetchFn })).status).toBe('unavailable');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

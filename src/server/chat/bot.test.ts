@@ -45,7 +45,7 @@ describe('fetchMessagePage', () => {
   });
 
   it('그 밖의 오류는 URL의 id를 가린 메시지로 던진다', async () => {
-    await expect(fetchMessagePage('123456789012345678', 'tok', {}, { fetchFn: reply({}, 403) })).rejects.toThrow('Discord API error (403) for /channels/:id/messages');
+    await expect(fetchMessagePage('123456789012345678', 'tok', {}, { fetchFn: reply({}, 403) })).rejects.toThrow('discord_http_403');
   });
 });
 
@@ -53,6 +53,13 @@ describe('호출 한도(429) 처리', () => {
   const sleep = () => vi.fn<(ms: number) => Promise<void>>(async () => {});
   const limited = (retryAfter?: number) => new Response(JSON.stringify(retryAfter === undefined ? {} : { retry_after: retryAfter }), { status: 429 });
   const ok = (headers: Record<string, string> = {}) => new Response(JSON.stringify([msg('1')]), { headers });
+
+  it('시간 예산 소진과 429 대기 시간이 예산을 넘기는 상황을 구분한다', async () => {
+    await expect(fetchMessagePage('c1', 'tok', {}, { fetchFn: reply([]), deadline: Date.now() - 1 }))
+      .rejects.toMatchObject({ reason: 'time_budget' });
+    await expect(fetchMessagePage('c1', 'tok', {}, { fetchFn: reply({ retry_after: 30 }, 429), deadline: Date.now() + 5000 }))
+      .rejects.toMatchObject({ reason: 'discord_rate_limit', retryAfterMs: 30050 });
+  });
 
   it('429면 디스코드가 알려준 시간(retry_after)만큼 기다렸다가 다시 시도해 성공한다', async () => {
     const s = sleep();

@@ -3,28 +3,66 @@ name: Smoke
 on:
   deployment_status:
   workflow_dispatch:
+  schedule:
+    - cron: '13,43 * * * *'
 
 permissions:
   contents: read
 
 concurrency:
   group: production-smoke
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   health:
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      ((github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.ref == 'refs/heads/main') ||
       (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
+    env:
+      HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
       - name: 배포 후 헬스·로그인·접근 제한 검사
+        if: env.HAS_VERCEL_TOKEN != 'true'
         run: node scripts/smoke.mjs https://jaemangho.vercel.app
+      - name: 검증한 배포 및 알림 상태 복원
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            .ops-release
+            .ops-automation
+          key: ops-release-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ops-release-
+      - name: 자동 롤백 준비 상태
+        if: env.HAS_VERCEL_TOKEN != 'true'
+        run: echo 'VERCEL_TOKEN 미등록 — 기본 smoke만 실행하며 자동 롤백은 비활성입니다.' >> "$GITHUB_STEP_SUMMARY"
+      - name: 검증한 이전 배포로 제한적 복구
+        if: always() && !cancelled() && env.HAS_VERCEL_TOKEN == 'true'
+        run: node scripts/deployment-guard.mjs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          OPS_AUTO_ROLLBACK: ${{ vars.OPS_AUTO_ROLLBACK }}
+      - name: 개입 필요 또는 정상화 알림
+        if: always() && !cancelled()
+        run: node scripts/workflow-notify.mjs
+        env:
+          OPS_JOB: release
+          OPS_RESULT: ${{ job.status }}
+          OPS_ALERT_WEBHOOK_URL: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+      - name: 배포·알림 상태 저장
+        if: always() && !cancelled()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ops-release
+            .ops-automation
+          key: ops-release-${{ github.run_id }}-${{ github.run_attempt }}

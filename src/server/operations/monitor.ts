@@ -3,16 +3,21 @@ import { db } from '../db';
 import { pool } from '../pool';
 import { envProblems } from '../env';
 import { chatConfigured } from './jobs';
+import { chatDiagnosis, recoveryTitle } from '../../lib/operations-diagnostics';
+import { operatorNotice } from './escalation';
+import { chatRecoveryPlan } from '../../lib/chat-recovery';
+import type { JobEntry } from '../../lib/operations';
 
 export interface Finding { key: string; title: string; severity: 'warning' | 'critical' }
 export interface MonitorInput {
   envProblems: number;
   chatEnabled: boolean;
   lastSuccess: string | null;
-  latestJob: { status: string; startedAt: string } | null;
+  latestJob: { id?: string; finishedAt?: string | null; status: string; startedAt: string; result?: JobEntry['result']; errorCode?: string | null } | null;
   riot: { status: number; count: number }[];
   steamErrors: number;
   externalCheck?: string | null;
+  recoveryCheck?: string | null;
 }
 
 export function findings(input: MonitorInput, now = Date.now()): Finding[] {
@@ -21,10 +26,18 @@ export function findings(input: MonitorInput, now = Date.now()): Finding[] {
     result.push({ key: 'monitor.stale', title: '외부 운영 점검의 성공 기록이 없거나 2시간 이상 지났습니다. GitHub Actions 실행을 확인하세요.', severity: 'warning' });
   if (input.envProblems) result.push({ key: 'configuration', title: '환경변수 설정을 확인하세요.', severity: 'warning' });
   if (input.chatEnabled) {
+    if (input.recoveryCheck !== undefined && (!input.recoveryCheck || now - new Date(input.recoveryCheck).getTime() > 2 * 3_600_000))
+      result.push({ key: 'recovery.stale', title: '자동 복구 실행 기록이 없거나 2시간 이상 지났습니다. GitHub Actions의 recovery 작업을 확인하세요.', severity: 'warning' });
     if (!input.lastSuccess || now - new Date(input.lastSuccess).getTime() > 30 * 3_600_000)
       result.push({ key: 'chat.stale', title: '채팅 동기화 성공 기록이 없거나 30시간 이상 지났습니다.', severity: 'warning' });
     if (input.latestJob?.status === 'failed' || input.latestJob?.status === 'partial')
-      result.push({ key: 'chat.failed', title: '최근 채팅 동기화가 실패하거나 일부만 완료되었습니다.', severity: 'warning' });
+      result.push({ key: 'chat.failed', title: `채팅 동기화 ${input.latestJob.status === 'partial' ? '부분 완료' : '실패'}: ${chatDiagnosis({ status: input.latestJob.status, result: input.latestJob.result ?? null, errorCode: input.latestJob.errorCode ?? null }).reason}`, severity: 'warning' });
+    if (input.latestJob?.status === 'running' && input.latestJob.result?.resumedFrom)
+      result.push({ key: 'chat.failed', title: '채팅 자동 복구 실행 중입니다. 전체 성공 후 경고가 해제됩니다.', severity: 'warning' });
+    if (input.latestJob?.finishedAt) {
+      const plan = chatRecoveryPlan({ ...input.latestJob, id: input.latestJob.id ?? '', finishedAt: input.latestJob.finishedAt, result: input.latestJob.result ?? null }, now);
+      if (plan.state === 'exhausted') result.push({ key: 'chat.recovery', title: '채팅 자동 복구가 6회 또는 48시간 상한에 도달했습니다. 원인을 해결한 뒤 수동 재실행하세요.', severity: 'warning' });
+    }
     if (input.latestJob?.status === 'running' && now - new Date(input.latestJob.startedAt).getTime() > 5 * 60_000)
       result.push({ key: 'chat.interrupted', title: '채팅 동기화 실행이 중단된 것으로 보입니다. 재실행하세요.', severity: 'warning' });
   }
@@ -81,16 +94,18 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
       (select external_checked_at from ops_monitor where id = 1) as external`)).rows;
     const until = new Date(window.until).toISOString();
     const since = window.since ? new Date(window.since).toISOString() : '-infinity';
-    const [lastSuccess, latest, riot, steam] = await Promise.all([
+    const [lastSuccess, latest, riot, steam, recovery] = await Promise.all([
       sql`select max(finished_at) as at from ops_jobs where job = 'chat' and status = 'success'`,
-      sql`select status, started_at as "startedAt" from ops_jobs where job = 'chat' order by started_at desc limit 1`,
+      sql`select id, status, finished_at as "finishedAt", started_at as "startedAt", result, error_code as "errorCode" from ops_jobs where job = 'chat' order by started_at desc limit 1`,
       sql`select status, count(*)::int as count from riot_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz group by status`,
-      sql`select count(*)::int as count from steam_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz`,
+      sql`select count(*)::int as count from steam_errors where at > ${since}::timestamptz and at <= ${until}::timestamptz and code <> 'app_unavailable'`,
+      sql`select max(finished_at) as at from ops_jobs where job = 'recovery' and status = 'success'`,
     ]);
     const current = findings({
       envProblems: envProblems().length, chatEnabled: chatConfigured(),
       lastSuccess: lastSuccess[0]?.at ? new Date(lastSuccess[0].at as string).toISOString() : null,
       latestJob: latest[0] as MonitorInput['latestJob'], riot: riot as MonitorInput['riot'], steamErrors: steam[0].count as number,
+      recoveryCheck: recovery[0]?.at ? new Date(recovery[0].at as string).toISOString() : null,
       externalCheck: source === 'external' ? until : window.external ? new Date(window.external).toISOString() : null,
     });
     for (const f of current) {
@@ -102,11 +117,13 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
     await sql`update ops_alerts set active = false, resolved_at = now() where active and notification_error is null
       and not (key = any(${current.map((f) => f.key)}::text[]))`;
     // 전송 실패는 15분 뒤 재시도. 성공한 동일 상태는 보내지 않고, 장애→복구 전환만 보낸다.
-    const pending = await sql`select key, title, active from ops_alerts
+    const pending = await sql`select key, title, active, first_seen as "firstSeen" from ops_alerts
       where (notified_state is distinct from active) and (active or notified_state = true)
         and (notified_at is null or notified_at < now() - interval '15 minutes')`;
     for (const p of pending) {
-      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.title}`);
+      const notice = operatorNotice(p.key as string, new Date(p.firstSeen as string).toISOString(), latest[0] as unknown as JobEntry | undefined);
+      if (p.active && !notice.notify) continue;
+      const delivery = await sendNotification(`[재망호 ${p.active ? '운영 알림' : '복구'}] ${p.active ? `${p.title}\n${notice.detail}` : recoveryTitle(p.key as string, p.title as string)}`);
       if (delivery === 'disabled') continue;
       await sql`update ops_alerts set notified_at = now(), notified_state = case when ${delivery === 'sent'} then ${p.active}::boolean else notified_state end,
         notification_error = ${delivery === 'sent' ? null : delivery} where key = ${p.key}`;

@@ -1,0 +1,1 @@
+export function backupCycle(options: { sourceUrl: string; testUrl: string; key: string; outputDirectory: string; restoreFile?: string }): Promise<{ verifiedAt: string; migrations: number; encrypted: boolean }>;

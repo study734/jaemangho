@@ -181,7 +181,7 @@ test('반응 저장 실패와 현재 목록에 없는 공유 기록을 명확히
   await loginAs(context, await createUser('discovery_error', '공유 친구'));
   await page.route('**/api/discovery/reaction**', route => route.fulfill({ status: 503, json: { error: 'unavailable' } }));
   await page.goto('/?discovery=award%3A2000-01-03%3Aowl');
-  const deck = page.locator('.discovery-deck');
+  const deck = page.locator('.discovery-deck:visible');
   await expect(deck.getByText(/공유된 발견이 현재 목록에 없어요/)).toBeVisible();
   await deck.locator('button[aria-controls]').click();
   await expect(deck.getByText(/반응을 불러오지 못했어요/)).toBeVisible();
@@ -200,6 +200,14 @@ test('반응 저장 실패와 현재 목록에 없는 공유 기록을 명확히
   await deck.getByRole('button', { name: '친구에게 공유' }).click();
   await expect(deck.getByLabel('공유할 발견 링크')).toHaveValue(/discovery=play%3Asteam/);
   await expect(deck.getByText('편집자의 제안 · 보유 여부는 멤버 선택 후 확인', { exact: true })).toBeVisible();
+  await expect(deck).toHaveCount(1);
+  // 스트리밍 전송용 hidden DOM이 남아도 실제로 보이는 발견만 검사한다.
+  await deck.evaluate(el => {
+    const transport = document.createElement('div');
+    transport.hidden = true;
+    transport.appendChild(el.cloneNode(true));
+    document.body.appendChild(transport);
+  });
   await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
   await page.screenshot({ path: 'output/playwright/discovery-empty-and-share-failure.png' });
 });
