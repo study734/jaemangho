@@ -1,8 +1,13 @@
 import { backupFreshness } from './backups.mjs';
+import { requestJson } from './request.mjs';
 const SITE = 'https://jaemangho.vercel.app';
+const DOMAIN = 'https://www.jaemangho.shop';
+const DB_INTERVAL = 30 * 60_000;
 const instructions = {
   configuration: '설정 누락·인증 오류. 조치: Worker의 CRON_SECRET·운영 webhook 설정을 확인하세요.',
-  unavailable: '사이트 또는 DB 응답 실패가 10분 이상 지속됩니다. 조치: Vercel 배포·DB 상태를 확인하세요.',
+  unavailable: '앱 실행 응답 실패가 10분 이상 지속됩니다. 조치: Vercel 배포 상태를 확인하세요.',
+  domain_unavailable: '사용자 도메인 응답 실패가 10분 이상 지속됩니다. 조치: DNS·TLS·Vercel 도메인 연결을 확인하세요. 기본 Vercel 주소와 분리해 점검했습니다.',
+  database_unavailable: 'DB 헬스 응답 실패가 재확인에서도 지속됩니다. 조치: Neon 연산 한도·접속·DB 상태를 확인하세요.',
   execution: '크론 점검·복구 요청 실패가 10분 이상 지속됩니다. 조치: Worker 및 앱 실행 기록을 확인하세요.',
   backup_stale: '36시간 이내 검증된 운영 백업이 없습니다. 조치: Production encrypted backup의 실행·Secrets·활성화 설정을 확인하세요.',
   restore_stale: '8일 이내 보관 백업 복원 검증 성공이 없습니다. 조치: Stored backup restore verification의 실패 단계를 확인하세요.',
@@ -13,19 +18,23 @@ const allowedWebhook = value => {
   catch { return false; }
 };
 export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now = Date.now(), backupEnabled = false }) {
-  // workerd는 error 모드를 거부한다. manual + !ok로 3xx를 따라가지 않는다.
-  const request = async (path, timeout, auth = true) => {
-    const response = await fetchFn(new URL(path, SITE), { redirect: 'manual', signal: AbortSignal.timeout(timeout),
-      headers: { 'Cache-Control': 'no-cache', ...(auth ? { Authorization: `Bearer ${secret}` } : {}) } });
-    if (!response.ok) throw new Error([401, 403].includes(response.status) ? 'configuration' : 'execution');
-    return response.json();
+  const request = (path, timeout, auth = true, base = SITE) => requestJson(fetchFn, new URL(path, base), timeout,
+    { 'Cache-Control': 'no-cache', ...(auth ? { Authorization: `Bearer ${secret}` } : {}) });
+  const live = async base => {
+    try { const result = await request('/api/health/live', 15_000, false, base); return result.ok === true && result.kind === 'liveness'; }
+    catch { return false; }
   };
-  let status = secret ? 'healthy' : 'configuration';
-  let recovery = 'not_started';
-  if (secret) {
-    try {
-      if ((await request('/api/health', 15_000, false)).ok !== true) status = 'unavailable';
-    } catch { status = 'unavailable'; }
+  // 사용자 도메인에는 Secret을 보내지 않는다. 두 실행 상태 점검 모두 DB를 깨우지 않는다.
+  const [siteUp, domainUp] = await Promise.all([live(SITE), live(DOMAIN)]);
+  let operations = state.operations ?? { status: 'healthy', recovery: 'not_started' };
+  const last = operations.checkedAt;
+  const due = !Number.isFinite(last) || now < last || Math.floor(now / DB_INTERVAL) > Math.floor(last / DB_INTERVAL)
+    || operations.status !== 'healthy';
+  if (siteUp && secret && due) {
+    let status = 'healthy';
+    let recovery = 'not_started';
+    try { if ((await request('/api/health', 15_000, false)).ok !== true) status = 'database_unavailable'; }
+    catch { status = 'database_unavailable'; }
     if (status === 'healthy') {
       try {
         recovery = (await request('/api/cron/recovery', 65_000)).recovery;
@@ -37,7 +46,9 @@ export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now =
         if (checked.skipped !== false || !Number.isInteger(checked.active) || checked.active < 0) throw new Error('execution');
       } catch (error) { status = error?.message === 'configuration' ? 'configuration' : 'execution'; }
     }
+    operations = { status, recovery, checkedAt: now };
   }
+  let status = !secret ? 'configuration' : !siteUp ? 'unavailable' : !domainUp ? 'domain_unavailable' : operations.status;
   const backups = backupEnabled ? await backupFreshness({ state: state.backups, fetchFn, now }) : undefined;
   if (status === 'healthy' && backups?.status !== undefined && backups.status !== 'healthy') status = backups.status;
   if (!webhook || !allowedWebhook(webhook)) status = 'configuration';
@@ -50,10 +61,15 @@ export async function tick({ state = {}, secret, webhook, fetchFn = fetch, now =
       if (!allowedWebhook(webhook)) throw new Error('webhook');
       const message = status === 'healthy' ? '[재망호 복구] 독립 감시·복구 실행이 정상화되었습니다. 개별 장애는 운영 상태에서 확인하세요.'
         : `[재망호 개입 필요] ${status}: ${instructions[status]} 영향: 자동 운영 보호가 완료되지 않았습니다. 자동 처리: 반복 확인 완료. https://github.com/study734/jaemangho/actions`;
-      const response = await fetchFn(webhook, { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: message, allowed_mentions: { parse: [] } }) });
-      if (!response.ok) throw new Error('delivery');
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      let response;
+      try {
+        response = await fetchFn(webhook, { method: 'POST', redirect: 'manual', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: message, allowed_mentions: { parse: [] } }) });
+        if (!response.ok) throw new Error('delivery');
+      } finally { clearTimeout(timer); await response?.body?.cancel().catch(() => {}); }
       notified = status;
     } catch { notificationFailed = true; }
   }
-  return { status, since, notified, recovery, checkedAt: now, notificationFailed, ...(backups ? { backups } : {}) };
+  return { status, since, notified, recovery: operations.recovery, operations, checkedAt: now, notificationFailed, ...(backups ? { backups } : {}) };
 }

@@ -1,11 +1,9 @@
+import { requestJson } from './request.mjs';
 // 공개 저장소의 실행 메타데이터만 읽는다. GitHub/DB 토큰을 Worker에 추가하지 않는다.
 export async function backupFreshness({ state, fetchFn = fetch, now = Date.now() }) {
   if (state && now - state.sampledAt < (state.status === 'backup_inspection_failed' ? 15 : 60) * 60_000) return state;
-  const api = async route => {
-    const response = await fetchFn(`https://api.github.com/repos/study734/jaemangho/${route}`, { redirect: 'manual', signal: AbortSignal.timeout(10_000), headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations' } });
-    if (!response.ok) throw new Error('metadata');
-    return response.json();
-  };
+  const api = route => requestJson(fetchFn, `https://api.github.com/repos/study734/jaemangho/${route}`, 10_000,
+    { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations' });
   try {
     const metadata = await api('actions/artifacts?per_page=100');
     const valid = async (prefix, workflow, age) => {
