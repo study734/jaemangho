@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "discord:register": "node --env-file-if-exists=.env.local scripts/register-discord-command.mjs",
     "test:e2e": "playwright test",
     "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs create",
     "db:verify-restore": "node --env-file-if-exists=.env.local scripts/backup.mjs verify"

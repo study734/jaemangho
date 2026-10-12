@@ -73,6 +73,27 @@ src/
 - 서버 로그에 로그인마다 `discord connection types: …; unhandled: …`가 남습니다(계정 이름·id는 남기지 않고 **종류 이름만**). 공식 문서의 서비스 목록에 Riot이 없어서 실제로 어떤 종류로 오는지 이 줄로 확인하고, `unhandled`에 나온 종류는 아직 처리기가 없는 것입니다.
 - **새 주제의 연결을 추가하려면**: `src/server/<이름>/connection.ts`에 `ConnectionHandler`(`types`, `link`)를 만들고 `discord-connections.ts`의 `HANDLERS`에 한 줄 더합니다.
 
+## 디스코드 게임 추천 명령
+
+`/게임추천`은 AI 없이 기존 Steam 추천을 디스코드에서 실행합니다. 선택 옵션 `범위`는 **모두 보유**(기본), **일부 보유 포함**, **전원 미보유**입니다. 명령을 실행하면 본인에게만 친구 선택창이 나타나며, 함께할 서버 멤버 **2~20명**을 고르면 추천을 시작합니다. 본인도 참여하면 직접 선택해야 합니다. 결과도 본인에게만 표시하며, 최대 5개의 게임·지원 유형·스토어 링크를 보여줍니다. 추천 기준은 기존 `balanced`이고 최대 인원은 스토어에서 확인합니다. 선택창은 15분 후 만료되므로 `/게임추천`을 다시 실행합니다.
+
+- 지정한 `DISCORD_GUILD_ID` 서버에서만 받습니다. 요청자는 사이트에 디스코드로 가입한 차단되지 않은 사용자여야 하며, 명령과 선택 때마다 DB에서 다시 확인합니다. 웹 세션 쿠키를 대신 받아 쓰거나 사용자를 자동 가입시키지 않습니다.
+- 선택한 친구마다 프로젝트의 디스코드 계정과 연결된 Steam 계정이 정확히 하나 있어야 합니다. 연결 없음·차단·여러 계정 연결은 안내하고 멈추며 이름으로 계정을 추측하지 않습니다. 공개 보유 목록 확인 실패·지원 정보 실패·후보 없음은 기존 추천 결과를 구분해 안내합니다.
+- `POST /api/discord/interactions`는 선택 환경변수 **`DISCORD_PUBLIC_KEY`**(Discord Developer Portal → General Information → Public Key, 64자리 16진수)로 원문 바이트의 Ed25519 서명을 검증합니다. 서명 없음·위조·5분을 벗어난 타임스탬프는 401, 공개키 미설정은 503입니다. 서명된 PING에 PONG을 반환합니다. 이 키는 봇 토큰이나 Client Secret과 다릅니다.
+- DB·Steam 조회 전에 비공개 지연 응답을 반환하고 Next.js `after`에서 결과를 전달합니다. 처리 예산은 45초, 라우트 최대 실행 시간은 60초입니다. 제한 초과 시 재시도 안내를 보내고 늦게 끝난 결과로 덮어쓰지 않습니다. 기존 공유 Steam 요청은 취소하지 않으며 별도 작업 큐·영구 재전송은 없습니다. Discord 답변 수정은 네트워크·5xx·1초 이내 429 대기에 한해 최대 3회 시도하며, 실패 로그에는 코드·HTTP 상태만 남깁니다. 토큰·본문은 기록하지 않습니다.
+
+운영 활성화는 배포·환경변수·Discord 앱 설정 변경에 대한 기존 사전 확인을 거친 뒤 진행합니다. 현재 코드가 추가됐다는 사실만으로 명령이 등록되거나 앱이 활성화되지는 않습니다.
+
+1. 기존 Discord 로그인·수집과 **같은 앱**의 공개키를 `DISCORD_PUBLIC_KEY`에 설정하고 재배포합니다.
+2. 해당 앱의 **Interactions Endpoint URL**을 `https://<도메인>/api/discord/interactions`로 설정합니다. 이 방식은 Gateway로 interactions를 받는 방식과 양립하지 않으므로, 기존 앱에서 다른 명령을 처리 중인지 먼저 확인합니다. REST 채팅 수집에는 영향을 주지 않습니다.
+3. 앱의 서버 설치에 `applications.commands` scope가 포함돼 있는지 확인합니다. `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_BOT_TOKEN`은 같은 앱·서버의 기존 설정을 사용합니다. 상시 실행 봇이나 Message Content Intent는 필요하지 않습니다.
+4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버의 `/게임추천` 하나만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
+5. 디스코드에서 세 범위, 계정 연결 없음, 비공개 목록과 실제 답변 표시를 확인합니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
+
+구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `command.json`에 있습니다. 테스트: `npm test -- src/server/discord-interactions scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결 검증은 `TEST_DATABASE_URL`이 필요합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.
+
+공식 규격: [Discord interactions](https://docs.discord.com/developers/interactions/receiving-and-responding), [사용자 선택 메뉴](https://docs.discord.com/developers/components/reference#user-select), [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after).
+
 ## 채팅 하이라이트 (홈의 명예의 전당·수다 통계)
 디스코드 채널의 **메타데이터**(누가, 언제, 반응이 몇 개)만 집계해 홈에 보여줍니다. **글 내용은 읽지도 저장하지도 않습니다**(기본값): 봇에 메시지 내용 권한(MESSAGE_CONTENT)을 주지 않으면 디스코드가 내용을 빈 값으로 보내고, 우리는 그것을 쓰지 않습니다. 답글이 어느 메시지에 대한 것인지(`message_reference`)는 내용 권한 없이도 옵니다. 선택 기능인 웃음 분석을 켜면 이 설명이 아래 "웃음 분석"으로 바뀝니다.
 - 이름에 `⛵`가 들어간 텍스트·공지 채널만 봅니다(`src/server/chat/sync.ts`의 `WATCH_MARK`).
@@ -113,6 +134,7 @@ src/
 | `DISCORD_CLIENT_ID` | Discord 앱의 Client ID |
 | `DISCORD_CLIENT_SECRET` | Discord 앱의 Client Secret |
 | `DISCORD_GUILD_ID` | 접속을 허용할 디스코드 서버 ID |
+| `DISCORD_PUBLIC_KEY` | (선택) 슬래시 명령 HTTP 요청의 서명 검증용 공개키(64자리 16진수). 미설정 시 명령 API는 꺼짐 |
 | `SESSION_SECRET` | 로그인 비밀키(세션 서명용) 랜덤 문자열, 32자 이상 (`openssl rand -base64 32`) |
 | `STEAM_API_KEY` | (선택) Steam Web API 키. 없으면 Steam 기능은 503을 돌려줍니다. 32자리 16진수. |
 | `DATABASE_URL` | Postgres 연결 문자열 (Vercel에서 Neon을 연결하면 자동 등록) |

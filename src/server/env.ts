@@ -15,6 +15,8 @@ const schema = z.object({
   RIOT_API_KEY: z.string().regex(/^RGAPI-/, 'RGAPI- 로 시작하는 Riot 키여야 합니다'),
   // 선택: 채팅 하이라이트(명예의 전당)용. 설정했다면 형식을 점검한다.
   DISCORD_BOT_TOKEN: z.string().min(30, '봇 토큰이 너무 짧습니다').or(z.literal('')).optional(),
+  // 선택: HTTP 슬래시 명령 요청의 Ed25519 서명 검증용 공개키.
+  DISCORD_PUBLIC_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, '64자리 16진수 공개키여야 합니다').or(z.literal('')).optional(),
   // 선택: 1이면 웃음 분석(ㅋ 개수)을 켠다. 개발자 포털의 메시지 내용 권한도 켜야 효과가 있다.
   CHAT_LAUGH: z.enum(['0', '1', '']).optional(),
   CRON_SECRET: z.string().min(16, '16자 이상이어야 합니다').or(z.literal('')).optional(),

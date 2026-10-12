@@ -1,3 +1,5 @@
+import { DISCORD_TEST_PUBLIC_KEY } from './discord-signing';
+
 export const PORT = Number(process.env.E2E_PORT ?? 3200);
 
 // 사이트의 기준 주소. 서버(BETTER_AUTH_URL)와 브라우저가 같은 호스트를 써야 로그인 라이브러리의 Origin 검사를 통과한다.
@@ -13,5 +15,6 @@ export const E2E_ENV = {
   DISCORD_CLIENT_ID: '100000000000000001',
   DISCORD_CLIENT_SECRET: 'e2e',
   DISCORD_GUILD_ID: '100000000000000002',
+  DISCORD_PUBLIC_KEY: DISCORD_TEST_PUBLIC_KEY,
   RIOT_API_KEY: 'RGAPI-e2e',
 };
