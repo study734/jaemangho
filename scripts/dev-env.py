@@ -223,7 +223,7 @@ def refresh(root, store):
         if cache.exists():
             local = read(cache)
             # Write-only cloud secrets are not a recoverable source. Keep their local backup.
-            for key in EXTERNAL_SECRETS:
+            for key in EXTERNAL_SECRETS | {'OPS_ALERT_WEBHOOK_URL'}:
                 if not values.get(key) and local.get(key):
                     values[key] = local[key]
             for key in ['DATABASE_URL', 'DATABASE_URL_UNPOOLED']:

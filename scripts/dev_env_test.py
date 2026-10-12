@@ -226,6 +226,7 @@ class DevEnvTest(unittest.TestCase):
         self.ready()
         values = module.read(self.store / 'development.env')
         values['STEAM_API_KEY'] = 'a' * 32
+        values['OPS_ALERT_WEBHOOK_URL'] = 'https://discord.com/api/webhooks/fixture/local-secret'
         module.write_private(self.store / 'development.env', module.encode(values), replace=True)
         def fake_run(args, **kwargs):
             Path(args[3]).write_text(SOURCE)
@@ -233,6 +234,7 @@ class DevEnvTest(unittest.TestCase):
         with patch.object(module.shutil, 'which', return_value='/fixture/vercel'), patch.object(module.subprocess, 'run', side_effect=fake_run):
             module.refresh(self.root, self.store)
         self.assertEqual(module.read(self.store / 'development.env')['STEAM_API_KEY'], 'a' * 32)
+        self.assertEqual(module.read(self.store / 'development.env')['OPS_ALERT_WEBHOOK_URL'], values['OPS_ALERT_WEBHOOK_URL'])
 
     def test_publish_external_credentials_as_secrets(self):
         self.ready()
