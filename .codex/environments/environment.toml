@@ -1,0 +1,35 @@
+version = 1
+name = "Jaemangho"
+
+[setup]
+script = '''
+set -eu
+rtk proxy python3 "$(git rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py" sync
+'''
+
+[setup.linux]
+script = '''
+set -eu
+rtk proxy python3 "$(git rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py" sync
+rtk proxy bash scripts/agent-npm.sh ci
+'''
+
+[[actions]]
+name = "Dev"
+icon = "tool"
+command = "rtk proxy bash scripts/agent-npm.sh run dev"
+
+[[actions]]
+name = "Test"
+icon = "tool"
+command = "rtk proxy bash scripts/agent-npm.sh test"
+
+[[actions]]
+name = "Lint"
+icon = "tool"
+command = "rtk proxy bash scripts/agent-npm.sh run lint"
+
+[[actions]]
+name = "Build"
+icon = "tool"
+command = "rtk proxy bash scripts/agent-npm.sh run build"

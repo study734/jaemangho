@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk proxy python3 \"$(git rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py\" hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
