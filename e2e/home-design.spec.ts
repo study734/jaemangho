@@ -4,7 +4,7 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
-test('HTML 필터가 iframe을 제거해도 hydration 오류 없이 출처를 보내지 않고 위젯을 로드한다', async ({ page, context }) => {
+test('위젯은 서버 HTML에 iframe을 넣지 않고 hydration 이후 출처 없이 로드한다', async ({ page, context }) => {
   await loginAs(context, await createUser('widget_filtered', '위젯친구'));
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -16,16 +16,10 @@ test('HTML 필터가 iframe을 제거해도 hydration 오류 없이 출처를 �
       body: blocked ? 'Blocked Request' : '<p>Discord widget loaded</p>',
     });
   });
-  await page.route('**/*', async route => {
-    if (route.request().isNavigationRequest() && route.request().url() === 'http://localhost:3200/') {
-      const response = await route.fetch();
-      const html = (await response.text()).replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/g, '');
-      await route.fulfill({ response, body: html });
-    } else {
-      await route.fallback();
-    }
-  });
-  await page.goto('/');
+  const response = await page.goto('/');
+  expect(response?.ok()).toBe(true);
+  // HTML filtering has no iframe to remove before React hydrates this page.
+  expect(await response!.text()).not.toContain('<iframe');
   const frame = page.locator('.discord-server-widget iframe');
   await frame.scrollIntoViewIfNeeded();
   await expect(frame.contentFrame().getByText('Discord widget loaded')).toBeVisible();
