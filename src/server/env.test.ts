@@ -50,4 +50,12 @@ describe('envProblems', () => {
     expect(envProblems({ ...good, STEAM_API_KEY: 'a'.repeat(32) })).toEqual([]);
     expect(envProblems({ ...good, STEAM_API_KEY: 'nope' }).map((p) => p.split(':')[0])).toEqual(['STEAM_API_KEY']);
   });
+
+  it('DISCORD_PUBLIC_KEY는 선택이며 공개키 형식을 검증하고 값을 노출하지 않는다', () => {
+    for (const value of ['', 'a'.repeat(64)]) expect(envProblems({ ...good, DISCORD_PUBLIC_KEY: value })).toEqual([]);
+    const errors = envProblems({ ...good, DISCORD_PUBLIC_KEY: 'invalid-key' });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/^DISCORD_PUBLIC_KEY:/);
+    expect(errors[0]).not.toContain('invalid-key');
+  });
 });
