@@ -4,6 +4,31 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('서버 위젯은 PC와 모바일에 맞고 외부 로드 실패에도 서버 링크를 제공한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('discord_widget', '위젯친구'));
+  await page.route('https://discord.com/widget?**', route => route.abort());
+  await page.goto('/');
+  const widget = page.getByRole('region', { name: '재망호 디스코드 서버', exact: true });
+  const frame = widget.locator('iframe');
+  await expect(frame).toHaveAttribute('src', 'https://discord.com/widget?id=742002842453409792&theme=dark');
+  await expect(frame).toHaveAttribute('title', '재망호 디스코드 서버 위젯');
+  await expect(frame).toHaveAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
+  await mkdir('output/playwright', { recursive: true });
+  for (const width of [1504, 1024, 390, 320]) {
+    await page.setViewportSize({ width, height: 1045 });
+    await frame.scrollIntoViewIfNeeded();
+    await expect(widget.getByRole('link', { name: '디스코드에서 서버 열기' })).toBeVisible();
+    const box = await frame.boundingBox();
+    expect(box!.height).toBe(500);
+    expect(box!.width).toBeLessThanOrEqual(350);
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `output/playwright/discord-widget-${width}.png` });
+  }
+  await expect(widget.getByRole('link')).toHaveAttribute('href', 'https://discord.com/channels/742002842453409792');
+});
+
 test('제공 기능은 재순이 메시지의 임베드에서 사용하고 모든 게임·기록 채널에 표시한다', async ({ page, context }) => {
   await loginAs(context, await createUser('jaesuni_tools', '기능친구'));
   await mockRiot(page);
