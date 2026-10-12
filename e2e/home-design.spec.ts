@@ -10,6 +10,9 @@ test('서버 위젯은 PC와 모바일에 맞고 외부 로드 실패에도 서�
   await page.goto('/');
   const widget = page.getByRole('region', { name: '재망호 디스코드 서버', exact: true });
   const frame = widget.locator('iframe');
+  const panel = page.locator('.home-member-panel');
+  await expect(panel.getByRole('region', { name: '재망호 디스코드 서버', exact: true })).toHaveCount(1);
+  await expect(page.locator('.home-channel-feed .discord-server-widget')).toHaveCount(0);
   await expect(frame).toHaveAttribute('src', 'https://discord.com/widget?id=742002842453409792&theme=dark');
   await expect(frame).toHaveAttribute('title', '재망호 디스코드 서버 위젯');
   await expect(frame).toHaveAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
@@ -23,6 +26,17 @@ test('서버 위젯은 PC와 모바일에 맞고 외부 로드 실패에도 서�
     expect(box!.width).toBeLessThanOrEqual(350);
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    const panelBox = await panel.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(panelBox!.x);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width);
+    if (width > 1024) {
+      const feedBox = await page.locator('.home-channel-feed').boundingBox();
+      expect(panelBox!.width).toBe(264);
+      expect(panelBox!.x).toBeGreaterThanOrEqual(feedBox!.x + feedBox!.width);
+    } else {
+      const summariesBox = await page.locator('.home-grid').boundingBox();
+      expect(panelBox!.y).toBeGreaterThanOrEqual(summariesBox!.y + summariesBox!.height);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `output/playwright/discord-widget-${width}.png` });
   }
@@ -78,6 +92,7 @@ test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼�
   const expandedWidth = (await feed.boundingBox())!.width;
   await toggle.click();
   await expect(members).toBeHidden();
+  await expect(page.getByRole('region', { name: '재망호 디스코드 서버', exact: true })).toBeHidden();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   expect((await feed.boundingBox())!.width).toBeGreaterThan(expandedWidth);
   await toggle.click();

@@ -189,10 +189,10 @@ export function Home({ name, discovery, community, recent, week, members }: { na
           <JaesuniMessage line="디스코드에서 함께한 기록은 여기서 확인할 수 있어.">
           {community}
           </JaesuniMessage>
-          <DiscordServerWidget />
         </div>
       </div>
       <aside id="home-member-panel" className="home-member-panel" aria-label="멤버 활동과 최근 접속">
+        <DiscordServerWidget />
         {recent}
         {members}
       </aside>
