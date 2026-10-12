@@ -147,6 +147,24 @@ describe('game recommendation flow', () => {
 });
 
 describe('Discord delivery failure and recovery', () => {
+  it.each([10008, 10015])('finishes the deferred reply after a transient Discord missing-resource error %s', async code => {
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(Response.json({ code, message: 'Unknown resource' }, { status: 404 }))
+      .mockResolvedValueOnce(new Response('{}'));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    expect(await editReply(app, 'fixture-token', privateMessage('ok'), fetchFn, sleep)).toBe(true);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+  it('bounds persistent 404 retries and logs only numeric error codes', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const fetchFn = vi.fn().mockImplementation(async () => Response.json({ code: 10015, message: 'private-token' }, { status: 404 }));
+    expect(await editReply(app, 'private-token', privateMessage('ok'), fetchFn, sleep)).toBe(false);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(sleep.mock.calls).toEqual([[250], [500]]);
+    expect(log).toHaveBeenLastCalledWith('discord interaction reply failed:', 404, 'code:', 10015);
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private-token');
+  });
   it('retries network/5xx failures with an idempotent PATCH, and obeys a short retry_after', async () => {
     const fetchFn = vi.fn().mockRejectedValueOnce(new Error('secret')).mockResolvedValueOnce(new Response('{}', { status: 503 })).mockResolvedValueOnce(new Response('{}'));
     const sleep = vi.fn().mockResolvedValue(undefined);

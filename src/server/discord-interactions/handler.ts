@@ -37,15 +37,21 @@ export async function editReply(applicationId: string, token: string, message: M
       console.error('discord interaction reply failed: network'); return false;
     }
     if (response.ok) return true;
+    const body = await response.json().catch(() => null) as { retry_after?: number; code?: number } | null;
+    const code = typeof body?.code === 'number' && Number.isSafeInteger(body.code) ? body.code : undefined;
+    // The acknowledgement may still be reaching Discord when after() starts the PATCH.
+    // Bound retries for unknown original messages/webhooks; persistent invalid tokens still fail.
+    if (attempt < 2 && response.status === 404 && (code === 10008 || code === 10015)) {
+      await sleep(attempt === 0 ? 250 : 500); continue;
+    }
     if (attempt < 2 && response.status === 429) {
-      const body = await response.json().catch(() => null) as { retry_after?: number } | null;
       const delay = body?.retry_after;
       if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0 && delay <= 1) {
         await sleep(Math.ceil(delay * 1000) + 50); continue;
       }
     }
     if (attempt < 2 && response.status >= 500) { await sleep(250); continue; }
-    console.error('discord interaction reply failed:', response.status); return false;
+    console.error('discord interaction reply failed:', response.status, 'code:', code ?? 'unknown'); return false;
   }
   return false;
 }
