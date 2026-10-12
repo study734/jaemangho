@@ -4,6 +4,28 @@ import { cleanup, createUser, db, expect, loginAs, mockRiot, test } from './fixt
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
+test('위젯은 서버 HTML에 iframe을 넣지 않고 hydration 이후 출처 없이 로드한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('widget_filtered', '위젯친구'));
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('https://discord.com/widget?**', async route => {
+    const blocked = Boolean(route.request().headers().referer);
+    await route.fulfill({
+      status: blocked ? 500 : 200,
+      contentType: 'text/html',
+      body: blocked ? 'Blocked Request' : '<p>Discord widget loaded</p>',
+    });
+  });
+  const response = await page.goto('/');
+  expect(response?.ok()).toBe(true);
+  // HTML filtering has no iframe to remove before React hydrates this page.
+  expect(await response!.text()).not.toContain('<iframe');
+  const frame = page.locator('.discord-server-widget iframe');
+  await frame.scrollIntoViewIfNeeded();
+  await expect(frame.contentFrame().getByText('Discord widget loaded')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('서버 위젯은 PC와 모바일에 맞고 외부 로드 실패에도 서버 링크를 제공한다', async ({ page, context }) => {
   await loginAs(context, await createUser('discord_widget', '위젯친구'));
   await page.route('https://discord.com/widget?**', route => route.abort());
@@ -15,6 +37,7 @@ test('서버 위젯은 PC와 모바일에 맞고 외부 로드 실패에도 서�
   await expect(page.locator('.home-channel-feed .discord-server-widget')).toHaveCount(0);
   await expect(frame).toHaveAttribute('src', 'https://discord.com/widget?id=742002842453409792&theme=dark');
   await expect(frame).toHaveAttribute('title', '재망호 디스코드 서버 위젯');
+  await expect(frame).toHaveAttribute('referrerpolicy', 'no-referrer');
   await expect(frame).toHaveAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts');
   await mkdir('output/playwright', { recursive: true });
   for (const width of [1504, 1024, 390, 320]) {
