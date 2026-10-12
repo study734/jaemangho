@@ -17,4 +17,7 @@ export const E2E_ENV = {
   DISCORD_GUILD_ID: '100000000000000002',
   DISCORD_PUBLIC_KEY: DISCORD_TEST_PUBLIC_KEY,
   RIOT_API_KEY: 'RGAPI-e2e',
+  // Next.js는 .env.local도 읽는다. 빈 값으로 덮어 공용 봇·운영 알림을 테스트에서 사용하지 않는다.
+  DISCORD_BOT_TOKEN: '',
+  OPS_ALERT_WEBHOOK_URL: '',
 };
