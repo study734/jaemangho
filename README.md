@@ -169,13 +169,12 @@ npm run dev                   # http://localhost:3000
 | 위치 | 역할 |
 |---|---|
 | [`.env.example`](.env.example) | Git에 보관하는 키 이름·형식·용도. 실제 비밀값은 넣지 않음 |
-| Vercel Development | 팀에서 공유할 개발용 원본. 개발 DB·개발용 앱/키만 등록 |
+| Vercel Development | 클라우드 개발 실행에 필요한 설정. 비밀키는 Secret으로 저장하며 로컬 보관 원본을 대체하지 않음 |
 | Vercel Production | 운영용 값. 개발용으로 자동 다운로드하거나 복제하지 않음 |
-| 비밀번호 관리자 | 발급한 비밀값의 독립 보관 사본, 발급 계정·용도·교체 기록 |
-| 공용 Git 폴더의 `jaemangho-dev-env/development.env` | 이 컴퓨터의 모든 worktree가 재사용하는 개발 설정 사본. 디렉터리 0700·파일 0600, Git 커밋 대상이 아님 |
+| 공용 Git 폴더의 `jaemangho-dev-env/development.env` | 이 컴퓨터에서 값을 잊지 않고 다시 찾을 기준 파일. 모든 worktree가 재사용하며 디렉터리 0700·파일 0600, Git 커밋 대상이 아님 |
 | 각 worktree의 `.env.local` | 실행용 복사본. 이미 있는 파일은 자동으로 덮어쓰지 않음 |
 
-준비 도구는 Python 3·Git만으로 동작합니다. 새 worktree를 만들 때 로그인·클라우드 조회·의존성 설치를 반복하지 않습니다. 이 컴퓨터의 공유 사본에는 실제 값이 평문으로 들어 있으므로 OS 계정·디스크 암호화로 보호하고 로그·대화·Git에 넣지 않습니다. Vercel Sensitive 운영 값은 다시 읽을 수 없으므로 비밀번호 관리자에 원본을 따로 보관합니다.
+준비 도구는 Python 3·Git만으로 동작합니다. 새 worktree를 만들 때 로그인·클라우드 조회·의존성 설치를 반복하지 않습니다. 이 컴퓨터의 공유 사본에는 실제 값이 평문으로 들어 있으므로 OS 계정·디스크 암호화로 보호하고 로그·대화·Git에 넣지 않습니다. Vercel Secret은 저장 후 다시 읽을 수 없습니다. 발급한 값은 이 공용 파일에 보관하며 컴퓨터 분실·초기화에 대비한 암호화 백업은 별도로 필요합니다. 키를 바꿀 때는 현재 `.env.local`에 입력한 뒤 아래 `import --replace`로 공용 파일을 갱신하고, 해당 키를 사용하는 Vercel 환경에도 별도로 반영합니다. 로컬 실행은 `.env.local`, Vercel 배포는 Vercel 설정, GitHub Actions는 워크플로의 Secrets·Variables를 사용합니다.
 
 최초 한 번 개발용 `.env.local`을 준비하고 등록합니다. `import`는 값의 발급 환경을 추론할 수 없으므로 `--confirm-development`로 개발용임을 명시적으로 확인해야 합니다. 운영 파일을 가져오지 마세요.
 
@@ -198,9 +197,9 @@ rtk proxy python3 scripts/dev-env.py check --profile discord
 
 검사는 값을 출력하지 않고 누락된 키 이름만 알려줍니다. `local`은 DB·세션 키와 개발 로그인 또는 Discord 로그인 설정을 확인합니다. `discord`는 실제 로그인·슬래시 명령 등록·Steam 추천에 필요한 키를 확인하며, Steam·Riot는 각각 `--profile steam`, `--profile riot`로 확인합니다. 키의 형식 검사만으로 발급처의 유효성·권한이나 Discord 엔드포인트 연결까지 확인됐다고 하지 않습니다. 로컬 DB와 세션이 준비돼도 외부 키가 없으면 해당 연동은 미준비입니다.
 
-팀 개발 원본을 Vercel Development에 등록한 뒤 명시적으로 갱신합니다. Production을 선택하는 옵션은 제공하지 않습니다. Vercel CLI 로그인은 별도로 필요하며, 설치된 CLI가 없으면 기존 Node 환경의 `agent-npm.sh`로 검증한 CLI 63.1.2를 실행합니다. 공유 설정이 비었거나 조회가 실패하면 기존 사본을 보존합니다. Vercel OIDC 등 CLI 세션 값은 공용 파일에 보관하지 않습니다. localhost DB 주소는 갱신 때 이 컴퓨터의 기존 값을 유지합니다. 새 컴퓨터에는 먼저 별도의 개발 DB를 준비하고 `import`로 로컬 사본을 초기화합니다.
+Vercel Development의 읽을 수 있는 설정을 가져오려면 명시적으로 갱신합니다. 이 명령은 비밀키의 원본 복구 수단이 아닙니다. Production을 선택하는 옵션은 제공하지 않습니다. Vercel CLI 로그인은 별도로 필요하며, 설치된 CLI가 없으면 기존 Node 환경의 `agent-npm.sh`로 검증한 CLI 63.1.2를 실행합니다. 공유 설정이 비었거나 조회가 실패하면 기존 사본을 보존합니다. Vercel OIDC 등 CLI 세션 값은 공용 파일에 보관하지 않습니다. localhost DB 주소와 클라우드 응답에 없는 Discord·Steam·Riot 비밀키는 이 컴퓨터의 기존 공용 값을 유지합니다. Vercel에서 비밀키를 교체해도 그 새 값을 내려받을 수 없으므로 로컬 보관 파일도 함께 갱신해야 합니다. 새 컴퓨터에는 먼저 별도의 개발 DB를 준비하고 `import`로 로컬 사본을 초기화합니다.
 
-`publish --confirm-development`는 공유 사본의 비어 있지 않은 개발용 키를 Development에만 등록합니다. DB 주소·운영 알림 URL은 보내지 않고 값은 stdin으로 전달합니다. Development에서 재조회할 수 있도록 읽기 가능한 Config(`--no-sensitive`)로 등록하므로 해당 보안 설정과 범위에 대한 승인을 먼저 받습니다. 기존 키는 기본적으로 덮어쓰지 않으며 명시적인 `--replace`가 있어야 교체합니다. 여러 키 등록은 트랜잭션이 아니므로 일부 성공 후 실패하면 성공한 키 이름을 확인하고 나머지를 복구합니다. 등록 실패는 CLI 출력의 비밀값을 숨기고 로컬 원본을 유지합니다.
+`publish --confirm-development`는 공유 사본의 비어 있지 않은 개발용 키를 Development에만 등록합니다. DB 주소·운영 알림 URL은 보내지 않고 값은 stdin으로 전달합니다. Discord Client Secret·봇 토큰·Steam·Riot API 키는 Secret(`--sensitive`)으로 등록하며, 나머지는 Config(`--no-sensitive`)로 등록합니다. 읽기 가능한 Config에 세션·크론 비밀값을 등록하는 경우 해당 보안 설정과 범위에 대한 승인을 먼저 받습니다. 개발 DB·세션·크론을 운영에 복사하지 않습니다. 같은 Discord 앱을 개발과 운영에서 사용하는 경우 해당 앱의 자격 증명을 교체하면 양쪽과 기존 수집 봇 실행 환경도 갱신해야 합니다. 기존 키는 기본적으로 덮어쓰지 않으며 명시적인 `--replace`가 있어야 교체합니다. 여러 키 등록은 트랜잭션이 아니므로 일부 성공 후 실패하면 성공한 키 이름을 확인하고 나머지를 복구합니다. 등록 실패는 CLI 출력의 비밀값을 숨기고 로컬 원본을 유지합니다.
 
 ```bash
 rtk proxy python3 scripts/dev-env.py refresh --confirm-development

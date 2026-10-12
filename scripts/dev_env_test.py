@@ -222,6 +222,32 @@ class DevEnvTest(unittest.TestCase):
         self.assertEqual(values['DATABASE_URL'], module.read(self.source)['DATABASE_URL'])
         self.assertEqual(values['SESSION_SECRET'], 't' * 40)
 
+    def test_refresh_keeps_local_backup_of_write_only_external_secrets(self):
+        self.ready()
+        values = module.read(self.store / 'development.env')
+        values['STEAM_API_KEY'] = 'a' * 32
+        module.write_private(self.store / 'development.env', module.encode(values), replace=True)
+        def fake_run(args, **kwargs):
+            Path(args[3]).write_text(SOURCE)
+            return subprocess.CompletedProcess(args, 0, '', '')
+        with patch.object(module.shutil, 'which', return_value='/fixture/vercel'), patch.object(module.subprocess, 'run', side_effect=fake_run):
+            module.refresh(self.root, self.store)
+        self.assertEqual(module.read(self.store / 'development.env')['STEAM_API_KEY'], 'a' * 32)
+
+    def test_publish_external_credentials_as_secrets(self):
+        self.ready()
+        values = module.read(self.store / 'development.env')
+        values['STEAM_API_KEY'] = 'a' * 32
+        module.write_private(self.store / 'development.env', module.encode(values), replace=True)
+        def fake_run(args, **kwargs):
+            if 'STEAM_API_KEY' in args:
+                self.assertIn('--sensitive', args)
+                self.assertNotIn('--no-sensitive', args)
+                self.assertNotIn('a' * 32, ' '.join(args))
+            return subprocess.CompletedProcess(args, 0, '', '')
+        with patch.object(module.shutil, 'which', return_value='/fixture/vercel'), patch.object(module.subprocess, 'run', side_effect=fake_run):
+            module.publish(self.root, self.store)
+
     def test_uninstall_preserves_source_and_does_not_remove_unowned_hook(self):
         self.ready()
         self.assertEqual(self.run_tool('install').returncode, 0)

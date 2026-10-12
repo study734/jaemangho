@@ -11,6 +11,7 @@ import tempfile
 
 PROJECT = 'prj_mvcC7PWv6QstTX2blIJLFQgKZ4aJ'
 TEAM = 'team_pDPXKxQmweWaDOLhvaiBQ9N1'
+EXTERNAL_SECRETS = {'DISCORD_CLIENT_SECRET', 'DISCORD_BOT_TOKEN', 'STEAM_API_KEY', 'RIOT_API_KEY'}
 KEYS = {
     'DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'SESSION_SECRET', 'DEV_LOGIN',
     'DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_GUILD_ID',
@@ -221,6 +222,10 @@ def refresh(root, store):
         cache = store / 'development.env'
         if cache.exists():
             local = read(cache)
+            # Write-only cloud secrets are not a recoverable source. Keep their local backup.
+            for key in EXTERNAL_SECRETS:
+                if not values.get(key) and local.get(key):
+                    values[key] = local[key]
             for key in ['DATABASE_URL', 'DATABASE_URL_UNPOOLED']:
                 if local.get(key) and urlsplit(local[key]).hostname in ['localhost', '127.0.0.1', '::1']:
                     values[key] = local[key]
@@ -238,7 +243,7 @@ def publish(root, store, replace=False):
                   ['DATABASE_URL', 'DATABASE_URL_UNPOOLED', 'OPS_ALERT_WEBHOOK_URL'])
     for key in keys:
         args = [*command, 'env', 'add', key, 'development', '--project', PROJECT,
-                '--scope', TEAM, '--no-sensitive', '--yes']
+                '--scope', TEAM, '--sensitive' if key in EXTERNAL_SECRETS else '--no-sensitive', '--yes']
         if replace:
             args.append('--force')
         result = subprocess.run(args, input=values[key] + '\n', cwd=root,
