@@ -53,3 +53,31 @@ jobs:
         with:
           path: .ops-automation
           key: ops-usage-${{ github.run_id }}-${{ github.run_attempt }}
+
+
+  measurements:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+      - name: 시간·러너 점유·과금 시간·저장 용량 및 관측 공백 수집
+        run: node scripts/measure-project.mjs --limit 10 > "$RUNNER_TEMP/project-measurements.json"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: 측정 결과 7일 보관
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: project-measurements-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-measurements.json
+          if-no-files-found: error
+          retention-days: 7
