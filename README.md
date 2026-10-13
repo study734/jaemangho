@@ -253,6 +253,23 @@ TEST_DATABASE_URL=postgres://... npm run test:e2e
 ## 배포
 `main` 브랜치에 머지하면 Vercel이 자동 배포합니다. 환경변수를 바꾼 뒤에는 **재배포**해야 반영됩니다. Vercel 프로젝트의 `previewDeploymentsDisabled`를 `true`로 설정해 PR 프리뷰 배포를 생성하지 않습니다. PR은 GitHub Actions의 `check`·`e2e`로 검증합니다. `main` 이외 브랜치의 빌드를 건너뛰는 `vercel.json`의 `ignoreCommand`도 보조 방어로 유지합니다. 프리뷰 비활성화는 Vercel 프로젝트 설정이므로 프로젝트를 새로 만들거나 이전하면 같은 설정을 확인해야 합니다.
 
+### 변경의 운영 반영 확인
+
+CI 통과와 운영 반영은 서로 다른 결과입니다. 변경을 운영에서 확인할 때는 대상 PR 또는 정확한 커밋을 지정합니다.
+
+```bash
+npm run verify:production -- --pr 75 --wait 120
+# PR 없이 특정 커밋을 확인하려면 --commit <40자리 SHA>
+```
+
+이 명령은 기존 GitHub CLI와 Vercel CLI 로그인으로 배포 정보를 읽고, 기존 smoke의 공개 경로 5개를 검사합니다. Node·npm이 PATH에 없다면 `rtk proxy bash scripts/agent-npm.sh run verify:production -- --pr 75 --wait 120`을 사용합니다. `gh`가 필요하고 Vercel CLI 63.1.2는 npm 실행 캐시를 사용합니다. 처음 실행할 때만 CLI 다운로드가 필요할 수 있습니다. CLI 인증에 실패하면 기존 계정으로 로그인한 뒤 재실행하며, 운영 환경변수 파일을 내려받지 않습니다.
+
+`public_verified`와 종료 코드 0은 **요청한 머지 커밋이 운영 주소에 반영됐고 공개 검사 5개가 통과했다**는 뜻입니다. DB health는 고유 query로 캐시를 우회합니다. 검사 전후 배포 ID를 비교해 도중에 버전이 바뀌면 성공으로 처리하지 않습니다. 이후 다른 커밋이 배포된 경우에도 지정한 과거 커밋의 검증을 성공으로 대신하지 않습니다.
+
+`not_merged`, `not_serving_commit`, `deployment_failed`, `deployment_changed`, `public_checks_failed`는 종료 코드 1이며, 배포 후보의 상태·오류 코드 또는 실패 경로·HTTP 상태를 표시합니다. `--wait`는 준비 중인 배포에만 최대 300초까지 적용합니다. 실패한 배포는 즉시 종료하고, 배포·재배포·롤백을 실행하지 않습니다. 개별 CLI 조회는 30초, 공개 요청은 15초 제한이며 진행 중인 조회 시간은 대기 기한에 추가될 수 있습니다. CLI의 원본 오류와 응답 본문·비밀값은 출력하지 않습니다.
+
+**로그인 뒤 화면과 Discord 등 실제 외부 연동은 이 검사로 검증되지 않습니다.** 결과의 `authenticatedFlow: not_checked`를 유지하며 UI 오류는 문제가 발생한 실제 브라우저에서 확인합니다. 현재 운영 버전을 먼저 확인해 수정 전 버전을 반복 진단하지 않습니다. 구현은 [운영 반영 검증 도구](scripts/verify-production.mjs), 회귀 검증은 `npm test -- scripts/verify-production.test.mjs`입니다.
+
 ## Riot 영구 키
 24시간마다 만료되는 개발 키 대신 Personal Product Key를 신청하는 방법은 [RIOT_PRODUCT_KEY_GUIDE.md](RIOT_PRODUCT_KEY_GUIDE.md)를 참고하세요.
 
