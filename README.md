@@ -260,6 +260,12 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 
 에이전트 실행 환경에서 설치된 Node·npm이 PATH에 없다면 `rtk proxy bash scripts/agent-npm.sh <npm 인자>`를 사용합니다. 기존 nvm 설치에서 프로젝트 `.nvmrc`가 있으면 그 버전, 없으면 기본 버전을 활성화하며 인자·현재 디렉터리·종료 코드를 유지합니다. 새 런타임이나 의존성을 자동 설치하지 않습니다. 실행 도구의 회귀 검사는 `rtk proxy python3 scripts/agent_npm_test.py`로 실행합니다.
 
+### CI 보안 검사
+
+개인 소유 비공개 저장소에서 지원되지 않는 GitHub dependency review·CodeQL 대신, 러너에서 실행되는 검사를 사용합니다. [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 `npm audit --audit-level=high`로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
+
+[Security scan](.github/workflows/security.yml)은 고정 버전 Semgrep Community Edition으로 `src`·`scripts`·`e2e`의 JavaScript·TypeScript 보안 규칙(수동 검토용 `audit` 규칙 제외)을, zizmor로 `.github/workflows`를 검사하며 발견 사항이나 실행 오류가 있으면 실패합니다. Semgrep 커뮤니티 규칙은 커밋·다운로드 체크섬을 고정하고 메트릭·버전 확인을 끕니다. zizmor는 오프라인으로 실행합니다. 외부 계정·비밀값·code scanning 업로드 권한 없이 실행되며 소스 코드를 업로드하지 않습니다. 로컬 재현 명령과 도구·규칙 버전은 해당 워크플로의 `run` 단계가 기준입니다. Semgrep Community Edition의 함수·파일 단위 분석은 CodeQL의 분석 범위와 동일하지 않습니다. 지원하지 않는 구문의 부분 파싱 경고는 로그에 남지만 검사를 중단하지 않습니다. TypeScript 문법·타입 검사는 기존 build가 맡습니다.
+
 ## E2E 테스트
 실제 브라우저(Chromium)로 로그인 보호, 소환사 추가·삭제, 관리자 차단 흐름을 시험합니다 (`e2e/`).
 ```bash

@@ -1,4 +1,4 @@
-name: CodeQL
+name: Security scan
 
 on:
   pull_request:
@@ -13,16 +13,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  group: security-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -31,10 +28,29 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: none
-      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
-        with:
-          category: /language:${{ matrix.language }}
+      # GitHub Code Security나 외부 계정 없이 러너에서만 분석한다.
+      - name: 고정 버전 보안 도구 준비
+        run: |
+          python3 -m venv "$RUNNER_TEMP/security-tools"
+          "$RUNNER_TEMP/security-tools/bin/pip" install semgrep==1.180.0 zizmor==1.30.1
+          echo "$RUNNER_TEMP/security-tools/bin" >> "$GITHUB_PATH"
+      - name: JavaScript·TypeScript 보안 검사
+        if: matrix.language == 'javascript-typescript'
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --max-time 60 \
+            https://github.com/semgrep/semgrep-rules/archive/9bbf021d0acffa3095fcffd17b2bc7787eb4796d.tar.gz -o "$RUNNER_TEMP/semgrep-rules.tar.gz"
+          printf '%s  %s\n' 'b6cb72d07e060fe03e890bb88d40e5c1f2a177780dbb5be1c3b01e5509fd9cec' "$RUNNER_TEMP/semgrep-rules.tar.gz" | sha256sum --check
+          mkdir "$RUNNER_TEMP/semgrep-rules"
+          tar -xzf "$RUNNER_TEMP/semgrep-rules.tar.gz" --strip-components=1 -C "$RUNNER_TEMP/semgrep-rules"
+          # 보안 규칙만 선택한다. audit는 수동 검토용 휴리스틱 규칙이다.
+          configs=()
+          while IFS= read -r -d '' rule; do
+            configs+=(--config "$rule")
+          done < <(find "$RUNNER_TEMP/semgrep-rules/javascript" "$RUNNER_TEMP/semgrep-rules/typescript" \
+            -path '*/security/*.yaml' ! -path '*/audit/*' -print0)
+          test "${#configs[@]}" -gt 0
+          pysemgrep scan "${configs[@]}" \
+            --error --metrics=off --disable-version-check src scripts e2e
+      - name: GitHub Actions 보안 검사
+        if: matrix.language == 'actions'
+        run: zizmor --offline --format plain .github/workflows

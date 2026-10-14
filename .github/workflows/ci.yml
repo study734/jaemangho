@@ -111,14 +111,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      # 개인 소유 비공개 저장소에서도 실행되며 개발 의존성까지 검사한다.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-          head-ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
-          fail-on-severity: high
-          fail-on-scopes: runtime,development,unknown
-          license-check: false
-          comment-summary-in-pr: never
+          node-version: 24
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
 
   workflow-policy:
     runs-on: ubuntu-24.04
