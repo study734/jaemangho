@@ -8,5 +8,5 @@ export async function GET(request: Request) {
   if (auth === 'unconfigured') return Response.json({ error: 'Not configured' }, { status: 503 });
   if (auth !== 'ok') return Response.json({ error: 'Unauthorized' }, { status: 401 });
   try { return Response.json({ recovery: await runChatRecovery() }, { headers: { 'Cache-Control': 'no-store' } }); }
-  catch (error) { return serverError(error); }
+  catch (error) { return serverError(error, 'api/cron/recovery.GET'); }
 }

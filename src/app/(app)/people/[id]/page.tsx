@@ -1,3 +1,4 @@
+import { reportFailure } from '@/server/diagnostics';
 import { notFound } from 'next/navigation';
 import { awardsForUser } from '@/server/chat/awards';
 import { getPerson, listUnowned } from '@/server/people';
@@ -11,7 +12,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const [unowned, tops, awards] = await Promise.all([
     listUnowned(),
     Promise.all(person.steam.map((a) => topPlayed(a.steamId))),
-    awardsForUser(id).catch(() => []), // 칭호를 못 불러와도 프로필은 보인다
+    awardsForUser(id).catch(error => { reportFailure('profile.awards', error); return []; }), // 칭호를 못 불러와도 프로필은 보인다
   ]);
   return (
     <Profile

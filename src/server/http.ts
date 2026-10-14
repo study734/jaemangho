@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { reportFailure } from './diagnostics';
 
 // 요청 입구에서의 입력 검증. 통과하면 타입이 정해진 data, 아니면 바로 돌려줄 400 응답.
 export type Parsed<T> = { ok: true; data: T } | { ok: false; response: Response };
@@ -23,7 +24,9 @@ export function parseQuery<S extends z.ZodType>(params: URLSearchParams, schema:
 }
 
 // 예상하지 못한 오류는 내용을 숨기고 로그에만 남긴다
-export function serverError(e: unknown) {
-  console.error(e);
-  return Response.json({ error: 'Server error' }, { status: 500 });
+export function serverError(e: unknown, operation = 'http.request') {
+  const requestId = reportFailure(operation, e);
+  return Response.json({ error: 'Server error', requestId }, {
+    status: 500, headers: { 'X-Request-ID': requestId },
+  });
 }

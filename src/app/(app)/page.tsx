@@ -13,6 +13,7 @@ import { getViewer } from '@/server/viewer';
 import { unstable_cache } from 'next/cache';
 import { Home, HomeCommunity, HomeRecent } from './home';
 import { getDiscoveryFeed } from '@/server/discovery';
+import { reportFailure } from '@/server/diagnostics';
 
 // 성공한 출처만 60초 캐시한다. 두 구역의 동시 조회도 요청 안에서 공유한다.
 const cachedChatHighlights = cache(unstable_cache(() => getChatHighlights(), ['home-chat-highlights'], { revalidate: 60 }));
@@ -35,11 +36,13 @@ async function Week() {
 
 async function Community() {
   const [chat, moments] = await Promise.allSettled([cachedChatHighlights(), cachedHotMoments()]);
+  if (chat.status === 'rejected') reportFailure('home.chat-highlights', chat.reason);
+  if (moments.status === 'rejected') reportFailure('home.hot-moments', moments.reason);
   return <HomeCommunity chat={chat.status === 'fulfilled' ? chat.value : null} moments={moments.status === 'fulfilled' ? moments.value.slice(0, 3) : []} notice={chatNotice()} unavailable={chat.status === 'rejected' || moments.status === 'rejected'} />;
 }
 
 // 같은 요청에서 최근 활동과 멤버 목록이 한 번의 조회를 나눠 쓴다
-const homeFeed = cache(() => getHomeFeed().catch(() => null));
+const homeFeed = cache(() => getHomeFeed().catch(error => { reportFailure('home.feed', error); return null; }));
 
 async function Members() {
   const feed = await homeFeed();

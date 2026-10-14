@@ -105,9 +105,35 @@ describe('proxyRiot', () => {
     const { store, calls } = fakeStore();
     const f = vi.fn(async () => { throw new Error('socket hang up'); }) as unknown as typeof fetch;
     const r = await proxyRiot(req(), { apiKey: 'K', store, fetchFn: f });
-    expect(r).toEqual({ status: 500, body: { error: 'socket hang up' } });
+    expect(r).toMatchObject({ status: 500, body: { error: 'Riot request failed', code: 'network', requestId: r.requestId } });
+    expect(r.requestId).toMatch(/^[\da-f-]{36}$/);
+    expect(JSON.stringify(r)).not.toContain('socket hang up');
     expect(calls.put).toEqual([]);
     expect(calls.errors).toHaveLength(1);
+  });
+
+  it('형식이 깨진 성공 응답은 502로 분류하며 캐시하지 않는다', async () => {
+    const { store, calls } = fakeStore();
+    const f = vi.fn(async () => new Response('private malformed body', { status: 200 })) as typeof fetch;
+    const result = await proxyRiot(req(), { apiKey: 'K', store, fetchFn: f });
+    expect(result).toMatchObject({ status: 502, body: { code: 'invalid_response', requestId: result.requestId } });
+    expect(calls.put).toEqual([]);
+    expect(calls.errors).toEqual([[502, req().path]]);
+    expect(JSON.stringify(result)).not.toContain('private malformed body');
+  });
+
+  it('타임아웃은 일반 네트워크 오류와 구분한다', async () => {
+    const { store } = fakeStore();
+    const f = vi.fn(async () => { throw new DOMException('secret URL', 'TimeoutError'); }) as unknown as typeof fetch;
+    expect(await proxyRiot(req(), { apiKey: 'K', store, fetchFn: f })).toMatchObject({ status: 500, body: { code: 'timeout' } });
+  });
+
+  it.each([401, 403, 429, 503])('JSON 아닌 %i 응답도 실제 인증·호출 제한·장애 상태를 유지한다', async status => {
+    const { store, calls } = fakeStore();
+    const f = vi.fn(async () => new Response('private upstream HTML', { status })) as typeof fetch;
+    expect(await proxyRiot(req(), { apiKey: 'K', store, fetchFn: f })).toMatchObject({ status, body: { code: 'invalid_response' } });
+    expect(calls.put).toEqual([]);
+    expect(calls.errors).toEqual([[status, req().path]]);
   });
 
   it('키가 없으면 Riot을 부르지 않고 500', async () => {

@@ -1,3 +1,4 @@
+import { reportFailure } from './diagnostics';
 import type { DiscoveryCard, DiscoveryFeed, DiscoveryPerson } from '../lib/discovery';
 import { TITLES } from '../lib/titles';
 import { listAwards, type AwardRow } from './chat/awards';
@@ -105,6 +106,9 @@ const defaultSources: DiscoverySources = {
 // 호출자가 공유·캐시한 출처를 재사용한다. 실패 처리는 출처별 캐시 밖에서 한다.
 export async function getDiscoveryFeed(sources: DiscoverySources = defaultSources): Promise<DiscoveryFeed> {
   const [moments, highlights, awards, people] = await Promise.allSettled([sources.moments(), sources.highlights(), sources.awards(), sources.people?.() ?? Promise.resolve([])]);
+  for (const [index, result] of [moments, highlights, awards, people].entries()) {
+    if (result.status === 'rejected') reportFailure(['discovery.moments', 'discovery.highlights', 'discovery.awards', 'discovery.people'][index], result.reason);
+  }
   return {
     cards: buildDiscovery({
       moments: moments.status === 'fulfilled' ? moments.value : [],

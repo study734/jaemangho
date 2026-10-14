@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     }
     if (params.get('resource') && params.get('resource') !== 'status') return Response.json({ error: 'Unknown resource' }, { status: 404 });
     return Response.json(await operationStatus(), { headers: { 'Cache-Control': 'no-store' } });
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/admin/operations.GET'); }
 }
 
 export async function POST(request: Request) {
@@ -46,6 +46,6 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof SyncBusyError) return Response.json({ error: '동기화가 이미 실행 중입니다.' }, { status: 409 });
     if (error instanceof SyncUnconfiguredError) return Response.json({ error: 'Discord 봇 설정이 필요합니다.' }, { status: 503 });
-    return serverError(error);
+    return serverError(error, 'api/admin/operations.POST');
   }
 }

@@ -15,6 +15,6 @@ export async function GET(request: Request) {
   } catch (e) {
     if (e instanceof SyncBudgetError) return Response.json({ skipped: true, reason: 'usage_budget' }, { headers: { 'Cache-Control': 'no-store' } });
     if (e instanceof SyncBusyError) return Response.json({ error: '동기화가 이미 실행 중입니다.' }, { status: 409 });
-    return serverError(e);
+    return serverError(e, 'api/cron/chat.GET');
   }
 }

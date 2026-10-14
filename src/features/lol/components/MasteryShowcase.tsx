@@ -1,10 +1,10 @@
 'use client';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { RiotImage } from './RiotImage';
 import { VisualImage } from './VisualImage';
 import React, { useState } from 'react';
-import type { Member, ChampionMastery } from '../types';
+import type { Member } from '../types';
+import { formatTimeAgo } from './matchFormatting';
 import { getTierColor } from '../mockData';
 
 interface MasteryShowcaseProps {
@@ -19,21 +19,9 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
     return pts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  // Compile all masteries across the crew for a leaderboard
-  const getAllMasteries = (): { member: Member; mastery: ChampionMastery }[] => {
-    const list: { member: Member; mastery: ChampionMastery }[] = [];
-    members.forEach(m => {
-      if (m.championMasteries) {
-        m.championMasteries.forEach(mastery => {
-          list.push({ member: m, mastery });
-        });
-      }
-    });
-    // Sort by points descending
-    return list.sort((a, b) => b.mastery.championPoints - a.mastery.championPoints);
-  };
-
-  const leaderboard = getAllMasteries();
+  const leaderboard = members.flatMap(member =>
+    (member.championMasteries ?? []).map(mastery => ({ member, mastery }))
+  ).sort((a, b) => b.mastery.championPoints - a.mastery.championPoints);
   const topLeaderboard = leaderboard.slice(0, 6);
 
   // Filter members based on selection
@@ -41,17 +29,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
     ? members 
     : members.filter(m => m.id === selectedMemberId);
 
-  // Format time ago
-  const formatTimeAgo = (timestamp: number) => {
-    // eslint-disable-next-line react-hooks/purity
-    const diff = Date.now() - timestamp;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}분 전`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}시간 전`;
-    const days = Math.floor(hrs / 24);
-    return `${days}일 전`;
-  };
+  const [now] = useState(() => Date.now());
 
   // Custom styling for Mastery Level Badges
   const getMasteryBadgeStyle = (level: number) => {
@@ -232,7 +210,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
                         </div>
                         <div style={styles.masteryInfo}>
                           <h5 style={styles.champNameText}>{item.championName}</h5>
-                          <span style={styles.lastPlayText}>최근 플레이: {formatTimeAgo(item.lastPlayTime)}</span>
+                          <span style={styles.lastPlayText}>최근 플레이: {formatTimeAgo(item.lastPlayTime, now)}</span>
                         </div>
                       </div>
                       <div style={styles.masteryItemRight}>
@@ -253,7 +231,7 @@ export const MasteryShowcase: React.FC<MasteryShowcaseProps> = ({ members }) => 
   );
 };
 
-const styles: { [key: string]: any } = {
+const styles = {
   container: {
     padding: 'var(--page-padding)',
     flexGrow: 1,
@@ -305,9 +283,6 @@ const styles: { [key: string]: any } = {
   tr: {
     borderBottom: '1px solid var(--hairline)',
     transition: 'background-color 0.2s ease',
-    ':hover': {
-      backgroundColor: 'var(--surface-soft)',
-    }
   },
   td: {
     padding: '14px 16px',
@@ -346,7 +321,7 @@ const styles: { [key: string]: any } = {
     fontSize: '12px',
     fontWeight: 700,
   },
-  topRankBadge: (rankIdx: number) => {
+  topRankBadge: (rankIdx: number): React.CSSProperties => {
     const bgColors = ['rgba(255, 183, 3, 0.2)', 'rgba(224, 224, 224, 0.2)', 'rgba(205, 127, 50, 0.2)'];
     const textColors = ['#ffb703', 'var(--ink)', '#cd7f32'];
     const borders = ['1px solid #ffb703', '1px solid var(--ink)', '1px solid #cd7f32'];
@@ -548,4 +523,4 @@ const styles: { [key: string]: any } = {
     borderRadius: '3px',
     letterSpacing: '0.5px',
   }
-};
+} satisfies Record<string, React.CSSProperties | ((index: number) => React.CSSProperties)>;

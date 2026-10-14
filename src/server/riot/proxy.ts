@@ -1,5 +1,6 @@
 import { bumpStat, cacheGet, cachePut, logRiotError } from './cache';
 import type { RiotRoute } from './routes';
+import { reportFailure } from '../diagnostics';
 
 // 이음새: 캐시와 통계 저장소. 운영에서는 DB, 테스트에서는 메모리 가짜를 끼운다.
 export interface RiotStore {
@@ -22,6 +23,7 @@ export interface RiotResult {
   status: number;
   body: unknown;
   cache?: 'HIT' | 'MISS';
+  requestId?: string;
 }
 
 const inFlight = new WeakMap<RiotStore, Map<string, Promise<RiotResult>>>();
@@ -40,7 +42,10 @@ export async function proxyRiot(
     await store.bump('hit');
     return { status: hit.status, body: hit.body, cache: 'HIT' };
   }
-  if (!deps.apiKey) return { status: 500, body: { error: 'Server is missing RIOT_API_KEY' } };
+  if (!deps.apiKey) {
+    const requestId = reportFailure('riot.configuration', { code: 'not_configured' });
+    return { status: 500, requestId, body: { error: 'Server is missing RIOT_API_KEY', requestId } };
+  }
   let pending = inFlight.get(store);
   if (!pending) { pending = new Map(); inFlight.set(store, pending); }
   const existing = pending.get(key);
@@ -61,6 +66,7 @@ async function requestRiot(
   await store.bump('miss');
   let status = 500;
   let body: unknown;
+  let requestId: string | undefined;
   try {
     const qs = req.params.toString();
     const res = await fetchFn(`https://${req.region}.api.riotgames.com${encodeURI(req.path)}${qs ? `?${qs}` : ''}`, {
@@ -69,9 +75,16 @@ async function requestRiot(
       cache: 'no-store',
     });
     status = res.status;
-    body = await res.json().catch(() => ({}));
+    try { body = await res.json(); }
+    catch (error) {
+      if (res.ok) status = 502;
+      requestId = reportFailure('riot.response', { code: 'invalid_response', status: res.status, cause: error });
+      body = { error: 'Riot returned an invalid response', code: 'invalid_response', requestId };
+    }
   } catch (error) {
-    body = { error: error instanceof Error ? error.message : 'Upstream error' };
+    const code = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'timeout' : 'network';
+    requestId = reportFailure('riot.upstream', { code, cause: error });
+    body = { error: 'Riot request failed', code, requestId };
   }
 
   if (status >= 200 && status < 300) {
@@ -80,5 +93,5 @@ async function requestRiot(
   }
   if (status === 404) await store.put(cacheKey, status, body, Math.min(req.route.ttl, 60));
   else await store.logError(status, req.path);
-  return { status, body };
+  return { status, body, ...(requestId ? { requestId } : {}) };
 }

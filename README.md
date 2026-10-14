@@ -65,6 +65,30 @@ src/
 - **새 주제(롤, Steam 같은 큰 단위)를 추가하는 법**: ① `src/features/<이름>/`에 기능과 `index.ts`(화면, 홈 카드용 `<이름>HomeSummary`) 만들기 ② `src/components/nav.tsx`에 상세 메뉴와 `sectionsFor`/`sectionOf` 한 줄씩 ③ `src/app/(app)/<주소>/page.tsx` ④ `src/app/(app)/home.tsx` 또는 같이 놀기·우리 기록 허브에 진입 링크 추가. 서버 로직은 `src/server/<이름>/`, API는 `/api/<이름>/...`.
 - API URL(`/api/riot`, `/api/members`)과 DB 테이블 이름은 아직 롤 기준입니다. 두 번째 카테고리가 생길 때 `/api/<카테고리>/...`로 나눕니다.
 
+### 오류 진단
+
+- 공통 API 500 응답은 `requestId`와 `X-Request-ID` 헤더를 반환합니다. 서버 로그의 `[failure]`에서 같은 ID를 검색하면 고정된 작업 이름(`operation`), 오류 분류(`code`), HTTP 상태(있는 경우), 파일·행·열(`locations`), 중첩 원인(`cause`)을 확인할 수 있습니다. ID는 실패마다 새로 생성하며 사용자·세션을 식별하지 않습니다. 원문 예외 메시지·요청 URL·본문·외부 응답·비밀값은 기록하지 않습니다. 분류되지 않은 오류는 `unexpected`이며 빌드된 코드의 위치는 해당 배포 버전에서 확인합니다. 외부 플랫폼의 요청 ID와는 별개입니다.
+- 홈·커뮤니티의 선택적 조회도 실패를 작업 이름과 함께 기록하고 기존 부분 표시를 유지합니다. 커뮤니티의 선택적 목록은 화면에서 여전히 빈 목록으로 대체되므로 서버 로그로 구분합니다.
+- 소환사 목록 요청은 HTTP 상태와 오류 ID를 보존합니다. 저장 실패 안내는 세션 만료·권한·중복을 구분하며, 목록 재조회까지 실패하면 두 원인을 안내합니다. 추가 후 기본 정보 갱신은 저장 성공 후 실행해 저장 실패 안내를 지우지 않습니다.
+- 롤 상세 조회는 숙련도·전적·실시간 게임의 부분 실패를 결과의 `failures`에 남깁니다. 상세 모달에서 실패 항목을 알리고 실패한 항목의 기존 데이터를 보존합니다(일부 경기만 성공하면 성공한 경기 목록 표시). 전적 조회 실패를 정상적인 빈 전적으로 안내하지 않으며 상세 화면을 다시 열면 재시도합니다.
+- 관련 회귀 검사: `npm test -- src/server/http.test.ts src/features/lol/api/roster.test.ts src/features/lol/api/lolData.test.ts`, 브라우저 상태 복구: `npm run test:e2e -- e2e/diagnostics.spec.ts --retries=0`(격리된 테스트 DB 필요).
+
+### 단순한 구조와 재현 가능한 디버깅
+
+화면은 표시·사용자 입력을, 기능의 상태 모듈은 비동기 작업과 상태 전이를, 서버는 DB·외부 연동을 담당합니다. 파일 크기만으로 나누거나 가상의 확장에 대비한 계층을 추가하지 않습니다. 복잡한 계산과 비동기 순서가 실제로 달라지는 지점을 작은 공개 인터페이스로 테스트합니다.
+
+| 확인할 동작 | 구현과 직접 재현 테스트 |
+|---|---|
+| 롤 목록·갱신·저장 실패 복구·상세 조회 | [rosterModel.ts](src/features/lol/state/rosterModel.ts), `state/rosterModel.test.ts`. `LolProvider`는 모듈의 snapshot을 구독해 기존 화면 인터페이스를 제공합니다. 초기 목록 조회는 공유하고, 오래된 요청은 새 요청·편집한 계정을 덮어쓰지 않습니다. 저장 실패 복구도 그 뒤 시작한 편집을 지우지 않습니다. |
+| Steam 선택·비교·추천·뽑기·도전 | [gamesModel.ts](src/features/steam/gamesModel.ts), `gamesModel.test.ts`. 선택한 조건과 그 결과를 한 snapshot으로 관리하고, 요청 중 조건 변경과 중복 실행을 모듈 자체에서 막습니다. 검색·조건 변경 시 관련 뽑기·도전 결과도 함께 정리합니다. |
+| 듀오 경기 집계 | [synergy.ts](src/features/lol/domain/synergy.ts), `domain/synergy.test.ts`. 경기 ID와 전체 Riot ID를 불투명한 문자열로 취급합니다. `_` 등 구분자로 다시 나누지 않으며 같은 경기가 두 사람의 전적에 있어도 한 번만 집계합니다. 이름이 같고 태그가 다르면 다른 사람입니다. |
+| 앱 공용 UI의 HTTP 응답·오류 | [http-client.ts](src/lib/http-client.ts), `http-client.test.ts`. 관리자·운영 화면의 중복 응답 처리를 공유하며 HTTP 상태·오류 ID, 연결 실패와 응답 형식 오류를 보존합니다. 기능별 API 모듈은 기존 의존 방향과 도메인 오류 안내를 유지합니다. |
+| 서버의 선택적 실패와 외부 응답 | [diagnostics.ts](src/server/diagnostics.ts), `server/http.test.ts`, `server/cache-diagnostics.test.ts`, `server/riot/proxy.test.ts`. 캐시·통계·운영 완료 기록 실패는 원문 대신 작업·안전한 원인 코드를 남깁니다. Riot 성공 상태의 JSON 파싱 실패는 502이며 캐시하지 않습니다. JSON 아닌 오류 응답도 원래 401·403·429·5xx를 유지하며, 네트워크 실패와 타임아웃을 구분합니다. |
+
+두 상태 모듈은 React·타이머·전역 상태 없이 만들어지며 API를 테스트용 응답으로 교체할 수 있습니다. snapshot은 변경 때만 교체하고 구독 해제 함수를 제공합니다. 서버 렌더링·hydration에는 고정된 초기 snapshot을 사용합니다. UI·API·DB를 함께 확인하는 기존 E2E도 계속 유지합니다.
+
+빠른 상태·계산 재현: `npm test -- src/features/lol/state/rosterModel.test.ts src/features/steam/gamesModel.test.ts src/features/lol/domain/synergy.test.ts`. 전체 변경 검증은 위 코드 검증 명령과 아래 E2E 기준을 따릅니다.
+
 ## 디스코드 연결 자동 연동
 로그인할 때 디스코드 권한 `connections`로 사용자가 **디스코드에 연결해 둔 앱을 모두 훑어**, 우리 주제에 맞는 종류는 그 사용자의 멤버 계정으로 자동으로 묶습니다(`src/server/discord-connections.ts`). 지금은 Steam(`steam`)과 롤(`riotgames`, `leagueoflegends`)을 가져옵니다.
 - 이미 등록된 계정이면 **주인이 비어 있을 때만** 주인으로 지정하고(다른 사람의 계정을 가로채지 않음), 없으면 새로 등록합니다. Steam의 이름과 아바타는 Steam에서 받고, `STEAM_API_KEY`가 없거나 실패하면 연결에 적힌 이름을 씁니다.
@@ -235,6 +259,12 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 로컬 완료 검증은 [에이전트 규칙의 변경 유형별 검증](AGENTS.md#변경-유형별-검증)을 따릅니다. 문서·테스트·독립 개발 도구는 각각 필요한 검사만 수행하고, 앱 코드·공용 모듈·설정·의존성 변경은 lint·test·build를 실행합니다. 영향 범위가 불명확하면 전체 코드 검증을 적용합니다. 빌드와 전체 테스트는 기본적으로 순차 실행하며 CI의 필수 검사는 계속 유지합니다.
 
 에이전트 실행 환경에서 설치된 Node·npm이 PATH에 없다면 `rtk proxy bash scripts/agent-npm.sh <npm 인자>`를 사용합니다. 기존 nvm 설치에서 프로젝트 `.nvmrc`가 있으면 그 버전, 없으면 기본 버전을 활성화하며 인자·현재 디렉터리·종료 코드를 유지합니다. 새 런타임이나 의존성을 자동 설치하지 않습니다. 실행 도구의 회귀 검사는 `rtk proxy python3 scripts/agent_npm_test.py`로 실행합니다.
+
+### CI 보안 검사
+
+개인 소유 비공개 저장소에서 지원되지 않는 GitHub dependency review·CodeQL 대신, 러너에서 실행되는 검사를 사용합니다. [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 `npm audit --audit-level=high`로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
+
+[Security scan](.github/workflows/security.yml)은 고정 버전 Semgrep Community Edition으로 `src`·`scripts`·`e2e`의 JavaScript·TypeScript 보안 규칙(수동 검토용 `audit` 규칙 제외)을, zizmor로 `.github/workflows`를 검사하며 발견 사항이나 실행 오류가 있으면 실패합니다. Semgrep 커뮤니티 규칙은 커밋·다운로드 체크섬을 고정하고 메트릭·버전 확인을 끕니다. zizmor는 오프라인으로 실행합니다. 외부 계정·비밀값·code scanning 업로드 권한 없이 실행되며 소스 코드를 업로드하지 않습니다. 로컬 재현 명령과 도구·규칙 버전은 해당 워크플로의 `run` 단계가 기준입니다. Semgrep Community Edition의 함수·파일 단위 분석은 CodeQL의 분석 범위와 동일하지 않습니다. 지원하지 않는 구문의 부분 파싱 경고는 로그에 남지만 검사를 중단하지 않습니다. TypeScript 문법·타입 검사는 기존 build가 맡습니다.
 
 ## E2E 테스트
 실제 브라우저(Chromium)로 로그인 보호, 소환사 추가·삭제, 관리자 차단 흐름을 시험합니다 (`e2e/`).

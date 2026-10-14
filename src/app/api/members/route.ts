@@ -5,8 +5,8 @@ import { requireUser } from '@/server/viewer';
 import { z } from 'zod';
 import { audited } from '@/server/operations/audit';
 
-const failure = (e: unknown) =>
-  e instanceof DuplicateSummonerError ? Response.json({ error: e.message }, { status: 409 }) : serverError(e);
+const failure = (e: unknown, operation: string) =>
+  e instanceof DuplicateSummonerError ? Response.json({ error: e.message }, { status: 409 }) : serverError(e, operation);
 
 export async function GET() {
   const user = await requireUser();
@@ -14,7 +14,7 @@ export async function GET() {
   try {
     return Response.json(await listRoster());
   } catch (e) {
-    return failure(e);
+    return failure(e, 'members.list');
   }
 }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     await addToRoster(body.data, user);
     return Response.json(body.data);
   } catch (e) {
-    return failure(e);
+    return failure(e, 'members.add');
   }
 }
 
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest) {
     await updateRoster(body.data);
     return Response.json(body.data);
   } catch (e) {
-    return failure(e);
+    return failure(e, 'members.update');
   }
 }
 
@@ -54,6 +54,6 @@ export async function DELETE(request: NextRequest) {
     else await removeFromRoster(id.data);
     return new Response(null, { status: 204 });
   } catch (e) {
-    return failure(e);
+    return failure(e, 'members.remove');
   }
 }

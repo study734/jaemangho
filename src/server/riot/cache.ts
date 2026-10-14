@@ -1,3 +1,4 @@
+import { reportFailure } from '../diagnostics';
 import { db } from '../db';
 
 // Riot 응답을 DB에 공유 캐시한다. 캐시 장애가 요청 자체를 막지 않도록 모든 오류는 미스/무시로 처리한다.
@@ -10,7 +11,7 @@ export async function cacheGet(key: string): Promise<{ status: number; body: unk
     }[];
     return rows[0] ?? null;
   } catch (e) {
-    console.error('cache get failed', e);
+    reportFailure('riot.cache.read', e);
     return null;
   }
 }
@@ -25,7 +26,7 @@ export async function cachePut(key: string, status: number, body: unknown, ttlSe
     // 만료 행 정리: 쓰기 50번에 한 번 정도만 수행
     if (Math.random() < 0.02) await sql`delete from riot_cache where expires_at < now()`;
   } catch (e) {
-    console.error('cache put failed', e);
+    reportFailure('riot.cache.write', e);
   }
 }
 
@@ -36,7 +37,7 @@ export async function logRiotError(status: number, path: string) {
     await sql`insert into riot_errors (status, path) values (${status}, ${path})`;
     if (Math.random() < 0.02) await sql`delete from riot_errors where at < now() - interval '7 days'`;
   } catch (e) {
-    console.error('riot error log failed', e);
+    reportFailure('riot.errors.write', e);
   }
 }
 
@@ -52,6 +53,6 @@ export async function bumpStat(kind: 'hit' | 'miss') {
         on conflict (day) do update set misses = riot_stats.misses + 1`;
     }
   } catch (e) {
-    console.error('stat bump failed', e);
+    reportFailure('riot.statistics.write', e);
   }
 }

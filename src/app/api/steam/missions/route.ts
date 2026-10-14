@@ -16,6 +16,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof SteamNotConfiguredError) return Response.json({ error: 'Steam is not configured' }, { status: 503 });
     if (error instanceof SteamUpstreamError) return Response.json({ error: 'Steam unavailable' }, { status: 502 });
-    return serverError(error);
+    return serverError(error, 'api/steam/missions.GET');
   }
 }

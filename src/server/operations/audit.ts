@@ -1,3 +1,4 @@
+import { reportFailure } from '../diagnostics';
 import { db } from '../db';
 
 interface Actor { id: string; name: string }
@@ -10,11 +11,11 @@ export async function audited<T>(actor: Actor, action: string, target: string, w
   try {
     const result = await work();
     await sql`update ops_audit set result = 'success', finished_at = now() where id = ${entry.id}`
-      .catch(() => console.error('audit completion failed; entry remains started'));
+      .catch(error => reportFailure('audit.complete', error));
     return result;
   } catch (error) {
     await sql`update ops_audit set result = 'failed', finished_at = now() where id = ${entry.id}`
-      .catch(() => console.error('audit failure completion failed; entry remains started'));
+      .catch(error => reportFailure('audit.fail', error));
     throw error;
   }
 }

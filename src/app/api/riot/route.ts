@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { parseQuery } from '@/server/http';
+import { parseQuery, serverError } from '@/server/http';
 import { proxyRiot } from '@/server/riot/proxy';
 import { routeFor } from '@/server/riot/routes';
 import { requireUser } from '@/server/viewer';
@@ -29,12 +29,14 @@ export async function GET(request: NextRequest) {
   if (count !== undefined) params.set('count', String(count));
   if (start !== undefined) params.set('start', String(start));
 
-  const result = await proxyRiot(
-    { region: region === 'asia' ? 'asia' : 'kr', path, params, route },
-    { apiKey: process.env.RIOT_API_KEY }
-  );
-  return Response.json(result.body, {
-    status: result.status,
-    headers: result.cache ? { 'X-Cache': result.cache } : undefined,
-  });
+  try {
+    const result = await proxyRiot(
+      { region: region === 'asia' ? 'asia' : 'kr', path, params, route },
+      { apiKey: process.env.RIOT_API_KEY }
+    );
+    return Response.json(result.body, {
+      status: result.status,
+      headers: { ...(result.cache ? { 'X-Cache': result.cache } : {}), ...(result.requestId ? { 'X-Request-ID': result.requestId } : {}) },
+    });
+  } catch (error) { return serverError(error, 'api/riot.GET'); }
 }

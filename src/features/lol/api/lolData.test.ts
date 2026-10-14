@@ -75,6 +75,7 @@ describe('details', () => {
     expect(d.championMasteries[0].championName).toBe('Ahri');
     expect(d.matches.map((m) => m.matchId)).toEqual(['KR_1', 'KR_2']);
     expect(d.activeGame?.championName).toBe('Ahri');
+    expect(d.failures).toEqual([]);
   });
   it('매치 상세 요청을 함께 시작하고 응답 완료 순서와 관계없이 최근 순서를 유지한다', async () => {
     let finishFirst!: (value: ReturnType<typeof matchOf>) => void;
@@ -99,5 +100,11 @@ describe('details', () => {
     expect(d.championMasteries).toEqual([]);
     expect(d.matches.map((m) => m.matchId)).toEqual(['KR_2']);
     expect(d.activeGame).toBeNull();
+    expect(d.failures).toEqual(['activeGame', 'mastery', 'matches']);
+  });
+  it('정상 빈 전적과 전적 목록 조회 실패를 구분한다', async () => {
+    expect((await createLolData(fakeRiot()).details(member))?.failures).toEqual([]);
+    const lol = createLolData(fakeRiot({ matchIds: async () => { throw new Error('offline'); } }));
+    expect(await lol.details(member)).toMatchObject({ matches: [], failures: ['matches'] });
   });
 });

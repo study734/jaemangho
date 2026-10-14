@@ -14,5 +14,5 @@ export async function POST(request: Request) {
     const budget = await recordUsage(report.data);
     await checkOperations('watchdog');
     return Response.json({ mode: budget.mode }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/cron/usage.POST'); }
 }

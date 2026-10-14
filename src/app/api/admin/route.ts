@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       default: return unknown();
     }
   } catch (e) {
-    return serverError(e);
+    return serverError(e, 'api/admin.GET');
   }
 }
 
@@ -44,7 +44,7 @@ export async function PUT(request: NextRequest) {
     return Response.json({ id, blocked });
   } catch (e) {
     if (e instanceof MissingUserError) return Response.json({ error: '대상을 찾을 수 없거나 관리자입니다.' }, { status: 404 });
-    return serverError(e);
+    return serverError(e, 'api/admin.PUT');
   }
 }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   try {
     return Response.json(await audited(admin, 'cache.riot.purge', 'riot', async () => ({ deleted: await purgeRiotCache() })));
   } catch (e) {
-    return serverError(e);
+    return serverError(e, 'api/admin.POST');
   }
 }
 

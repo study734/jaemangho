@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import type { Member, SynergyStats } from '../types';
+import type { Member } from '../types';
+import { duoSynergy } from '../domain/synergy';
 
 interface SynergyAnalyzerProps {
   members: Member[];
@@ -9,89 +10,7 @@ interface SynergyAnalyzerProps {
 
 export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => {
   
-  // Calculate duo stats across all matches
-  const getDuoSynergy = (): SynergyStats[] => {
-    const duoMap: { [key: string]: { wins: number; losses: number; kills: number; deaths: number; assists: number; count: number } } = {};
-
-    // Helper to generate a sorted key representing a player pair
-    const getPairKey = (n1: string, n2: string) => {
-      return [n1, n2].sort().join(' & ');
-    };
-
-    // Iterate through all members and their matches
-    members.forEach(member => {
-      member.matches.forEach(match => {
-        // Find other guild members who were in this SAME match on the SAME team
-        const userInMatch = match.allPlayers.find(p => p.gameName === member.gameName && p.tagLine === member.tagLine);
-        if (!userInMatch) return; // user wasn't in this match? (safety check)
-
-        const userWin = match.win;
-
-        // Scan other players in this match
-        match.allPlayers.forEach(otherPlayer => {
-          if (otherPlayer.gameName === member.gameName && otherPlayer.tagLine === member.tagLine) return; // skip self
-
-          // Check if this other player is also a member of our squad
-          const isSquadMember = members.some(m => m.gameName === otherPlayer.gameName && m.tagLine === otherPlayer.tagLine);
-          if (!isSquadMember) return;
-
-          // Double check they were on the SAME team (both win or both lose since they are allies)
-          if (otherPlayer.win !== userWin) return; // they were on opposing teams
-
-          // We found a duo match! To avoid double-counting (since both players' match histories might contain this match),
-          // we associate it with a unique game matchId + sorted duo pair key
-          const duoKey = getPairKey(member.gameName, otherPlayer.gameName);
-          const uniqKey = `${match.matchId}_${duoKey}`;
-          
-          // Let's store temporary stats
-          if (!duoMap[uniqKey]) {
-            duoMap[uniqKey] = {
-              wins: userWin ? 1 : 0,
-              losses: userWin ? 0 : 1,
-              kills: userInMatch.kills + otherPlayer.kills,
-              deaths: userInMatch.deaths + otherPlayer.deaths,
-              assists: userInMatch.assists + otherPlayer.assists,
-              count: 1
-            };
-          }
-        });
-      });
-    });
-
-    // Consolidate unique game records into player pair aggregates
-    const consolidatedMap: { [key: string]: { wins: number; losses: number; kills: number; deaths: number; assists: number; count: number } } = {};
-    Object.entries(duoMap).forEach(([uniqKey, stats]) => {
-      // uniqKey is: matchId_player1 & player2
-      const duoKey = uniqKey.split('_')[1];
-      if (!consolidatedMap[duoKey]) {
-        consolidatedMap[duoKey] = { wins: 0, losses: 0, kills: 0, deaths: 0, assists: 0, count: 0 };
-      }
-      consolidatedMap[duoKey].wins += stats.wins;
-      consolidatedMap[duoKey].losses += stats.losses;
-      consolidatedMap[duoKey].kills += stats.kills;
-      consolidatedMap[duoKey].deaths += stats.deaths;
-      consolidatedMap[duoKey].assists += stats.assists;
-      consolidatedMap[duoKey].count += 1;
-    });
-
-    // Map to final array
-    const results: SynergyStats[] = Object.entries(consolidatedMap).map(([pairName, stats]) => {
-      const avgKda = stats.deaths === 0 ? 'Perfect' : ((stats.kills + stats.assists) / stats.deaths).toFixed(2);
-      return {
-        duoName: pairName,
-        gamesPlayed: stats.count,
-        wins: stats.wins,
-        losses: stats.losses,
-        winRate: Math.round((stats.wins / stats.count) * 100),
-        avgKda
-      };
-    });
-
-    // Sort by games played desc
-    return results.sort((a, b) => b.gamesPlayed - a.gamesPlayed);
-  };
-
-  const duos = getDuoSynergy();
+  const duos = duoSynergy(members);
 
   // Find Best Synergy (Win Rate >= 55% & Played >= 2 games, or sorted by Win Rate desc)
   const bestSynergies = [...duos]

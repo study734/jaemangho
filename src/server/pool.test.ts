@@ -6,8 +6,9 @@ describe('pool', () => {
     delete (globalThis as { __jmhPool?: unknown }).__jmhPool;
     const { pool } = await import('./pool');
     expect(pool.listenerCount('error')).toBeGreaterThan(0);
-    expect(() => pool.emit('error', new Error('terminating connection due to administrator command'))).not.toThrow();
-    expect(error).toHaveBeenCalledWith('pg pool idle client error:', 'terminating connection due to administrator command');
+    expect(() => pool.emit('error', Object.assign(new Error('private connection details'), { code: '57P01' }))).not.toThrow();
+    expect(error).toHaveBeenCalledWith('[failure]', expect.objectContaining({ operation: 'database.idle-connection', code: '57P01' }));
+    expect(JSON.stringify(error.mock.calls)).not.toContain('private connection details');
     error.mockRestore();
     await pool.end();
     delete (globalThis as { __jmhPool?: unknown }).__jmhPool;

@@ -1,3 +1,4 @@
+import { reportFailure } from '../diagnostics';
 import { randomUUID } from 'node:crypto';
 import { pool } from '../pool';
 import { db } from '../db';
@@ -79,7 +80,7 @@ export async function runChatSync(source: 'scheduled' | 'manual', options?: Sync
   } catch (error) {
     const retryAfterMs = error instanceof DiscordRateLimitedError ? error.retryAfterMs : undefined;
     await sql`update ops_jobs set status = 'failed', finished_at = now(), error_code = ${syncErrorCode(error)}, result = result || ${JSON.stringify({ failure: safeFailure(error, stage), stage, ...(retryAfterMs ? { retryAfterMs } : {}) })}::jsonb where id = ${id}`
-      .catch(() => console.error('sync job completion failed'));
+      .catch(error => reportFailure('chat.job.fail-record', error));
     throw error;
   }
 }
@@ -128,7 +129,7 @@ export async function runChatRecovery() {
       result = ${JSON.stringify({ recovery })}::jsonb where id = ${id}`;
     return recovery;
   } catch (error) {
-    await sql`update ops_jobs set status = 'failed', finished_at = now(), error_code = ${syncErrorCode(error)} where id = ${id}`.catch(() => {});
+    await sql`update ops_jobs set status = 'failed', finished_at = now(), error_code = ${syncErrorCode(error)} where id = ${id}`.catch(error => reportFailure('chat.recovery.fail-record', error));
     throw error;
   }
 }

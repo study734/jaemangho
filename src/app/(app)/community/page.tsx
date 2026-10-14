@@ -4,6 +4,7 @@ import { scoreLabel } from '@/lib/chat-format';
 import { chatNotice } from '@/server/chat/notice';
 import { HIGHLIGHT_TOP, listHighlights } from '@/server/chat/highlights';
 import { getFunniestMessages, getHotMoments } from '@/server/chat/moments';
+import { reportFailure } from '@/server/diagnostics';
 
 const cachedHotMoments = unstable_cache(() => getHotMoments(), ['community-hot-moments'], { revalidate: 60 });
 const cachedFunniestMessages = unstable_cache(() => getFunniestMessages(), ['community-funniest-messages'], { revalidate: 60 });
@@ -16,8 +17,8 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const [{ items, total, pages }, moments, funny] = await Promise.all([
     listHighlights(page),
-    cachedHotMoments().catch(() => []), // 이 두 목록이 실패해도 개념글은 보인다
-    cachedFunniestMessages().catch(() => []),
+    cachedHotMoments().catch(error => { reportFailure('community.hot-moments', error); return []; }), // 이 두 목록이 실패해도 개념글은 보인다
+    cachedFunniestMessages().catch(error => { reportFailure('community.funniest', error); return []; }),
   ]);
   return (
     <div style={styles.container}>

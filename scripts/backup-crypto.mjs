@@ -40,7 +40,7 @@ export async function decryptBackup({ file, output, key }) {
     const tag = Buffer.alloc(16); await input.read(tag, 0, 16, size - 16);
     owned = await open(output, 'wx', 0o600);
     await writeFile(`${output}.sha256`, header.subarray(20).toString('hex'), { flag: 'wx', mode: 0o600 }); manifestOwned = true;
-    const decipher = createDecipheriv('aes-256-gcm', secret, header.subarray(8, 20)); decipher.setAAD(header); decipher.setAuthTag(tag);
+    const decipher = createDecipheriv('aes-256-gcm', secret, header.subarray(8, 20), { authTagLength: 16 }); decipher.setAAD(header); decipher.setAuthTag(tag);
     await pipeline(createReadStream(file, { start: HEADER, end: size - 17 }), decipher, createWriteStream(output, { flags: 'a', mode: 0o600 }));
     return { version: 1 };
   } catch (error) {

@@ -11,6 +11,7 @@ export interface Details {
   championMasteries: ChampionMastery[];
   matches: MatchHistory[];
   activeGame: ActiveGame | null;
+  failures: Array<'mastery' | 'matches' | 'activeGame'>;
 }
 
 export interface LolData {
@@ -53,14 +54,19 @@ export function createLolData(riot: RiotClient): LolData {
       const account = await riot.account(gameName, tagLine);
       if (!account) return null;
       const { puuid } = account;
+      const failures = new Set<Details['failures'][number]>();
+      const failed = (part: Details['failures'][number], what: string, error: unknown) => {
+        failures.add(part);
+        warn(what)(error);
+      };
 
       const championMasteriesPromise = riot
         .mastery(puuid)
         .then((list) => (list ?? []).map(toChampionMastery))
-        .catch((err) => (warn('Mastery fetch error')(err), [] as ChampionMastery[]));
+        .catch((err) => (failed('mastery', 'Mastery fetch error', err), [] as ChampionMastery[]));
       const activeGamePromise = riot.activeGame(puuid)
         .then((game) => (game ? toActiveGame(game, puuid) : null))
-        .catch((err) => (warn('Active game fetch error')(err), null));
+        .catch((err) => (failed('activeGame', 'Active game fetch error', err), null));
 
       let matches: MatchHistory[] = [];
       try {
@@ -70,18 +76,18 @@ export function createLolData(riot: RiotClient): LolData {
             const match = await riot.match(matchId);
             return match && toMatchHistory(matchId, match, puuid);
           } catch (err) {
-            warn(`Failed to fetch match detail ${matchId}`)(err);
+            failed('matches', `Failed to fetch match detail ${matchId}`, err);
             return null;
           }
         }));
         matches = histories.filter((history): history is MatchHistory => history !== null);
       } catch (err) {
-        warn('Match list fetch error')(err);
+        failed('matches', 'Match list fetch error', err);
       }
 
       const [championMasteries, activeGame] = await Promise.all([championMasteriesPromise, activeGamePromise]);
 
-      return { championMasteries, matches, activeGame };
+      return { championMasteries, matches, activeGame, failures: [...failures].sort() };
     },
   };
 }

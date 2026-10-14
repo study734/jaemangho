@@ -1,5 +1,7 @@
 'use client';
 
+import { requestJson as call, clientErrorMessage } from '@/lib/http-client';
+
 import React, { useCallback, useEffect, useState } from 'react';
 import { adminStyles, Panel, ScrollTable } from './AdminUi';
 import { operationsLog } from '@/lib/operations-log';
@@ -54,15 +56,6 @@ const hitRate = (d: { hits: number; misses: number }) =>
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const when = (iso: string) => new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-async function call<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `요청 실패 (HTTP ${res.status})`);
-  }
-  return res.json();
-}
-
 export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   const [status, setStatus] = useState<Status | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -86,13 +79,12 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       setMembers(m);
       setError(null);
     } catch (e) {
-      setError((e as Error).message);
+      setError(clientErrorMessage(e));
     } finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const purgeCache = async () => {
@@ -102,7 +94,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       alert(`캐시 ${deleted}건을 삭제했습니다.`);
       await load();
     } catch (e) {
-      alert((e as Error).message);
+      alert(clientErrorMessage(e));
     }
   };
 
@@ -116,7 +108,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
       });
       await load();
     } catch (e) {
-      alert((e as Error).message);
+      alert(clientErrorMessage(e));
     }
   };
 
@@ -125,8 +117,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
     try {
       await onDeleteMember(m.id);
       await load();
-    } catch {
-      alert('삭제하지 못했습니다.');
+    } catch (error) {
+      alert(`삭제하지 못했습니다. ${clientErrorMessage(error)}`);
     }
   };
 

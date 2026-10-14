@@ -49,11 +49,12 @@ export function PlayerDetailsDialog({ member, loading, now, onClose }: {
     {/* Modal Body */}
     <div style={styles.modalBody}>
       <div style={styles.modalSectionTitle}>최근 경기 전적</div>
+      {!loading && member.detailsError && <p role="alert" className="body-sm">{member.detailsError}</p>}
 
       {loading ? (<div style={{ textAlign: 'center', padding: '40px' }}>
         <span className="pulse-indicator" style={{ display: 'inline-block', width: '16px', height: '16px', marginBottom: '12px' }} />
         <p className="body-sm" style={{ color: 'var(--steel)' }}>상세 전적을 불러오는 중...</p>
-      </div>) : member.matches && member.matches.length === 0 ? (<p className="body-sm" style={{ textAlign: 'center', padding: '24px' }}>매치 내역이 없습니다.</p>) : member.matches && (<div style={styles.matchesList}>
+      </div>) : member.matches && member.matches.length === 0 ? (!member.matchesUnavailable && <p className="body-sm" style={{ textAlign: 'center', padding: '24px' }}>매치 내역이 없습니다.</p>) : member.matches && (<div style={styles.matchesList}>
         {member.matches.map(match => <MatchHistoryCard key={match.matchId} match={match} now={now} />)}
       </div>)}
     </div>

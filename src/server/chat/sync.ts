@@ -1,3 +1,4 @@
+import { reportFailure } from '../diagnostics';
 import { db } from '../db';
 import { syncErrorCode } from '../operations/failures';
 import { recordAwards } from './awards';
@@ -136,11 +137,11 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   const warnings: string[] = [];
   const warningCodes: string[] = [];
   await o.onStage?.('aggregate');
-  await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); warningCodes.push(syncErrorCode(e)); console.error('record highlights failed', e); });
+  await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.highlights', e); });
   if (!rateLimited && !truncated && channels.length > 0) {
     // 불완전한 기록으로 기존 주간 결과를 덮어쓰지 않는다.
-    await recordAwards(now).catch((e) => { warnings.push('awards_failed'); warningCodes.push(syncErrorCode(e)); console.error('record awards failed', e); });
-    await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); warningCodes.push(syncErrorCode(e)); console.error('record daily activity failed', e); });
+    await recordAwards(now).catch((e) => { warnings.push('awards_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.awards', e); });
+    await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.daily-activity', e); });
   }
 
   await o.onStage?.('cleanup');

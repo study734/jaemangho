@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const query = parseQuery(request.nextUrl.searchParams, querySchema);
   if (!query.ok) return query.response;
   try { return Response.json(await discoveryReaction(query.data.cardId, user.id), { headers: { 'Cache-Control': 'private, no-store' } }); }
-  catch (error) { return serverError(error); }
+  catch (error) { return serverError(error, 'api/discovery/reaction.GET'); }
 }
 
 export async function PUT(request: NextRequest) {
@@ -31,6 +31,6 @@ export async function PUT(request: NextRequest) {
   try { return Response.json(await setDiscoveryReaction(body.data.cardId, user.id, body.data.reacted), { headers: { 'Cache-Control': 'private, no-store' } }); }
   catch (error) {
     if (error instanceof DiscoveryRecordMissingError) return Response.json({ error: 'Discovery record missing' }, { status: 404 });
-    return serverError(error);
+    return serverError(error, 'api/discovery/reaction.PUT');
   }
 }

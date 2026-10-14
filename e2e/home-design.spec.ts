@@ -90,9 +90,13 @@ test('제공 기능은 재순이 메시지의 임베드에서 사용하고 모�
   await expect(tools.locator('.dc-head')).toHaveText('재순이앱');
   await expect(tools.getByRole('search')).toBeVisible();
   await expect(tools.getByRole('link', { name: '같이 할 게임 찾기', exact: true })).toBeVisible();
-  const toolsBox = await tools.boundingBox();
-  const summariesBox = await page.locator('.home-grid').boundingBox();
-  expect(toolsBox!.y + toolsBox!.height).toBeLessThanOrEqual(summariesBox!.y);
+  // 스트리밍·이미지 로드 중에는 배치가 바뀐다. 두 위치를 다른 시점에
+  // 읽으면 실제 겹침이 없어도 실패하므로 같은 브라우저 프레임에서 측정한다.
+  const positions = await page.evaluate(() => ({
+    toolsBottom: document.querySelector('.home-tools-message')!.getBoundingClientRect().bottom,
+    summariesTop: document.querySelector('.home-grid')!.getBoundingClientRect().top,
+  }));
+  expect(positions.toolsBottom).toBeLessThanOrEqual(positions.summariesTop);
 });
 
 test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼칠 수 있다', async ({ page, context }) => {

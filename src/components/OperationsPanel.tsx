@@ -1,5 +1,7 @@
 'use client';
 
+import { requestJson as json, clientErrorMessage } from '@/lib/http-client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AUDIT_LABELS, type OperationsData, type ViewReport } from '@/lib/operations';
 import { TRACKED } from '@/lib/track';
@@ -12,14 +14,6 @@ const labels: Record<string, string> = { running: '실행 중', success: '완료
 const stageLabels: Record<string, string> = { starting: '실행 시작', discover_channels: '채널 탐색', load_cursors: '커서 조회', collect_messages: '메시지 수집', aggregate: '파생 집계', cleanup: '기록 정리', complete: '실행 종료' };
 const stageName = (stage?: string) => stage ? (stageLabels[stage] ?? stage) : '이전 기록 없음';
 const levels = { error: 'Error · 오류', warning: 'Warning · 경고', info: 'Info · 정보' };
-
-async function json<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { ...init, cache: 'no-store' });
-  const body = await response.json().catch(() => null); // 504 등 JSON이 아닌 응답
-  if (!response.ok) throw new Error(body?.error ?? `요청 실패 (${response.status})`);
-  if (body === null) throw new Error('응답을 해석하지 못했습니다.');
-  return body;
-}
 
 // 운영 데이터는 한 곳에서 불러와 탭이 바뀌어도 폴링이 하나만 돌게 한다.
 export function useOperations() {
@@ -37,7 +31,7 @@ export function useOperations() {
         setData(next);
         setNow(Date.now());
         setError(null);
-      } catch { setError('운영 현황을 불러오지 못했습니다. 표시된 정보는 최신이 아닐 수 있습니다.'); }
+      } catch (error) { setError(`운영 현황을 불러오지 못했습니다. 표시된 정보는 최신이 아닐 수 있습니다. ${clientErrorMessage(error)}`); }
     })().finally(() => { loading.current = null; });
     return loading.current;
   }, []);
@@ -63,14 +57,14 @@ export function useOperations() {
           const checked = await json<{ skipped?: boolean }>('/api/admin/operations?action=check', { method: 'POST' });
           verificationPending = !!checked.skipped;
           verification = checked.skipped ? ' 상태 재점검 대기: 다른 점검이 진행 중입니다.' : ' 상태 재점검을 완료했습니다.';
-        } catch { verificationPending = true; verification = ' 동기화 결과는 저장됐지만 상태 재점검에 실패했습니다. 지금 점검을 실행하세요.'; }
+        } catch (error) { verificationPending = true; verification = ` 동기화 결과는 저장됐지만 상태 재점검에 실패했습니다. 지금 점검을 실행하세요. ${clientErrorMessage(error)}`; }
       }
       setNotice({
         level: verificationPending || result.skipped || result.status === 'partial' ? 'warning' : 'info',
         message: result.skipped ? '다른 점검이 진행 중이라 이번 요청은 실행하지 않았습니다. 잠시 후 현황을 확인하세요.'
           : result.status === 'partial' ? '일부만 완료되었습니다. 연동 탭의 실행 기록에서 사유를 확인하세요.' + verification : '작업을 완료했습니다.' + verification,
       });
-    } catch (e) { setNotice({ level: 'error', message: (e as Error).message }); }
+    } catch (e) { setNotice({ level: 'error', message: clientErrorMessage(e) }); }
     finally { setBusy(false); if (loading.current) await loading.current; await load(); }
   };
   return { data, error, busy, notice, now, command, refresh: load };
