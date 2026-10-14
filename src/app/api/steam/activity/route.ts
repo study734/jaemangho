@@ -15,7 +15,7 @@ export async function GET() {
   const user = await requireUser();
   if (user instanceof Response) return user;
   try { return Response.json(await getSteamActivitySettings(user.id)); }
-  catch (error) { return serverError(error); }
+  catch (error) { return serverError(error, 'api/steam/activity.GET'); }
 }
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     return new Response(null, { status: 204 });
   } catch (error) {
     if (error instanceof SteamNoticeUnavailableError) return Response.json({ error: 'Storage country is not configured' }, { status: 503 });
-    return serverError(error);
+    return serverError(error, 'api/steam/activity.POST');
   }
 }
 
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest) {
     return (await stopSteamActivity(user.id, body.data.steamId))
       ? new Response(null, { status: 204 })
       : Response.json({ error: 'No active request' }, { status: 404 });
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/steam/activity.PATCH'); }
 }
 
 export async function DELETE(request: NextRequest) {
@@ -58,5 +58,5 @@ export async function DELETE(request: NextRequest) {
     return (await eraseSteamActivity(user.id, body.data.steamId))
       ? new Response(null, { status: 204 })
       : Response.json({ error: 'Steam account not verified' }, { status: 404 });
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/steam/activity.DELETE'); }
 }

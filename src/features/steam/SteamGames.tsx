@@ -1,115 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { type Recommendation, type MissionsResult, type GamesResult, type Mode, type OwnershipScope, type Preference, type RecommendationsResult, type SteamMember, steamApi, steamErrorMessage } from './api';
-import { drawGame } from './draw';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { type Mode, type OwnershipScope, type Preference, steamApi } from './api';
+import { createGamesModel } from './gamesModel';
 import { SteamActivitySettings } from './ActivitySettings';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
 const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, Math.round(minutes / 60)).toLocaleString()}시간`);
 const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60).toLocaleString()}시간${minutes % 60 ? ` ${minutes % 60}분` : ''}`;
-const randomRoll = () => Math.random();
 const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
-const GAME_PAGE_SIZE = 50;
 
 export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: string; linkResult?: string }) {
-  const [query, setQuery] = useState(initialQuery);
-  const [members, setMembers] = useState<SteamMember[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [input, setInput] = useState('');
-  const [mode, setMode] = useState<Mode>('common');
-  const [result, setResult] = useState<{ mode: Mode; ids: string[]; data: GamesResult } | null>(null);
-  const [visibleLimit, setVisibleLimit] = useState(GAME_PAGE_SIZE);
-  const [preference, setPreference] = useState<Preference>('balanced');
-  const [scope, setScope] = useState<OwnershipScope>('all');
-  const [recommendations, setRecommendations] = useState<{ ids: string[]; preference: Preference; scope: OwnershipScope; data: RecommendationsResult } | null>(null);
-  const [drawn, setDrawn] = useState<Recommendation | null>(null);
-  const [missionResult, setMissionResult] = useState<{ game: Recommendation; data: MissionsResult } | null>(null);
-  const resetExtras = () => { setDrawn(null); setMissionResult(null); };
-  const [busy, setBusy] = useState<'add' | 'compare' | 'recommend' | 'remove' | 'missions' | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadMembers = useCallback(async () => {
-    setLoading(true); setError(null);
-    try { setMembers(await steamApi.list()); }
-    catch (e) { setError(steamErrorMessage(e)); }
-    finally { setLoading(false); }
-  }, []);
-  useEffect(() => { void Promise.resolve().then(loadMembers); }, [loadMembers]);
-
-  const toggle = (id: string) => {
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-    setResult(null);
-    setRecommendations(null); resetExtras();
-  };
-
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy || loading || !input.trim()) return;
-    setBusy('add');
-    setError(null);
-    try {
-      const m = await steamApi.add(input.trim());
-      setMembers((list) => [m, ...list]);
-      setInput('');
-    } catch (err) {
-      setError(steamErrorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const remove = async (id: string) => {
-    if (busy || !confirm(`${nameOf(id)}님을 공용 비교 목록에서 삭제할까요? Steam 계정과 보유 게임에는 영향이 없습니다.`)) return;
-    setBusy('remove');
-    setError(null);
-    try {
-      await steamApi.remove(id);
-      setMembers((list) => list.filter((m) => m.steamId !== id));
-      setSelected((s) => s.filter((x) => x !== id));
-      setResult(null);
-      setRecommendations(null); resetExtras();
-    } catch (err) {
-      setError(steamErrorMessage(err));
-    } finally { setBusy(null); }
-  };
-
-  const compare = async () => {
-    if (busy || !selected.length) return;
-    setVisibleLimit(GAME_PAGE_SIZE);
-    setBusy('compare');
-    setError(null);
-    setRecommendations(null); resetExtras();
-    try {
-      setResult({ mode, ids: [...selected], data: await steamApi.games(selected, mode) });
-    } catch (err) {
-      setResult(null);
-      setError(steamErrorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const recommend = async () => {
-    if (busy || selected.length < 2) return;
-    setBusy('recommend');
-    setError(null);
-    setResult(null);
-    setRecommendations(null); resetExtras();
-    try {
-      setRecommendations({ ids: [...selected], preference, scope, data: await steamApi.recommendations(selected, preference, scope) });
-    } catch (err) {
-      setError(steamErrorMessage(err));
-    } finally { setBusy(null); }
-  };
-
-  const findMissions = async (game: Recommendation) => {
-    if (busy || !recommendations || game.missingIds.length) return;
-    setBusy('missions'); setError(null); setMissionResult(null);
-    try { setMissionResult({ game, data: await steamApi.missions(recommendations.ids, game.appId) }); }
-    catch (err) { setError(steamErrorMessage(err)); }
-    finally { setBusy(null); }
+  const [model] = useState(() => createGamesModel(steamApi, initialQuery));
+  const { query, input, members, selected, mode, preference, scope, result, recommendations,
+    drawn, missionResult, visibleLimit, busy, loading, error } = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getServerSnapshot);
+  useEffect(() => { void model.loadMembers(); }, [model]);
+  const { loadMembers, toggle, compare, recommend, findMissions } = model;
+  const add = (event: React.FormEvent) => { event.preventDefault(); void model.add(); };
+  const remove = (id: string) => {
+    if (!busy && confirm(`${nameOf(id)}님을 공용 비교 목록에서 삭제할까요? Steam 계정과 보유 게임에는 영향이 없습니다.`)) void model.remove(id);
   };
 
   const nameOf = (id: string) => members.find((m) => m.steamId === id)?.name ?? id;
@@ -130,7 +39,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
 
       <div className="steam-query-area">
         <label htmlFor="steam-game-query">결과에서 게임 찾기</label>
-        <div className="game-search"><div className="game-search-field"><UiIcon name="search" /><input id="steam-game-query" type="search" value={query} disabled={busy !== null} onChange={(e) => { setQuery(e.target.value); setVisibleLimit(GAME_PAGE_SIZE); resetExtras(); }} placeholder="게임 이름" maxLength={120} /></div>{query && <button className="btn btn-ghost" disabled={busy !== null} onClick={() => { setQuery(''); setVisibleLimit(GAME_PAGE_SIZE); resetExtras(); }}>지우기</button>}</div>
+        <div className="game-search"><div className="game-search-field"><UiIcon name="search" /><input id="steam-game-query" type="search" value={query} disabled={busy !== null} onChange={(e) => model.setQuery(e.target.value)} placeholder="게임 이름" maxLength={120} /></div>{query && <button className="btn btn-ghost" disabled={busy !== null} onClick={() => model.setQuery('')}>지우기</button>}</div>
         {!result && !recommendations && <p className="game-search-hint">함께할 멤버를 선택하고 비교하거나 추천받으면{query.trim() ? ` “${query.trim()}”을(를)` : ' 게임을'} 결과에서 찾아요.</p>}
       </div>
 
@@ -144,7 +53,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
             style={{ flexGrow: 1 }}
             placeholder="Steam 프로필 주소, 이름 또는 17자리 ID"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => model.setInput(e.target.value)}
             maxLength={200}
             aria-label="Steam 프로필"
           />
@@ -175,13 +84,13 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
 
         <div style={styles.addRow} className="steam-compare-row">
           <label htmlFor="steam-recommend-scope" style={styles.hint}>추천 범위</label>
-          <select id="steam-recommend-scope" className="text-input" value={scope} disabled={busy !== null} onChange={e => { setScope(e.target.value as OwnershipScope); setRecommendations(null); resetExtras(); }}>
+          <select id="steam-recommend-scope" className="text-input" value={scope} disabled={busy !== null} onChange={e => model.setScope(e.target.value as OwnershipScope)}>
             <option value="all">모두 보유</option>
             <option value="any">일부 보유 포함</option>
             <option value="unowned">아무도 미보유</option>
           </select>
           <label htmlFor="steam-recommend-preference" style={styles.hint}>오늘은 어떤 게임?</label>
-          <select id="steam-recommend-preference" className="text-input" value={scope === 'unowned' ? 'discovery' : preference} disabled={busy !== null || scope === 'unowned'} onChange={e => { setPreference(e.target.value as Preference); setRecommendations(null); resetExtras(); }}>
+          <select id="steam-recommend-preference" className="text-input" value={scope === 'unowned' ? 'discovery' : preference} disabled={busy !== null || scope === 'unowned'} onChange={e => model.setPreference(e.target.value as Preference)}>
             {scope === 'unowned' && <option value="discovery">Steam 인기·신규 목록 순</option>}
             <option value="balanced">경험이 비슷한 게임</option>
             <option value="familiar">익숙한 게임</option>
@@ -195,7 +104,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
         <p style={styles.hint}>2~20명을 선택해 주세요. {scope === 'all' ? '모두 보유한 게임만 추천해요.' : scope === 'any' ? '한 명 이상 보유한 게임을 포함하고, 보유 목록에 없는 멤버를 표시해요.' : 'Steam 인기·신규 목록에서 전원의 보유 목록에 없는 게임을 찾아요. 플레이 경험 기준은 적용하지 않아요.'} 멀티플레이·협동 지원을 확인해요.</p>
 
         <div style={styles.addRow} className="steam-compare-row">
-          <select className="text-input" value={mode} disabled={busy !== null} onChange={(e) => { setMode(e.target.value as Mode); setResult(null); }} aria-label="찾을 게임 종류">
+          <select className="text-input" value={mode} disabled={busy !== null} onChange={(e) => model.setMode(e.target.value as Mode)} aria-label="찾을 게임 종류">
             <option value="common">모두가 가진 게임</option>
             <option value="unplayed">모두 가졌지만 아무도 안 해 본 게임</option>
           </select>
@@ -223,7 +132,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
               <p style={styles.hint} role="status">추천 {visibleRecommendations.length}개{query.trim() && ` / 전체 ${recommendations.data.games.length}개`}</p>
               {recommendations.data.games.length === 0 ? <p style={styles.hint}>{recommendations.data.totalCandidates === 0 ? (recommendations.preference === 'recent' && recommendations.scope !== 'unowned' ? '확인된 최근 2주 플레이 후보가 없어요. 최근 기록 공개 여부를 확인하거나 기준을 바꿔 보세요.' : recommendations.scope === 'all' ? '선택한 모두가 가진 게임이 없어요. 멤버 선택을 바꿔 보세요.' : recommendations.scope === 'any' ? '선택한 멤버의 보유 게임 후보가 없어요.' : '현재 Steam 인기·신규 목록에 전원의 보유 목록에 없는 후보가 없어요.') : '검사한 후보에서 멀티플레이·협동 지원을 확인한 게임이 없어요. 추천 범위나 기준을 바꾸거나 공통 게임을 비교해 보세요.'}</p>
                 : visibleRecommendations.length === 0 && <p style={styles.hint}>검색한 이름과 일치하는 추천이 없습니다. 검색어를 바꿔 보세요.</p>}
-              {visibleRecommendations.length > 0 && <button className="btn btn-primary" disabled={busy !== null} onClick={() => setDrawn(drawGame(visibleRecommendations, drawn?.appId ?? null, randomRoll()))}>{drawn ? '다시 뽑기' : '오늘의 게임 뽑기'}</button>}
+              {visibleRecommendations.length > 0 && <button className="btn btn-primary" disabled={busy !== null} onClick={model.draw}>{drawn ? '다시 뽑기' : '오늘의 게임 뽑기'}</button>}
               {drawn && <div style={styles.extra} role="status"><h4>오늘의 게임: {drawn.name}</h4><p style={styles.hint}>{drawn.reasons.join(' · ')}</p><p style={styles.hint}>현재 검색 결과에서 같은 확률로 뽑아요. 후보가 둘 이상이면 직전 게임을 제외해요.</p><a className="btn btn-link" href={`https://store.steampowered.com/app/${drawn.appId}/`} target="_blank" rel="noopener noreferrer">뽑은 게임 Steam에서 확인</a></div>}
               <ol className="steam-recommendations" style={styles.gameList}>
                 {visibleRecommendations.map(g => (
@@ -289,7 +198,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
                   </li>
                 ))}
               </ul>
-              {displayedGames.length < visibleGames.length && <button className="btn btn-secondary" onClick={() => setVisibleLimit((limit) => limit + GAME_PAGE_SIZE)}>게임 더 보기 ({(visibleGames.length - displayedGames.length).toLocaleString()}개 남음)</button>}
+              {displayedGames.length < visibleGames.length && <button className="btn btn-secondary" onClick={model.showMore}>게임 더 보기 ({(visibleGames.length - displayedGames.length).toLocaleString()}개 남음)</button>}
             </>
           )}
         </section>

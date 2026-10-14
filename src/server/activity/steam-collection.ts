@@ -1,3 +1,4 @@
+import { reportFailure } from '../diagnostics';
 import { randomUUID } from 'node:crypto';
 import { pool } from '../pool';
 import { getLibrary, SteamNotConfiguredError, SteamPayloadError, SteamUpstreamError, type Library } from '../steam/client';
@@ -91,7 +92,7 @@ export async function runSteamCollection(source: 'scheduled' | 'manual', options
     return { id, status, ...result };
   } catch (error) {
     await pool.query(`update ops_jobs set status = 'failed', finished_at = now(), error_code = 'collection_failed' where id = $1`, [id])
-      .catch(() => console.error('Steam collection job completion failed'));
+      .catch(error => reportFailure('steam.collection.fail-record', error));
     throw error;
   }
 }

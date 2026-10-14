@@ -16,6 +16,6 @@ export async function POST(request: Request) {
     await recordView(key);
     return new Response(null, { status: 204 });
   } catch (e) {
-    return serverError(e);
+    return serverError(e, 'api/track.POST');
   }
 }

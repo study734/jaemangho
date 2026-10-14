@@ -83,6 +83,8 @@ export interface Member {
   activeGame: ActiveGame | null;
   matches: MatchHistory[];
   championMasteries?: ChampionMastery[];
+  detailsError?: string;
+  matchesUnavailable?: boolean;
 }
 
 export interface SynergyStats {

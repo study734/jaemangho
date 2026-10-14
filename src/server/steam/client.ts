@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { steamCacheGet, steamCachePut, steamStat } from './cache';
+import { reportFailure } from '../diagnostics';
 
 // Steam Web API 클라이언트. 키는 서버에서만 쓰고 어디에도 출력하지 않는다.
 const BASE = 'https://api.steampowered.com';
 
 export class SteamNotConfiguredError extends Error {
+  code = 'not_configured';
   constructor() {
     super('STEAM_API_KEY is not set');
   }
@@ -18,6 +20,7 @@ export class SteamUpstreamError extends Error {
 }
 // 200인데 본문 형식이 깨진 경우. 라우트에서는 외부 서비스 오류(502)로 처리한다.
 export class SteamPayloadError extends SteamUpstreamError {
+  code = 'invalid_response';
   constructor() {
     super(200);
     this.message = 'Steam response schema mismatch';
@@ -42,7 +45,11 @@ async function withUpstreamSlot<T>(work: () => Promise<T>): Promise<T> {
 
 async function call(path: string, params: Record<string, string>, schema: z.ZodType, cacheable: (body: unknown) => boolean = () => true): Promise<unknown> {
   const key = process.env.STEAM_API_KEY;
-  if (!key) throw new SteamNotConfiguredError();
+  if (!key) {
+    const error = new SteamNotConfiguredError();
+    reportFailure('steam.configuration', error);
+    throw error;
+  }
   const cacheKey = `${path}?${new URLSearchParams(params)}`; // API 키는 DB에 저장하지 않는다.
   const pending = inFlight.get(cacheKey);
   if (pending) return pending;
@@ -65,7 +72,9 @@ async function call(path: string, params: Record<string, string>, schema: z.ZodT
       if (cacheable(body)) await steamCachePut(cacheKey, body, ttl);
       return body;
     } catch (error) {
-      await steamStat('error', path, error instanceof SteamPayloadError ? 'invalid_response' : error instanceof SteamUpstreamError ? String(error.status) : 'network');
+      reportFailure('steam.web-api', error);
+      await steamStat('error', path, error instanceof SteamPayloadError ? 'invalid_response' : error instanceof SteamUpstreamError ? String(error.status)
+        : error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'timeout' : 'network');
       throw error;
     }
   })();

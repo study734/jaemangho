@@ -55,15 +55,20 @@ export interface ActivitySettings {
 
 export class SteamApiError extends Error {
   status: number;
-  constructor(status: number) {
-    super(`Steam API failed: ${status}`);
+  requestId: string | null;
+  constructor(status: number, requestId: string | null = null) {
+    super(`Steam API failed: ${status}${requestId ? ` 오류 ID: ${requestId}` : ''}`);
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
-  if (!res.ok) throw new SteamApiError(res.status);
+  if (!res.ok) {
+    const id = res.headers.get('X-Request-ID');
+    throw new SteamApiError(res.status, id && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(id) ? id : null);
+  }
   return (res.status === 204 ? null : await res.json()) as T;
 }
 
@@ -97,11 +102,14 @@ export const steamApi = {
 };
 
 const MESSAGES: Record<number, string> = {
+  401: '로그인이 만료됐습니다. 다시 로그인해 주세요.',
+  403: '요청 권한을 확인해 주세요.',
   400: '올바른 Steam 프로필 주소나 ID가 아닙니다.',
   404: 'Steam에서 그 프로필을 찾지 못했습니다.',
   409: '이미 등록된 사람입니다.',
   502: 'Steam 서버가 응답하지 않습니다. 잠시 후 다시 시도해 주세요.',
   503: 'Steam 키가 설정되지 않았습니다. 관리자에게 알려 주세요.',
 };
-export const steamErrorMessage = (e: unknown) =>
-  e instanceof SteamApiError ? (MESSAGES[e.status] ?? `요청에 실패했습니다 (${e.status})`) : '요청에 실패했습니다.';
+export const steamErrorMessage = (e: unknown) => e instanceof SteamApiError
+  ? `${MESSAGES[e.status] ?? `요청에 실패했습니다 (${e.status})`}${e.requestId ? ` 오류 ID: ${e.requestId}` : ''}`
+  : '요청에 실패했습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.';

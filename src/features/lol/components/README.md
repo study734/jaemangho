@@ -9,6 +9,8 @@
 - `ActiveGameCard`: 한 게임의 챔피언·시간·아군/적군을 표시한다. 내부 `GameTeam`을 두 팀이 공유한다.
 - `TierLeaderboard`: 랭킹 정렬과 표를 표시하고 소환사 선택을 전달한다.
 - `PlayerDetailsDialog`: 모달 열기·닫기와 접근성, 상세 로딩·빈 상태를 담당한다.
+- `SynergyAnalyzer`: `domain/synergy.ts`의 경기 집계 결과를 표시한다. 경기 중복 제거·플레이어 식별은 화면에서 구현하지 않는다.
+- `MasteryShowcase`: 숙련도 목록과 순위를 표시한다. 상대 시간은 `matchFormatting.ts`에 고정된 현재 시각을 전달해 계산하며 스타일은 `React.CSSProperties`로 검사한다.
 - `MatchHistoryCard`: 전적 하나를 표시한다. 현재 시각을 props로 받아 표시 결과를 일관되게 유지한다.
 
 ## 소환사 관리
@@ -26,3 +28,5 @@
 - `RiotImage`: 기존 이미지 경로와 실패 대체 표시를 공유한다.
 
 각 컴포넌트의 스타일은 같은 파일에 둔다. 반응형 규칙은 기존 `globals.css` 클래스와 `DESIGN.md`를 따른다. 롤 전용 UI는 이 기능 안에서 재사용하고, 기능 밖의 화면은 `features/lol/index.ts`에 공개된 인터페이스를 사용한다.
+
+공유 목록·요청 순서·저장 실패 복구는 `state/rosterModel.ts`가 맡고 `LolProvider`는 React 구독을 연결한다. 상태 흐름은 `state/rosterModel.test.ts`, 듀오 계산은 `domain/synergy.test.ts`에서 UI 없이 재현한다.

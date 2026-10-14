@@ -20,5 +20,5 @@ export async function GET(request: NextRequest) {
       path: '/api/steam/activity', maxAge: 600,
     });
     return response;
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/steam/activity/start.GET'); }
 }

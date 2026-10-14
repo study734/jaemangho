@@ -9,5 +9,5 @@ export async function GET(request: Request) {
   if (auth !== 'ok') return Response.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     return Response.json(await checkOperations('external'));
-  } catch (error) { return serverError(error); }
+  } catch (error) { return serverError(error, 'api/cron/ops.GET'); }
 }
