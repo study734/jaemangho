@@ -3,3 +3,4 @@ export { SteamGames } from './SteamGames';
 export { SteamHomeSummary } from './HomeSummary';
 export { SteamHomeSearch } from './HomeSearch';
 export { steamApi } from './api';
+export type { GamesSnapshot } from './gamesModel';

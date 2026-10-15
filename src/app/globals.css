@@ -1279,7 +1279,11 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .jaesuni-tool-content > * { padding: 20px !important; overflow-y: visible !important; }
 .jaesuni-tool-content .hub-heading { margin-bottom: 24px; }
 .jaesuni-embed .home-channel-summary { border-top: 0 !important; padding: 20px !important; }
-@media (max-width: 1024px) { .home-tools-message { order: 2; } }
+.home-ai-message .jaesuni-embed { padding: 20px; }
+@media (max-width: 1024px) {
+  .home-tools-message { order: 2; }
+  .home-ai-message { order: 4; }
+}
 @media (max-width: 768px) {
   .jaesuni-message { padding-left: 0; }
   .jaesuni-message .dc-head { padding-left: 52px; min-height: 24px; }
@@ -1287,6 +1291,7 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
   .jaesuni-tool-content > * { padding: 16px !important; }
   .jaesuni-embed .home-channel-summary { padding: 16px !important; }
   .home-week .jaesuni-embed > section { padding: 16px; }
+  .home-ai-message .jaesuni-embed { padding: 16px; }
 }
 .dc-embed { border-radius: 12px; }
 .dc-text { line-height: 1.5; }

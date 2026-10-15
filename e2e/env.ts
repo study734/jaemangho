@@ -20,4 +20,5 @@ export const E2E_ENV = {
   // Next.js는 .env.local도 읽는다. 빈 값으로 덮어 공용 봇·운영 알림을 테스트에서 사용하지 않는다.
   DISCORD_BOT_TOKEN: '',
   OPS_ALERT_WEBHOOK_URL: '',
+  NVIDIA_API_KEY: '',
 };

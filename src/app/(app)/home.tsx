@@ -9,6 +9,7 @@ import { scoreLabel } from '@/lib/chat-format';
 import type { HotMoment } from '@/server/chat/moments';
 import type { ChatHighlights } from '@/server/chat/stats';
 import { SteamHomeSearch, SteamHomeSummary } from '@/features/steam';
+import { AiInsight } from './ai';
 
 interface Activity {
   kind: 'lol' | 'steam' | 'login';
@@ -113,6 +114,10 @@ export function HomeCommunity({ chat, moments, notice, unavailable = false }: { 
           </div></div>
           {unavailable && <p role="status" style={styles.hint}>일부 디스코드 활동을 불러오지 못했어요. 잠시 후 다시 확인해 주세요.</p>}
           {chat ? <ChatPanels chat={chat} moments={moments} notice={notice} /> : !unavailable && <p style={styles.hint}>아직 모아 둔 활동이 없어요. 커뮤니티에서 소식을 확인해 보세요.</p>}
+          <AiInsight context={{ topic: 'activity', period: 'recent-seven-days', totalMessages: chat?.total,
+            peakHour: chat?.peakHour, unavailable, awards: [],
+            highlights: (chat?.hallOfFame ?? []).slice(0, 20).map(h => ({ reactions: h.reactions, replies: h.replies, at: h.at })),
+            moments: moments.slice(0, 20).map(m => ({ messages: m.messages, people: m.people, at: m.at })) }} />
         </section>
   );
 }
@@ -190,6 +195,7 @@ export function Home({ name, discovery, community, recent, week, members }: { na
           {community}
           </JaesuniMessage>
         </div>
+        <JaesuniMessage className="home-ai-message" line="게임과 함께한 기록에 관해 궁금한 것을 물어볼 수 있어."><AiInsight context={{ topic: 'general' }} /></JaesuniMessage>
       </div>
       <aside id="home-member-panel" className="home-member-panel" aria-label="멤버 활동과 최근 접속">
         <DiscordServerWidget />

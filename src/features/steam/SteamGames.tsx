@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react';
 import { type Mode, type OwnershipScope, type Preference, steamApi } from './api';
-import { createGamesModel } from './gamesModel';
+import { createGamesModel, type GamesSnapshot } from './gamesModel';
 import { SteamActivitySettings } from './ActivitySettings';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
@@ -10,10 +10,12 @@ const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, M
 const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60).toLocaleString()}시간${minutes % 60 ? ` ${minutes % 60}분` : ''}`;
 const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
 
-export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: string; linkResult?: string }) {
+export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { initialQuery?: string; linkResult?: string;
+  renderAnalysis?: (snapshot: GamesSnapshot) => ReactNode }) {
   const [model] = useState(() => createGamesModel(steamApi, initialQuery));
+  const snapshot = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getServerSnapshot);
   const { query, input, members, selected, mode, preference, scope, result, recommendations,
-    drawn, missionResult, visibleLimit, busy, loading, error } = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getServerSnapshot);
+    drawn, missionResult, visibleLimit, busy, loading, error } = snapshot;
   useEffect(() => { void model.loadMembers(); }, [model]);
   const { loadMembers, toggle, compare, recommend, findMissions } = model;
   const add = (event: React.FormEvent) => { event.preventDefault(); void model.add(); };
@@ -203,6 +205,7 @@ export function SteamGames({ initialQuery = '', linkResult }: { initialQuery?: s
           )}
         </section>
       )}
+      {renderAnalysis?.(snapshot)}
       <SteamActivitySettings linkResult={linkResult} />
     </div>
   );

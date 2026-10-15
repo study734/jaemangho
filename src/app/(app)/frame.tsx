@@ -2,6 +2,7 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { LolAi } from './ai';
 import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
@@ -84,6 +85,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
             <JaesuniMessage line={CHANNEL_LINES[pathname]}>
               {syncAction}
               <div className="jaesuni-tool-content">{children}</div>
+              {['/lol', '/lol/synergy', '/lol/mastery'].includes(pathname) && <LolAi view={pathname === '/lol/synergy' ? 'synergy' : pathname === '/lol/mastery' ? 'mastery' : 'overview'} />}
             </JaesuniMessage>
           </div>
         ) : <>{syncAction}{children}</>}

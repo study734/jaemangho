@@ -5,6 +5,7 @@ import { chatNotice } from '@/server/chat/notice';
 import { HIGHLIGHT_TOP, listHighlights } from '@/server/chat/highlights';
 import { getFunniestMessages, getHotMoments } from '@/server/chat/moments';
 import { reportFailure } from '@/server/diagnostics';
+import { AiInsight } from '../ai';
 
 const cachedHotMoments = unstable_cache(() => getHotMoments(), ['community-hot-moments'], { revalidate: 60 });
 const cachedFunniestMessages = unstable_cache(() => getFunniestMessages(), ['community-funniest-messages'], { revalidate: 60 });
@@ -15,11 +16,13 @@ const when = (iso: string) => new Date(iso).toLocaleString('ko-KR', { month: 'nu
 // 커뮤: 개념글 보관함(반응+답글이 큰 메시지가 자동으로 모임), 뜨거웠던 순간, 웃음 유발 메시지(웃음 분석을 켰을 때만).
 export default async function CommunityPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const page = Math.max(1, Number((await searchParams).page) || 1);
-  const [{ items, total, pages }, moments, funny] = await Promise.all([
+  const [{ items, total, pages }, momentResult, funnyResult] = await Promise.all([
     listHighlights(page),
-    cachedHotMoments().catch(error => { reportFailure('community.hot-moments', error); return []; }), // 이 두 목록이 실패해도 개념글은 보인다
-    cachedFunniestMessages().catch(error => { reportFailure('community.funniest', error); return []; }),
+    cachedHotMoments().then(items => ({ items, unavailable: false })).catch(error => { reportFailure('community.hot-moments', error); return { items: [], unavailable: true }; }),
+    cachedFunniestMessages().then(items => ({ items, unavailable: false })).catch(error => { reportFailure('community.funniest', error); return { items: [], unavailable: true }; }),
   ]);
+  const moments = momentResult.items;
+  const funny = funnyResult.items;
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -80,6 +83,9 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
           </ul>
         </section>
       )}
+      <AiInsight context={{ topic: 'activity', period: 'displayed-records', unavailable: momentResult.unavailable || funnyResult.unavailable, awards: [],
+        highlights: items.slice(0, 20).map(h => ({ reactions: h.reactions, replies: h.replies, at: h.at })),
+        moments: moments.slice(0, 20).map(m => ({ messages: m.messages, people: m.people, at: m.at })) }} />
     </div>
   );
 }
