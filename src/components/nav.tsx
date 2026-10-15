@@ -6,7 +6,7 @@ export interface NavItem {
   icon: ReactNode;
 }
 
-export type SectionId = 'home' | 'play' | 'memories' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
+export type SectionId = 'home' | 'chat' | 'play' | 'memories' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
 
 // 상단 메뉴바의 큰 주제와, 각 주제의 좌측 상세 메뉴
 export interface Section {
@@ -150,6 +150,7 @@ const ADMIN: NavItem = {
 export function sectionsFor(isAdmin: boolean): Section[] {
   return [
     { id: 'home', label: '홈', items: HOME },
+    { id: 'chat', label: '재순이와 대화', items: [{ href: '/chat', label: '재순이와 대화', icon: HOME[0].icon }] },
     { id: 'play', label: '같이 놀기', items: [{ ...STEAM[0], href: '/play', label: '같이 놀기' }, ...STEAM, ...LOL] },
     { id: 'memories', label: '우리 기록', items: [{ ...COMMUNITY[0], href: '/memories', label: '우리 기록' }, ...COMMUNITY] },
     { id: 'lol', label: '롤', items: LOL },
@@ -164,6 +165,7 @@ export function sectionsFor(isAdmin: boolean): Section[] {
 // 주소로 지금 주제를 정한다. 설정(/lol/settings)은 주소가 /lol 아래지만 "설정" 주제에 속한다.
 export function sectionOf(pathname: string): SectionId {
   if (pathname === '/') return 'home';
+  if (pathname === '/chat') return 'chat';
   if (pathname === '/play') return 'play';
   if (pathname === '/memories') return 'memories';
   if (pathname.startsWith('/admin') || pathname.startsWith('/lol/settings')) return 'settings';

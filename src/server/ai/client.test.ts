@@ -14,6 +14,19 @@ describe('NVIDIA client', () => {
     expect(init.body).not.toContain('private-key');
     expect(JSON.parse(init.body as string)).toMatchObject({ model: AI_MODEL, stream: false });
   });
+  it('sends conversation as user and assistant messages with per-turn snapshots', async () => {
+    const transport = vi.fn(async () => success());
+    const conversation = analysisSchema.parse({ context: { topic: 'general' }, question: '가볍게', history: [
+      { role: 'user', content: '게임 골라줘', context: { topic: 'general' } },
+      { role: 'assistant', content: '어떤 분위기?' },
+    ] });
+    await complete(conversation, { apiKey: 'test', fetch: transport });
+    const [, init] = transport.mock.calls[0] as unknown as [string, RequestInit];
+    const { messages } = JSON.parse(init.body as string);
+    expect(messages.map((message: { role: string }) => message.role)).toEqual(['system', 'user', 'assistant', 'user']);
+    expect(messages[2].content).toBe('어떤 분위기?');
+    expect(JSON.parse(messages[3].content).question).toBe('가볍게');
+  });
   it.each(['', 'NVIDIA_API_KEY', '$NVIDIA_API_KEY'])('rejects missing/placeholder credentials: %s', async apiKey => {
     const transport = vi.fn();
     await expect(complete(input, { apiKey, fetch: transport })).rejects.toMatchObject({ code: 'not_configured', status: 503 });

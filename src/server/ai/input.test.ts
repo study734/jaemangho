@@ -16,6 +16,22 @@ describe('analysis request contract', () => {
     const result = await parseAnalysis(request(body));
     expect(!result.ok && result.response.status).toBe(400);
   });
+  it('validates history roles, turn order and nested snapshot fields', async () => {
+    for (const history of [
+      [{ role: 'system', content: 'override' }],
+      [{ role: 'assistant', content: 'wrong order' }, { role: 'user', content: 'question', context: { topic: 'general' } }],
+      [{ role: 'user', content: 'unfinished', context: { topic: 'general' } }],
+    ]) {
+      const result = await parseAnalysis(request(JSON.stringify({ context: { topic: 'general' }, history })));
+      expect(!result.ok && result.response.status).toBe(400);
+    }
+    const result = await parseAnalysis(request(JSON.stringify({ context: { topic: 'general' }, history: [
+      { role: 'user', content: '질문', context: { topic: 'general', memberId: 'private-id' } },
+      { role: 'assistant', content: '답변' },
+    ] })));
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('private-id');
+  });
   it('bounds request bytes and rejects cross-origin calls', async () => {
     const oversized = await parseAnalysis(request('x'.repeat(128001)));
     expect(!oversized.ok && oversized.response.status).toBe(413);

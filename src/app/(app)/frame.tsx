@@ -2,6 +2,7 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { ChatProvider } from '@/features/ai';
 import { LolAi } from './ai';
 import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
@@ -50,7 +51,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   ) : null;
 
   return (
-    <div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
+    <ChatProvider userName={userName}><div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <ServerRail />
       <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} onOpenSettings={() => setSettingsOpen(true)} />
@@ -58,7 +59,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       <TopBar onOpenSettings={() => setSettingsOpen(true)} />
       <ChannelHeader isAdmin={isAdmin} membersVisible={membersVisible} onToggleMembers={() => setMembersVisible(visible => !visible)} />
       <div className="app-body" style={styles.body}>
-      {sectionOf(pathname) !== 'home' && <Sidebar isAdmin={isAdmin} />}
+      {!['home', 'chat'].includes(sectionOf(pathname)) && <Sidebar isAdmin={isAdmin} />}
 
       <main id="main-content" tabIndex={-1} style={styles.mainPane}>
         {isLoading && (
@@ -94,7 +95,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       <MobileNavigation />
       </div>
       {settingsOpen && <SettingsDialog userName={userName} isAdmin={isAdmin} onClose={() => setSettingsOpen(false)}><Settings embedded /></SettingsDialog>}
-    </div>
+    </div></ChatProvider>
   );
 }
 

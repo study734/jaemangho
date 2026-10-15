@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAnalysisService } from './service';
 import type { AnalysisInput } from './context';
 
-const input: AnalysisInput = { context: { topic: 'general' }, question: '' };
+const input: AnalysisInput = { context: { topic: 'general' }, question: '', history: [] };
 const result = { answer: '답변', model: 'test', truncated: false };
 describe('analysis request coordination', () => {
   it('shares identical in-flight calls, separates users and expires cached answers', async () => {
@@ -35,6 +35,16 @@ describe('analysis request coordination', () => {
     await expect(analyze('one', { ...input, question: 'over limit' })).rejects.toMatchObject({ status: 429 });
     // Reading the same cached answer consumes no provider attempt.
     await expect(analyze('one', input)).resolves.toEqual(result);
+  });
+  it('includes conversation history in the user-scoped cache key', async () => {
+    const generate = vi.fn(async () => result);
+    const analyze = createAnalysisService(generate, () => 0);
+    await analyze('one', input);
+    await analyze('one', { ...input, history: [
+      { role: 'user', content: '앞선 질문', context: { topic: 'general' } },
+      { role: 'assistant', content: '앞선 답변' },
+    ] });
+    expect(generate).toHaveBeenCalledTimes(2);
   });
   it('bounds global in-flight work without introducing a queue', async () => {
     const generate = vi.fn(() => new Promise<typeof result>(() => {}));

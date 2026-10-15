@@ -26,7 +26,10 @@ export async function complete(input: AnalysisInput, options: { apiKey?: string;
       method: 'POST', cache: 'no-store', signal,
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: AI_MODEL, temperature: 0.5, top_p: 1, max_tokens: 2048, stream: false,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify(input) }] }),
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...input.history.map(message => message.role === 'user'
+          ? { role: 'user', content: JSON.stringify({ question: message.content, context: message.context }) }
+          : { role: 'assistant', content: message.content }),
+        { role: 'user', content: JSON.stringify({ context: input.context, question: input.question }) }] }),
     });
   } catch {
     throw signal.aborted ? new AiError('timeout', 504, 'AI 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.')
