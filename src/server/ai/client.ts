@@ -25,7 +25,8 @@ export async function complete(input: AnalysisInput, options: { apiKey?: string;
     response = await (options.fetch ?? fetch)('https://integrate.api.nvidia.com/v1/chat/completions', {
       method: 'POST', cache: 'no-store', signal,
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: AI_MODEL, temperature: 0.5, top_p: 1, max_tokens: 2048, stream: false,
+      // GLM-5.3-Flash defaults to max reasoning; low suits short chat turns.
+      body: JSON.stringify({ model: AI_MODEL, reasoning_effort: 'low', temperature: 0.5, top_p: 1, max_tokens: 2048, stream: false,
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...input.history.map(message => message.role === 'user'
           ? { role: 'user', content: JSON.stringify({ question: message.content, context: message.context }) }
           : { role: 'assistant', content: message.content }),

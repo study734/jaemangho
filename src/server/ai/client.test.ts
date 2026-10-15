@@ -12,7 +12,7 @@ describe('NVIDIA client', () => {
     expect(url).toBe('https://integrate.api.nvidia.com/v1/chat/completions');
     expect(init.headers).toHaveProperty('Authorization', 'Bearer private-key');
     expect(init.body).not.toContain('private-key');
-    expect(JSON.parse(init.body as string)).toMatchObject({ model: AI_MODEL, stream: false });
+    expect(JSON.parse(init.body as string)).toMatchObject({ model: AI_MODEL, stream: false, reasoning_effort: 'low' });
   });
   it('sends conversation as user and assistant messages with per-turn snapshots', async () => {
     const transport = vi.fn(async () => success());
