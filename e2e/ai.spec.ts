@@ -83,6 +83,50 @@ test('AI 해설은 PC·1024px·모바일에서 긴 답변과 이미지 실패를
   }
 });
 
+test('질문 예시는 호출 없이 입력을 채우고 안내·로딩·답변의 위계를 유지한다', async ({ page, context }) => {
+  const user = await createUser('ai_prompts', 'E2E AI 질문 예시');
+  await seedDiscovery(user);
+  await loginAs(context, user);
+  let calls = 0;
+  let finish!: () => void;
+  const ready = new Promise<void>(resolve => { finish = resolve; });
+  await page.route('**/api/ai', async route => {
+    calls++;
+    expect(route.request().postDataJSON().question).toBe('이 집계로 알 수 있는 것과 알 수 없는 것을 구분해 줘.');
+    await ready;
+    await route.fulfill({ json: { answer: '확인된 기록에서만 이야기할게.\n\n표시된 구간에는 4명이 10분 동안 메시지 40개를 남겼어. 함께 대화한 양을 보여 주는 기록이야.\n\n무슨 이야기를 했는지, 왜 모였는지는 이 숫자만으로 알 수 없어. 원래 기록과 함께 살펴보면 좋아.', model: 'fixture', truncated: false } });
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/community');
+  const panel = page.getByRole('region', { name: '재순이 AI 해설' });
+  await expect(panel.getByRole('heading', { name: '함께한 기록, 한눈에' })).toBeVisible();
+  await panel.getByRole('button', { name: '이 기록의 한계는?' }).click();
+  const input = panel.getByLabel('현재 자료에 관해 질문');
+  await expect(input).toHaveValue('이 집계로 알 수 있는 것과 알 수 없는 것을 구분해 줘.');
+  await expect(input).toBeFocused();
+  expect(calls).toBe(0);
+  await panel.getByText('NVIDIA AI 사용 · 전송 안내', { exact: true }).click();
+  await expect(panel.getByText(/성공한 답변은 서버 메모리에서 5분간 재사용해요/)).toBeVisible();
+  await panel.getByText('NVIDIA AI 사용 · 전송 안내', { exact: true }).click();
+  await mkdir('output/playwright', { recursive: true });
+  await panel.screenshot({ path: 'output/playwright/ai-new-idle.png' });
+  await panel.getByRole('button', { name: '재순이에게 질문 보내기' }).click();
+  await expect(panel.getByRole('status')).toContainText('기록을 읽고 있어');
+  await expect(input).toBeDisabled();
+  await panel.screenshot({ path: 'output/playwright/ai-new-loading.png' });
+  finish();
+  await expect(panel.getByRole('status')).toContainText('확인된 기록에서만');
+  await expect(panel.locator('.ai-answer-copy > p')).toHaveCount(3);
+  expect(calls).toBe(1);
+  await panel.getByText('재순이에게 질문하기', { exact: true }).click();
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await panel.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await panel.screenshot({ path: `output/playwright/ai-new-answer-${width}.png` });
+  }
+});
+
 test('롤 세 화면·시상식·홈에서 해당 자료로 해설하고 이름은 전송하지 않는다', async ({ page, context }) => {
   const user = await createUser('ai_channels', 'E2E AI 채널');
   await seedDiscovery(user);

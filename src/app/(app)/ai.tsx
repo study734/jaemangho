@@ -7,7 +7,7 @@ import type { AiContext } from '@/server/ai/context';
 import { lolContext, steamContext } from './ai-context';
 
 export function AiInsight({ context }: { context: AiContext }) {
-  return <div style={{ marginTop: 24, borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
+  return <div className="ai-insight">
     <AiPanel key={JSON.stringify(context)} context={context} />
   </div>;
 }
