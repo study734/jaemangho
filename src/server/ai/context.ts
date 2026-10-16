@@ -7,7 +7,7 @@ const text = z.string().trim().min(1).max(160);
 export const contextSchema = z.discriminatedUnion('topic', [
   z.object({
     topic: z.literal('steam'),
-    kind: z.enum(['personal', 'group']).optional(),
+    kind: z.literal('personal').optional(),
     mode: z.enum(['recommendations', 'common', 'unplayed', 'library', 'recent', 'draw', 'missions']),
     scope: z.enum(['all', 'any', 'unowned']),
     preference: z.enum(['balanced', 'familiar', 'fresh', 'recent']),

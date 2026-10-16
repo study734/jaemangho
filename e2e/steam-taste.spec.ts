@@ -6,7 +6,7 @@ async function clearMembers() { await db.query('delete from steam_members where 
 test.beforeEach(async () => { await clearMembers(); await cleanup(); });
 test.afterAll(async () => { await clearMembers(); await cleanup(); });
 
-test('개인 취향을 저장하고 모두의 공유 취향·인원·함께한 기록으로 실제 서버에서 추천한다', async ({ page, context, browser }) => {
+test('개인 취향을 저장하고 내 플레이 기록으로 실제 서버에서 추천한다', async ({ page, context }) => {
   const one = await createUser('taste_one', '추천 친구 하나'), two = await createUser('taste_two', '추천 친구 둘');
   await loginAs(context, one);
   for (const [i, id] of ids.entries()) {
@@ -36,40 +36,10 @@ test('개인 취향을 저장하고 모두의 공유 취향·인원·함께한 �
   await page.reload();
   await page.getByText('내 게임 취향 설정', { exact: true }).click();
   await expect(page.getByRole('combobox', { name: '퍼즐 취향', exact: true })).toHaveValue('like');
+  // 새로고침은 결과를 지우므로, 화면 크기별 확인과 대화 첨부 전에 다시 추천받는다.
   await page.getByText('내 게임 취향 설정', { exact: true }).click();
-  await page.getByRole('button', { name: '공통 게임 추천', exact: true }).click();
-  await page.getByRole('checkbox', { name: '추천 멤버 2', exact: true }).check();
-  await page.getByRole('button', { name: '2명에게 맞는 게임 찾기', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '오늘 함께할 게임', exact: true })).toBeVisible();
-  const before = await page.evaluate(async selected => (await fetch('/api/steam/personalized', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'group', ids: selected }) })).json(), ids.slice(0, 2));
-  const other = await browser.newContext(); await loginAs(other, two);
-  const privateResponse = await other.request.get(`${BASE_URL}/api/steam/taste`);
-  expect((await privateResponse.json()).taste.likes).toEqual([]);
-  await other.request.put(`${BASE_URL}/api/steam/taste`, { data: { likes: ['cooking'], avoids: [], likedGames: [], avoidedGames: [], share: true, together: [] } });
-  const after = await page.evaluate(async selected => (await fetch('/api/steam/personalized', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'group', ids: selected }) })).json(), ids.slice(0, 2));
-  expect(after.games.find((game: { appId: number }) => game.appId === 1599600).score).toBeGreaterThan(before.games.find((game: { appId: number }) => game.appId === 1599600).score);
-  await other.request.put(`${BASE_URL}/api/steam/taste`, { data: { likes: ['cooking'], avoids: [], likedGames: [], avoidedGames: [], share: false, together: [] } });
-  const withdrawn = await page.evaluate(async selected => (await fetch('/api/steam/personalized', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'group', ids: selected }) })).json(), ids.slice(0, 2));
-  expect(withdrawn.games.find((game: { appId: number }) => game.appId === 1599600).score).toBe(before.games.find((game: { appId: number }) => game.appId === 1599600).score);
-  await other.close();
-
-  await page.getByText('내 게임 취향 설정', { exact: true }).click();
-  await page.getByRole('combobox', { name: '함께했던 게임', exact: true }).selectOption('620');
-  await page.getByRole('button', { name: '현재 선택 멤버와의 기록 추가', exact: true }).click();
-  await page.getByRole('button', { name: '게임 취향 저장', exact: true }).click();
-  await expect(page.getByText('게임 취향을 저장했어요. 다음 추천부터 반영해요.')).toBeVisible();
-  await page.getByText('내 게임 취향 설정', { exact: true }).click();
-  await page.getByRole('button', { name: '2명에게 맞는 게임 찾기', exact: true }).click();
-  await expect(page.locator('.personal-game-list')).toContainText('사용자가 함께했다고 남긴 Portal 2과 유사');
-  await page.getByRole('checkbox', { name: '추천 멤버 3', exact: true }).check();
-  await page.getByRole('button', { name: '3명에게 맞는 게임 찾기', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '오늘 함께할 게임', exact: true })).toBeVisible();
-  await expect(page.locator('.personal-game-list').getByRole('heading', { name: 'Portal 2', exact: true })).toHaveCount(0);
-  await expect(page.locator('.personal-game-list').getByRole('heading', { name: 'Among Us', exact: true })).toHaveCount(0);
-  await page.getByRole('checkbox', { name: '추천 멤버 4', exact: true }).check();
-  await page.getByRole('button', { name: '4명에게 맞는 게임 찾기', exact: true }).click();
-  await expect(page.locator('.personal-game-list').getByRole('heading', { name: 'Among Us', exact: true })).toBeVisible();
-  await expect(page.locator('.personal-game-list')).toContainText('온라인 플레이 4~15명');
+  await page.getByRole('button', { name: '내 취향으로 추천받기', exact: true }).click();
+  await expect(page.locator('.personal-game-list').getByRole('heading', { name: 'Human Fall Flat', exact: true })).toBeVisible();
   for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -83,25 +53,25 @@ test('개인 취향을 저장하고 모두의 공유 취향·인원·함께한 �
   await page.getByRole('button', { name: '자료 붙여서 대화하기', exact: true }).click();
   await expect(page).toHaveURL(/\/chat$/);
   await page.getByRole('button', { name: '참고 자료 1', exact: true }).last().click();
-  await expect(page.getByRole('complementary', { name: '현재 참고 자료' })).toContainText('모임 Steam 추천');
+  await expect(page.getByRole('complementary', { name: '현재 참고 자료' })).toContainText('내 취향 Steam 추천');
   await expect(page.getByRole('complementary', { name: '현재 참고 자료' })).toContainText('온라인 플레이');
   expect(aiCalls).toBe(0);
   await page.getByRole('complementary', { name: '현재 참고 자료' }).getByText('멤버·취향 설정', { exact: true }).click();
   await page.getByRole('link', { name: '게임 취향 설정', exact: true }).click();
   await expect(page).toHaveURL(/\/steam\/recommend$/);
   await page.getByRole('link', { name: '재순이와 대화', exact: true }).last().click();
-  await expect(page.locator('.chat-current-attachment')).toContainText('모임 Steam 추천');
+  await expect(page.locator('.chat-current-attachment')).toContainText('내 취향 Steam 추천');
   await page.getByRole('button', { name: '참고 자료 1', exact: true }).last().click();
   await page.getByRole('complementary', { name: '현재 참고 자료' }).getByText('멤버·취향 설정', { exact: true }).click();
   await page.getByRole('link', { name: '게임 취향 설정', exact: true }).click();
-  await page.getByRole('button', { name: '개인 게임 추천', exact: true }).waitFor({ state: 'visible' });
+  await page.getByRole('heading', { name: '내 취향으로 게임 찾기', exact: true }).waitFor({ state: 'visible' });
   await expect(page.getByRole('radio', { name: '추천 멤버 1 (나)', exact: true })).toBeChecked();
   await page.getByText('내 게임 취향 설정', { exact: true }).click();
   await page.getByRole('combobox', { name: '퍼즐 취향', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'output/playwright/steam-taste-settings-mobile.png', fullPage: true });
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '게임 취향 전체 삭제', exact: true }).click();
-  await expect(page.getByText('게임 취향과 직접 남긴 함께한 기록을 지웠어요.')).toBeVisible();
+  await expect(page.getByText('게임 취향을 지웠어요.')).toBeVisible();
   expect((await (await context.request.get(`${BASE_URL}/api/steam/taste`)).json()).taste.likes).toEqual([]);
 });
 

@@ -1486,7 +1486,7 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .personal-recommendations { max-width: 1100px; margin: 0 auto; padding: 24px var(--page-padding); color: var(--ink); }
 .personal-recommendations header, .personal-recommendations > section { margin-bottom: 32px; }
 .personal-muted { color: var(--slate); font-size: 13px; line-height: 1.7; }
-.personal-tabs, .personal-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.personal-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 .personal-controls > label { display: flex; flex-direction: column; gap: 8px; }
 .personal-recommendations fieldset { border: 0; margin: 20px 0; padding: 0; min-width: 0; }
 .personal-members { display: flex; flex-wrap: wrap; gap: 16px; }
@@ -1495,8 +1495,6 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .personal-preferences summary { cursor: pointer; min-height: 44px; }
 .personal-tag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
 .personal-tag-grid label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.personal-records { padding-left: 20px; }
-.personal-records li { overflow-wrap: anywhere; }
 .personal-game-list { padding: 0; list-style: none; }
 .personal-game-list > li { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--hairline); }
 .personal-game-list h4 { margin: 0; font-size: 18px; }

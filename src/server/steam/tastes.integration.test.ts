@@ -15,25 +15,16 @@ describe.skipIf(!testDbUrl)('explicit game tastes (isolated DB)', () => {
     }
   });
   afterAll(async () => { await pool.query('delete from steam_members where steam_id=any($1)', [ids]); await pool.query('delete from "user" where id=any($1)', [users]); await pool.end(); });
-  it('persists only explicit own input and shares nothing by default', async () => {
+  it('persists only explicit own input and drops legacy share/together keys', async () => {
     const profile = { ...emptyTaste(), likes: ['puzzle' as const] };
     await store.saveTaste(users[0], profile);
     expect(await store.readTaste(users[0])).toEqual(profile);
     expect(await store.readTaste(users[1])).toEqual(emptyTaste());
-    expect((await store.sharedTastes(users)).size).toBe(0);
-    await store.saveTaste(users[0], { ...profile, share: true });
-    expect((await store.sharedTastes(users)).get(users[0])?.likes).toEqual(['puzzle']);
-    await store.saveTaste(users[0], profile);
-    expect((await store.sharedTastes(users)).size).toBe(0);
+    await pool.query('update steam_tastes set profile=profile || $2::jsonb where user_id=$1', [users[0], JSON.stringify({ share: true, together: [{ appId: 620, steamIds: ids }] })]);
+    expect(await store.readTaste(users[0])).toEqual(profile);
   });
-  it('requires author participation and registered members for a self-reported shared game', async () => {
-    await expect(store.saveTaste(users[0], { ...emptyTaste(), together: [{ appId: 620, steamIds: [ids[1], '76561199999999999'] }] })).rejects.toThrow('내 연결');
-    const profile = { ...emptyTaste(), together: [{ appId: 620, steamIds: ids }] };
-    await store.saveTaste(users[0], profile);
-    expect((await store.readTaste(users[0])).together).toEqual(profile.together);
-  });
-  it('deletes all own game tastes and reports independently of another member', async () => {
-    await store.saveTaste(users[1], { ...emptyTaste(), likes: ['cooking'], share: true });
+  it('deletes only the caller\'s game tastes', async () => {
+    await store.saveTaste(users[1], { ...emptyTaste(), likes: ['cooking'] });
     await store.deleteTaste(users[0]);
     expect(await store.readTaste(users[0])).toEqual(emptyTaste());
     expect((await store.readTaste(users[1])).likes).toEqual(['cooking']);

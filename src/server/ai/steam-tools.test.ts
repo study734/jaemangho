@@ -23,7 +23,7 @@ beforeEach(() => {
 it('validates native arguments, rejects IDs/URLs/unknown fields and exposes bounded schemas', () => {
   expect(parseTool('get_personal_games', '{"scope":"new","solo":true}')).toEqual({ name: 'get_personal_games', args: { scope: 'new', solo: true } });
   expect(parseTool('get_steam_recommendations', '{"scope":"unowned","preference":"recent"}').args).toEqual({ scope: 'unowned', preference: 'recent' });
-  for (const [name, args] of [['get_group_games', '{"solo":true}'], ['get_steam_library', '{"ids":["x"]}'], ['get_game_missions', '{"appId":620}'], ['get_steam_recommendations', '{"scope":"all","url":"https://x.test"}']]) expect(() => parseTool(name, args)).toThrow();
+  for (const [name, args] of [['get_personal_games', '{"url":"https://x.test"}'], ['get_steam_library', '{"ids":["x"]}'], ['get_game_missions', '{"appId":620}'], ['get_steam_recommendations', '{"scope":"all","url":"https://x.test"}']]) expect(() => parseTool(name, args)).toThrow();
   expect(toolDefinitions.find(tool => tool.function.name === 'get_game_missions')?.function.parameters).toMatchObject({ required: ['game'], additionalProperties: false });
 });
 it('resolves only registered UI selections before querying and removes identifying fields', async () => {
