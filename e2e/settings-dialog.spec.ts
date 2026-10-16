@@ -63,3 +63,13 @@ test('관리자 링크는 기존 관리자에게 표시되고 같은 화면으�
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('패치노트는 설정 모달에서 누구나 열 수 있다', async ({ page, context }) => {
+  await loginAs(context, await createUser('settings_updates', '패치 친구'));
+  await page.goto('/');
+  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
+  await page.getByRole('dialog', { name: '사용자 설정' }).getByRole('link', { name: '패치노트' }).click();
+  await expect(page).toHaveURL(/\/updates$/);
+  await expect(page.getByRole('heading', { name: '패치노트' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});

@@ -44,6 +44,7 @@ export function SettingsDialog({ userName, isAdmin, children, onClose }: {
       <nav aria-label="설정 메뉴">
         <button type="button" className="settings-menu-item" aria-current={section === 'account' ? 'page' : undefined} onClick={() => setSection('account')}><UiIcon name="people" />계정 정보</button>
         <button type="button" className="settings-menu-item" aria-current={section === 'riot' ? 'page' : undefined} onClick={() => setSection('riot')}><UiIcon name="gear" />Riot 연결</button>
+        <Link href="/updates" className="settings-menu-item" onClick={onClose}><UiIcon name="star" />패치노트</Link>
         {isAdmin && <Link href="/admin" className="settings-menu-item" onClick={onClose}><UiIcon name="gear" />관리자 화면</Link>}
       </nav>
     </aside>
