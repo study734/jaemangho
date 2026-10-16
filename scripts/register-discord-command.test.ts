@@ -6,15 +6,16 @@ describe('Discord command registration', () => {
   it('defaults to a local preview without credentials or network', async () => {
     const fetchFn = vi.fn(); const log = vi.fn();
     await registerCommand({ fetchFn, log, env: {} });
-    const command = JSON.parse(log.mock.calls[0][0]);
-    expect(command.name).toBe('게임추천');
-    expect(command.options[0].choices.map((choice: { value: string }) => choice.value)).toEqual(['all', 'any', 'unowned']);
+    const commands = JSON.parse(log.mock.calls[0][0]);
+    expect(commands.map((command: { name: string }) => command.name)).toEqual(['게임추천', '출처 찾기']);
+    expect(commands[0].options[0].choices.map((choice: { value: string }) => choice.value)).toEqual(['all', 'any', 'unowned']);
     expect(fetchFn).not.toHaveBeenCalled();
   });
-  it('upserts only the chosen command rather than overwriting all guild commands', async () => {
+  it('upserts only the defined commands rather than overwriting all guild commands', async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('{}')); const log = vi.fn();
     await registerCommand({ args: ['--apply'], env, fetchFn, log });
     expect(fetchFn.mock.calls[0][0]).toMatch(/\/applications\/100000000000000001\/guilds\/100000000000000002\/commands$/);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
     expect(fetchFn.mock.calls[0][1]).toMatchObject({ method: 'POST', headers: { Authorization: 'Bot fixture-bot-token' } });
     expect(log.mock.calls.flat().join(' ')).not.toContain(env.DISCORD_BOT_TOKEN);
   });
@@ -25,7 +26,7 @@ describe('Discord command registration', () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
   it('reports failures without exposing response content or credentials; reruns recover', async () => {
-    const fetchFn = vi.fn().mockResolvedValueOnce(new Response('secret', { status: 429 })).mockResolvedValueOnce(new Response('{}'));
+    const fetchFn = vi.fn().mockResolvedValueOnce(new Response('secret', { status: 429 })).mockResolvedValue(new Response('{}'));
     await expect(registerCommand({ args: ['--apply'], env, fetchFn })).rejects.toThrow('HTTP 429');
     await registerCommand({ args: ['--apply'], env, fetchFn, log: vi.fn() });
     fetchFn.mockRejectedValue(new Error(`https://discord.com/${env.DISCORD_BOT_TOKEN}`));

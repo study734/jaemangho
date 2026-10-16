@@ -1,0 +1,33 @@
+[
+  {
+    "name": "게임추천",
+    "description": "함께할 친구들의 Steam 게임을 추천합니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "범위",
+        "description": "기본값은 모두 보유입니다",
+        "type": 3,
+        "required": false,
+        "choices": [
+          {
+            "name": "모두 보유",
+            "value": "all"
+          },
+          {
+            "name": "일부 보유 포함",
+            "value": "any"
+          },
+          {
+            "name": "전원 미보유",
+            "value": "unowned"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "출처 찾기",
+    "type": 3
+  }
+]

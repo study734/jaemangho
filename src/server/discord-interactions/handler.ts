@@ -1,5 +1,6 @@
 import { canUseCommand } from './access';
 import { gameRecommendations } from './games';
+import { findSource } from './source';
 import { friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type Interaction, type Message } from './protocol';
 
 const WORK_BUDGET_MS = 45_000;
@@ -59,7 +60,9 @@ export async function editReply(applicationId: string, token: string, message: M
 async function processCommand(interaction: Interaction): Promise<Message> {
   const userId = interaction.member.user.id;
   if (!await canUseCommand(userId)) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
-  if (interaction.type === 2) return friendPicker(userId, interaction.data.options?.[0]?.value ?? 'all');
+  if (interaction.type === 2) {
+    return interaction.data.type === 3 ? findSource(interaction.data) : friendPicker(userId, interaction.data.options?.[0]?.value ?? 'all');
+  }
   const chosen = selection(interaction);
   if (!chosen) return privateMessage('선택창이 만료됐거나 다른 사람의 선택창이에요. /게임추천을 다시 실행해 주세요.');
   return gameRecommendations(chosen.ids, chosen.scope);
@@ -71,11 +74,11 @@ export async function completeInteraction(interaction: Interaction) {
   try {
     // A timeout answers the user within the route budget. Shared Steam/cache requests are not cancelled.
     message = await Promise.race([processCommand(interaction), new Promise<Message>(resolve => {
-      timer = setTimeout(() => resolve(privateMessage('조회 시간이 길어 추천을 마치지 못했어요. 잠시 후 /게임추천을 다시 실행해 주세요.')), WORK_BUDGET_MS);
+      timer = setTimeout(() => resolve(privateMessage('조회 시간이 길어 마치지 못했어요. 잠시 후 다시 실행해 주세요.')), WORK_BUDGET_MS);
     })]);
   } catch {
     console.error('discord interaction processing failed');
-    message = privateMessage('게임 추천을 처리하지 못했어요. 연결 설정을 확인하거나 잠시 후 다시 시도해 주세요.');
+    message = privateMessage('명령을 처리하지 못했어요. 연결 설정을 확인하거나 잠시 후 다시 시도해 주세요.');
   } finally { clearTimeout(timer); }
   await editReply(interaction.application_id, interaction.token, message);
 }

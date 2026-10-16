@@ -99,6 +99,15 @@ src/
 - 서버 로그에 로그인마다 `discord connection types: …; unhandled: …`가 남습니다(계정 이름·id는 남기지 않고 **종류 이름만**). 공식 문서의 서비스 목록에 Riot이 없어서 실제로 어떤 종류로 오는지 이 줄로 확인하고, `unhandled`에 나온 종류는 아직 처리기가 없는 것입니다.
 - **새 주제의 연결을 추가하려면**: `src/server/<이름>/connection.ts`에 `ConnectionHandler`(`types`, `link`)를 만들고 `discord-connections.ts`의 `HANDLERS`에 한 줄 더합니다.
 
+## 디스코드 출처 찾기 (메시지 우클릭 명령)
+
+채팅의 이미지·영상 메시지를 우클릭 → 앱 → **출처 찾기**를 누르면 작품명·화수·장면 시각·일치도를 본인에게만 보여줍니다(애니 장면 한정). 기존 `/게임추천`과 같은 서버 제한·계정·차단 확인·지연 응답을 씁니다. 구현은 `src/server/discord-interactions/source.ts`.
+
+- [trace.moe](https://soruly.github.io/trace.moe-api/) 공개 API를 키 없이 URL로 조회합니다(새 환경변수 없음). 눌린 메시지의 첫 이미지·영상 첨부 URL만 보내며 Discord CDN 호스트가 아니면 요청 자체를 거부합니다. 임베드·링크 미리보기는 조회하지 않습니다.
+- 게스트 한도는 IP당 `quota` 100, 동시 1건으로 실측했습니다(2026-10-17, 로컬 IP). 한도·동시 초과(402/429)는 안내만 하고 재시도하지 않습니다. 약관의 상업 조건은 공식 문서에 없어 친구들끼리 쓰는 비상업 용도로만 사용합니다. 근거와 미확인 항목은 [docs/meme-source-lookup-research.md](docs/meme-source-lookup-research.md).
+- 한국어 제목은 제공되지 않아 일본어 원제(로마자)로 표시합니다. 일러스트 출처(SauceNao 등)는 약관을 확인하지 못해 포함하지 않았습니다.
+- 운영에서는 `npm run discord:register -- --apply`로 명령을 등록해야 메뉴에 나타납니다(사전 확인 후).
+
 ## 디스코드 게임 추천 명령
 
 `/게임추천`은 AI 없이 기존 Steam 추천을 디스코드에서 실행합니다. 선택 옵션 `범위`는 **모두 보유**(기본), **일부 보유 포함**, **전원 미보유**입니다. 명령을 실행하면 본인에게만 친구 선택창이 나타나며, 함께할 서버 멤버 **2~20명**을 고르면 추천을 시작합니다. 본인도 참여하면 직접 선택해야 합니다. 결과도 본인에게만 표시하며, 최대 5개의 게임·지원 유형·스토어 링크를 보여줍니다. 추천 기준은 기존 `balanced`이고 최대 인원은 스토어에서 확인합니다. 선택창은 15분 후 만료되므로 `/게임추천`을 다시 실행합니다.
@@ -113,10 +122,10 @@ src/
 1. 기존 Discord 로그인·수집과 **같은 앱**의 공개키를 `DISCORD_PUBLIC_KEY`에 설정하고 재배포합니다.
 2. 해당 앱의 **Interactions Endpoint URL**을 `https://<도메인>/api/discord/interactions`로 설정합니다. 이 방식은 Gateway로 interactions를 받는 방식과 양립하지 않으므로, 기존 앱에서 다른 명령을 처리 중인지 먼저 확인합니다. REST 채팅 수집에는 영향을 주지 않습니다.
 3. 앱의 서버 설치에 `applications.commands` scope가 포함돼 있는지 확인합니다. `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_BOT_TOKEN`은 같은 앱·서버의 기존 설정을 사용합니다. 상시 실행 봇이나 Message Content Intent는 필요하지 않습니다.
-4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버의 `/게임추천` 하나만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
+4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버의 `/게임추천`·`출처 찾기`만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
 5. 디스코드에서 세 범위, 계정 연결 없음, 비공개 목록과 실제 답변 표시를 확인합니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
 
-구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `command.json`에 있습니다. 테스트: `npm test -- src/server/discord-interactions scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결 검증은 `TEST_DATABASE_URL`이 필요합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.
+구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `commands.json`(명령 배열)에 있습니다. 테스트: `npm test -- src/server/discord-interactions scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결 검증은 `TEST_DATABASE_URL`이 필요합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.
 
 공식 규격: [Discord interactions](https://docs.discord.com/developers/interactions/receiving-and-responding), [사용자 선택 메뉴](https://docs.discord.com/developers/components/reference#user-select), [Next.js after](https://nextjs.org/docs/app/api-reference/functions/after).
 
