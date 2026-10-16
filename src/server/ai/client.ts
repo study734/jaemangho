@@ -5,6 +5,8 @@ export const AI_MODEL = 'z-ai/glm-5.3-flash';
 export class AiError extends Error {
   code: 'not_configured' | 'network' | 'timeout' | 'invalid_response' | 'upstream' | 'busy';
   status: number;
+  // Where a timeout happened ('acquire', 'charge', 'model', 'tool'); logged by failureDetails.
+  phase?: string; elapsedMs?: number;
   constructor(code: AiError['code'], status: number, message: string, upstreamStatus?: number) {
     super(message, upstreamStatus ? { cause: { status: upstreamStatus } } : undefined); this.code = code; this.status = status;
   }

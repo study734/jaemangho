@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAgent } from './agent';
 import { AiError, AI_MODEL } from './client';
 import { analysisSchema } from './context';
+import { failureDetails } from '../diagnostics';
 
 const input = analysisSchema.parse({ context: { topic: 'general' }, question: '함께할 게임 찾아줘' });
 const message = { message: { content: '답변', tool_calls: undefined }, model: AI_MODEL, truncated: false };
@@ -77,6 +78,14 @@ describe('bounded Jaesuni agent', () => {
     await expect(createAgent(d, 5)(input, 'actor')).rejects.toMatchObject({ status: 504 });
     expect(d.charge).not.toHaveBeenCalled(); expect(d.generate).not.toHaveBeenCalled();
     expect(d.release).toHaveBeenCalledExactlyOnceWith('request');
+  });
+  it('reports which step used up the budget in the failure log', async () => {
+    const d = deps(); d.generate.mockImplementation(() => new Promise(() => {}));
+    const error = await createAgent(d, 20)(input, 'actor').catch(error => error);
+    expect(error).toMatchObject({ code: 'timeout', status: 504, phase: 'model' });
+    expect(failureDetails(error)).toMatchObject({ code: 'timeout', phase: 'model', elapsedMs: expect.any(Number) });
+    d.charge.mockImplementation(() => new Promise(() => {}));
+    expect(await createAgent(d, 20)(input, 'actor').catch(error => error)).toMatchObject({ phase: 'charge' });
   });
 });
 
