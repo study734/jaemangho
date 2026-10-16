@@ -307,3 +307,37 @@ test('도전 API는 잘못된 쿼리와 미등록 멤버를 거부한다', async
     expect(await page.evaluate(async query => (await fetch(`/api/steam/missions?${query}`)).status, query)).toBe(400);
   }
 });
+
+test('같이 사면 좋은 게임은 세일 가격을 보여주고 선택이 바뀌면 이전 결과를 지운다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_deals', 'E2E세일'));
+  await page.route('**/api/steam/members', route => route.fulfill({ json: [
+    { steamId: '76561190000000001', name: '철수', avatar: null },
+    { steamId: '76561190000000002', name: '영희', avatar: null },
+  ] }));
+  await page.route('**/api/steam/deals**', route => {
+    expect(new URL(route.request().url()).searchParams.get('ids')).toBe('76561190000000001,76561190000000002');
+    return route.fulfill({ json: { excluded: [], alreadyOwned: 1, pricesUnavailable: false, deals: [
+      { appId: 945360, name: 'Among Us', missingIds: ['76561190000000002'], price: { final: 3300, initial: 5500, discountPercent: 40 } },
+      { appId: 620, name: 'Portal 2', missingIds: ['76561190000000001', '76561190000000002'], price: { final: 11000, initial: 11000, discountPercent: 0 } },
+    ] } });
+  });
+  await page.goto('/steam');
+  await expect(page.getByRole('button', { name: '가격 확인 (0명)' })).toBeDisabled();
+  await page.getByRole('checkbox').nth(0).check();
+  await page.getByRole('checkbox').nth(1).check();
+  await page.getByRole('button', { name: '가격 확인 (2명)' }).click();
+  await expect(page.getByText('-40% ₩3,300 (정가 ₩5,500)')).toBeVisible();
+  await expect(page.getByText('아직 없는 멤버 1명: 영희')).toBeVisible();
+  await expect(page.getByText('모두 구매하면 ₩22,000')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Among Us Steam에서 확인' })).toHaveAttribute('href', 'https://store.steampowered.com/app/945360/');
+  await page.getByRole('checkbox').nth(1).uncheck();
+  await expect(page.getByText('-40% ₩3,300 (정가 ₩5,500)')).toHaveCount(0);
+});
+
+test('Steam 세일 API는 잘못된 인원과 미등록 계정을 거부한다', async ({ page, context }) => {
+  await loginAs(context, await createUser('steam_deals_validation', 'E2E세일검증'));
+  await page.goto('/steam');
+  const status = (query: string) => page.evaluate(async q => (await fetch(`/api/steam/deals?${q}`)).status, query);
+  expect(await status('ids=76561190000000001')).toBe(400);
+  expect(await status('ids=invalid,76561190000000002')).toBe(400);
+});

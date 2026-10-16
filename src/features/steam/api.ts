@@ -40,6 +40,11 @@ export interface RecommendationsResult {
   sharedPreferences?: number;
   metadataUnavailable?: number;
 }
+export interface Deal {
+  appId: number; name: string; missingIds: string[];
+  price: { final: number; initial: number; discountPercent: number } | null;
+}
+export interface DealsResult { deals: Deal[]; excluded: string[]; alreadyOwned: number; pricesUnavailable: boolean }
 export interface Mission {
   id: string; title: string; description: string | null; kind: 'team-first' | 'catch-up'; unlockedIds: string[]; lockedIds: string[];
 }
@@ -93,6 +98,7 @@ export const steamApi = {
   games: (ids: string[], mode: Mode) => call<GamesResult>(`/api/steam/games?ids=${ids.join(',')}&mode=${mode}`),
   recommendations: (ids: string[], preference: Preference, scope: OwnershipScope = 'all') =>
     call<RecommendationsResult>(`/api/steam/recommendations?${new URLSearchParams({ ids: ids.join(','), preference, scope })}`),
+  deals: (ids: string[]) => call<DealsResult>(`/api/steam/deals?ids=${ids.join(',')}`),
   missions: (ids: string[], appId: number) =>
     call<MissionsResult>(`/api/steam/missions?${new URLSearchParams({ ids: ids.join(','), appId: String(appId) })}`),
   activity: () => call<ActivitySettings>('/api/steam/activity'),
