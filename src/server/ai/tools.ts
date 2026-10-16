@@ -8,13 +8,11 @@ import { proxyRiot } from '../riot/proxy';
 import { routeFor } from '../riot/routes';
 import { contextSchema, type AiContext, type AnalysisInput } from './context';
 import type { ToolDefinition } from './client';
-import { personalizedGames } from '../steam/personalized';
-import { recommendationFacts } from '../../domain/steam-personal';
+import { hasSteamConsent } from '../steam/consent';
 import { steamRead, steamArguments } from './steam-tools';
 
 const definitions = {
   get_common_games: '선택한 Steam 멤버 모두의 공통 보유 게임 조회. 멤버 선택이 없으면 선택하도록 안내한다. 협동 지원·최대 인원은 별도로 확인해야 한다.',
-  get_personal_games: '내 Steam 플레이 기록과 저장한 게임 취향으로 개인 게임 추천. 내 Steam 계정 하나를 선택해야 한다. 초기 확인 카탈로그 범위와 게임 모드별 인원 근거를 반환한다.',
   get_steam_library: '선택한 멤버의 공개 보유 게임과 누적 또는 최근 2주 플레이 시간을 합산 조회한다. query로 게임명 검색 가능. 여러 명의 합집합이며 공통 보유나 공동 세션이 아니다.',
   get_unplayed_games: '선택한 모두가 보유했지만 아무도 플레이하지 않은 게임 조회.',
   get_steam_recommendations: '2명 이상 선택한 멤버의 기존 Steam 추천. 경험 균형·익숙함·새로움·최근 2주와 보유 범위를 고른다. 인원 상한은 미확인일 수 있다.',
@@ -27,7 +25,7 @@ export type ToolName = keyof typeof definitions;
 export const toolDefinitions: ToolDefinition[] = Object.entries(definitions).map(([name, description]) => ({
   type: 'function', function: { name, description, parameters: z.toJSONSchema(argumentsFor(name as ToolName), { io: 'input' }) },
 }));
-export const toolLabels: Record<ToolName, string> = { get_steam_library: 'Steam 보유·플레이 조회', get_unplayed_games: '공통 미플레이 게임 조회', get_steam_recommendations: 'Steam 경험 기반 추천', draw_steam_game: 'Steam 게임 뽑기', get_game_missions: 'Steam 공개 도전 과제 조회', get_common_games: 'Steam 공통 게임 조회', get_personal_games: '개인 취향 게임 추천', get_lol_records: 'LoL 최근 전적 조회', get_activity_summary: '최근 활동 집계 조회' };
+export const toolLabels: Record<ToolName, string> = { get_steam_library: 'Steam 보유·플레이 조회', get_unplayed_games: '공통 미플레이 게임 조회', get_steam_recommendations: 'Steam 공통 협동 게임 추천', draw_steam_game: 'Steam 게임 뽑기', get_game_missions: 'Steam 공개 도전 과제 조회', get_common_games: 'Steam 공통 게임 조회', get_lol_records: 'LoL 최근 전적 조회', get_activity_summary: '최근 활동 집계 조회' };
 export interface ToolResult { status: 'ok' | 'selection_required'; context?: AiContext; message?: string }
 
 // Opaque UI references never reach the model. Names/IDs stay in the app or tool adapter.
@@ -102,7 +100,6 @@ async function activity(): Promise<ToolResult> {
 }
 
 function argumentsFor(name: ToolName) {
-  if (name === 'get_personal_games') return z.object({ scope: z.enum(['all', 'any', 'new']).optional(), solo: z.boolean().optional() }).strict();
   return steamArguments[name as keyof typeof steamArguments] ?? z.object({}).strict();
 }
 export function parseTool(name: string, args: string) {
@@ -113,22 +110,14 @@ export function parseTool(name: string, args: string) {
 export async function readTool(name: ToolName, selection: AnalysisInput['selection'], signal: AbortSignal, userId?: string, args: Record<string, unknown> = {}): Promise<ToolResult> {
   signal.throwIfAborted();
   const parsed = argumentsFor(name).parse(args);
+  if ((name === 'get_common_games' || Object.hasOwn(steamArguments, name)) && !await hasSteamConsent(userId ?? ''))
+    return { status: 'selection_required', message: 'Steam 공통 게임 화면에서 데이터 이용에 먼저 동의해야 한다. 동의 전에는 Steam 도구를 사용할 수 없다.' };
   if (Object.hasOwn(steamArguments, name)) {
     const refs = [...new Set(selection.steam)];
     const members = (await listSteamMembers()).filter(member => refs.includes(reference('s', member.steamId)));
     signal.throwIfAborted();
     if (!refs.length || members.length !== refs.length) return { status: 'selection_required', message: '멤버·취향 설정에서 Steam 멤버를 다시 선택해야 한다.' };
     return steamRead(name, members.map(member => member.steamId), parsed, signal);
-  }
-  if (name === 'get_personal_games') {
-    const refs = [...new Set(selection.steam)];
-    const members = (await listSteamMembers()).filter(member => refs.includes(reference('s', member.steamId)));
-    if (!userId || members.length !== refs.length || members.length !== 1 || members[0].ownerId !== userId)
-      return { status: 'selection_required', message: '멤버·취향 설정에서 본인에게 연결된 Steam 계정 하나를 선택해야 한다. 게임 취향은 Steam 개인 취향 추천 화면에서 설정한다.' };
-    const options = parsed as { scope?: 'all' | 'any' | 'new'; solo?: boolean };
-    const result = await personalizedGames(userId, { ids: members.map(member => member.steamId), scope: options.scope ?? 'any', solo: options.solo ?? false }, signal);
-    signal.throwIfAborted();
-    return { status: 'ok', context: contextSchema.parse({ ...recommendationFacts(result), scope: options.scope === 'new' ? 'unowned' : options.scope ?? 'any' }), message: `공식 인원을 확인한 초기 ${result.catalogSize}개 카탈로그의 추천이다. 전체 Steam 검색이 아니다. 사용한 저장 취향은 ${result.sharedPreferences}명이다. 재순이 대화 메모는 순위 계산에 사용하지 않는다.` };
   }
   if (name === 'get_common_games') return common(selection);
   if (name === 'get_lol_records') return lolRecords(selection, signal);

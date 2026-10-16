@@ -3,7 +3,7 @@ export function contextView(context: Record<string, unknown>) {
     const missions = context.missions as { state?: string; goals?: { title: string; remaining: number }[] } | undefined;
     const missionState = missions?.state && ({ ok: '공개 목표 조회 완료', unsupported: '공개 과제 지원 안 함', unavailable: '진행도 확인 불가', 'not-owned': '모두 보유한 게임이 아님', complete: '확인한 공개 과제 전원 달성' } as Record<string, string>)[missions.state];
     return {
-      title: context.kind === 'personal' ? '내 취향 Steam 추천' : context.mode === 'library' ? 'Steam 보유·누적 플레이' : context.mode === 'recent' ? 'Steam 최근 2주 플레이' : context.mode === 'missions' ? 'Steam 공개 도전 과제' : context.mode === 'draw' ? 'Steam 게임 뽑기' : '함께할 Steam 게임', href: context.kind ? '/steam/recommend' : '/steam',
+      title: context.kind === 'personal' ? '내 취향 Steam 추천' : context.mode === 'library' ? 'Steam 보유·누적 플레이' : context.mode === 'recent' ? 'Steam 최근 2주 플레이' : context.mode === 'missions' ? 'Steam 공개 도전 과제' : context.mode === 'draw' ? 'Steam 게임 뽑기' : '함께할 Steam 게임', href: '/steam',
       summary: `${context.people}명 선택 · ${missionState ?? `${Array.isArray(context.games) ? context.games.length : 0}개 게임`}`,
       warning: Number(context.excluded) + Number(context.unverified) + Number(context.recentUnavailable) + Number(missions?.state === 'unavailable') > 0 ? '일부 보유 목록·최근 기록·게임 정보를 확인하지 못했어요.' : '',
       items: [...(Array.isArray(context.games) ? context.games : []).map((game: { name: string; owners?: number; totalMinutes: number; recentMinutes?: number; modes?: { label: string; min: number; max: number }[] }) => ({

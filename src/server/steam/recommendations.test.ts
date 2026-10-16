@@ -3,9 +3,14 @@ import { getLibrary, getRecentGames } from './client';
 import { registeredIds } from './roster';
 import { getPlaySupport } from './store';
 import { getDiscoveryGames } from './discovery';
+import { readGroupTastes } from './tastes';
+import { genreTags } from './genre-tags';
 import { CANDIDATE_LIMIT, recommendGames, recommendationsQuerySchema } from './recommendations';
 
-vi.mock('./client', () => ({ getLibrary: vi.fn(), getRecentGames: vi.fn() }));
+vi.mock('../activity/steam-signals', () => ({ readSteamActivitySignals: vi.fn(async () => new Map()) }));
+vi.mock('./tastes', () => ({ readGroupTastes: vi.fn() }));
+vi.mock('./genre-tags', () => ({ genreTags: vi.fn() }));
+vi.mock('./client', async importOriginal => ({ ...await importOriginal<typeof import('./client')>(), getLibrary: vi.fn(), getRecentGames: vi.fn() }));
 vi.mock('./roster', async importOriginal => {
   const original = await importOriginal<typeof import('./roster')>();
   return { ...original, registeredIds: vi.fn() };
@@ -15,6 +20,9 @@ vi.mock('./discovery', () => ({ getDiscoveryGames: vi.fn() }));
 const ids = ['76561190000000001', '76561190000000002'];
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(readGroupTastes).mockResolvedValue(new Map());
+  vi.mocked(genreTags).mockResolvedValue([]);
+  vi.mocked(getRecentGames).mockResolvedValue({ ok: true, games: [] });
   vi.mocked(registeredIds).mockResolvedValue(ids);
   vi.mocked(getPlaySupport).mockResolvedValue('coop');
 });
@@ -45,6 +53,13 @@ describe('Steam 추천 서비스', () => {
     vi.mocked(getPlaySupport).mockImplementation(async appId => ({ 1: 'single', 2: 'unknown', 3: 'coop', 4: 'local' } as const)[appId as 1 | 2 | 3 | 4]);
     const result = await recommendGames(ids, 'balanced');
     expect(result).toMatchObject({ totalCommon: 4, checked: 4, unverified: 1, games: [{ appId: 3, support: 'coop' }] });
+  });
+  it('excludes competitive multiplayer and known co-op modes too small for the selected party', async () => {
+    vi.mocked(registeredIds).mockResolvedValue([...ids, '76561190000000003']);
+    vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: [620, 548430, 730].map(appId => ({ appId, name: `g${appId}`, minutes: 60 })) });
+    vi.mocked(getPlaySupport).mockImplementation(async id => id === 730 ? 'multiplayer' : 'coop');
+    const result = await recommendGames([...ids, '76561190000000003'], 'balanced');
+    expect('games' in result && result.games.map(game => game.appId)).toEqual([548430]);
   });
   it('추천 12개가 확정되면 다음 후보의 스토어 조회를 생략하고 순서를 유지한다', async () => {
     vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: Array.from({ length: 50 }, (_, i) => ({ appId: i + 1, name: `g${i}`, minutes: 60 })) });

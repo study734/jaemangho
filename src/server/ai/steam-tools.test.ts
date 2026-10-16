@@ -6,7 +6,7 @@ vi.mock('../steam/recommendations', () => ({ recommendGames: fakes.recommend }))
 vi.mock('../steam/missions', () => ({ findMissions: fakes.missions }));
 vi.mock('../steam/roster', () => ({ listSteamMembers: fakes.members }));
 vi.mock('../lol/roster', () => ({ listRoster: async () => [] }));
-vi.mock('../steam/personalized', () => ({ personalizedGames: vi.fn() }));
+vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn(async () => true) }));
 import { memberChoices, parseTool, readTool, toolDefinitions } from './tools';
 import { steamRead } from './steam-tools';
 const ids = ['76561190000000001', '76561190000000002'];
@@ -21,7 +21,7 @@ beforeEach(() => {
   fakes.recommend.mockResolvedValue({ games: [game, { ...game, appId: 548430, name: 'Deep Rock Galactic' }].map(entry => ({ ...entry, score: 50, support: 'coop', reasons: ['모두 보유'] })), excluded: [], unverified: 0, recentUnavailable: [], totalCandidates: 2, checked: 2 });
 });
 it('validates native arguments, rejects IDs/URLs/unknown fields and exposes bounded schemas', () => {
-  expect(parseTool('get_personal_games', '{"scope":"new","solo":true}')).toEqual({ name: 'get_personal_games', args: { scope: 'new', solo: true } });
+  expect(() => parseTool('get_personal_games', '{}')).toThrow('unsupported_tool');
   expect(parseTool('get_steam_recommendations', '{"scope":"unowned","preference":"recent"}').args).toEqual({ scope: 'unowned', preference: 'recent' });
   for (const [name, args] of [['get_personal_games', '{"url":"https://x.test"}'], ['get_steam_library', '{"ids":["x"]}'], ['get_game_missions', '{"appId":620}'], ['get_steam_recommendations', '{"scope":"all","url":"https://x.test"}']]) expect(() => parseTool(name, args)).toThrow();
   expect(toolDefinitions.find(tool => tool.function.name === 'get_game_missions')?.function.parameters).toMatchObject({ required: ['game'], additionalProperties: false });

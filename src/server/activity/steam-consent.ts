@@ -7,9 +7,9 @@ export class SteamAccountNotVerifiedError extends Error {}
 export async function getSteamActivitySettings(userId: string) {
   const accounts = (await pool.query<{
     steam_id: string; name: string; verified_at: Date; requested_at: Date | null;
-    stopped_at: Date | null; last_success_at: Date | null; last_result: string | null;
+    stopped_at: Date | null; last_success_at: Date | null; last_result: string | null; notice_version: string | null;
   }>(`select v.steam_id, m.persona_name as name, v.verified_at,
-      r.requested_at, r.stopped_at, s.last_success_at, s.last_result
+      r.requested_at, r.stopped_at, r.notice_version, s.last_success_at, s.last_result
     from steam_verified_accounts v
     join steam_members m on m.steam_id = v.steam_id
     left join steam_collection_requests r on r.steam_id = v.steam_id
@@ -21,6 +21,7 @@ export async function getSteamActivitySettings(userId: string) {
     accounts: accounts.map((row) => ({
       steamId: row.steam_id, name: row.name, verifiedAt: row.verified_at,
       requestedAt: row.requested_at, stoppedAt: row.stopped_at,
+      noticeVersion: row.notice_version,
       lastSuccessAt: row.last_success_at, lastResult: row.last_result,
     })),
   };

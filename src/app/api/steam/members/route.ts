@@ -13,7 +13,7 @@ import {
   setSteamOwner,
   steamIdSchema,
 } from '@/server/steam/roster';
-import { requireUser } from '@/server/viewer';
+import { requireSteamUser } from '@/server/steam/consent';
 
 const failure = (e: unknown) => {
   if (e instanceof InvalidSteamInputError) return Response.json({ error: 'Invalid Steam profile' }, { status: 400 });
@@ -25,7 +25,7 @@ const failure = (e: unknown) => {
 };
 
 export async function GET() {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   try {
     return Response.json(await listSteamMembers());
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const body = await parseBody(request, addMemberSchema);
   if (!body.ok) return body.response;
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const body = await parseBody(request, setOwnerSchema);
   if (!body.ok) return body.response;
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const id = steamIdSchema.safeParse(request.nextUrl.searchParams.get('id'));
   if (!id.success) return Response.json({ error: 'Invalid request' }, { status: 400 });

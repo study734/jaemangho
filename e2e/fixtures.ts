@@ -48,7 +48,8 @@ export async function createUser(key: string, name: string, role: 'admin' | 'use
   return { id, name, token };
 }
 
-export async function loginAs(context: BrowserContext, user: TestUser) {
+export async function loginAs(context: BrowserContext, user: TestUser, steamConsent = true) {
+  if (steamConsent) await db.query(`insert into steam_feature_consents(user_id,notice_version,storage_country) values($1,'steam-common-v1','test-only') on conflict(user_id) do update set notice_version=excluded.notice_version,revoked_at=null`, [user.id]);
   await context.addCookies([
     { name: SESSION_COOKIE, value: signedCookie(user.token), domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' },
   ]);

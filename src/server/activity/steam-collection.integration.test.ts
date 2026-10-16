@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { openTestDb, testDbUrl } from '../testing/db';
 
+vi.mock('./steam-policy', () => ({ STEAM_NOTICE_VERSION: 'test-v1' }));
+
 const STEAM_ID = '76561193000000002';
 const RATE_LIMIT_IDS = ['76561193000000003', '76561193000000004'];
 
@@ -14,6 +16,7 @@ describe.skipIf(!testDbUrl)('Steam 요청 계정 수집 (DB)', () => {
     await pool.query(`delete from ops_jobs where job = 'steam_activity'`);
     await pool.query(`insert into "user" (id, name, email, "emailVerified")
       values ('tsc_user', '수집테스트', 'tsc@test.invalid', false)`);
+    await pool.query(`insert into steam_feature_consents(user_id,notice_version,storage_country) values('tsc_user','steam-common-v1','test')`);
     await pool.query(`insert into steam_members (steam_id, persona_name, owner_id)
       values ($1, '수집테스트', 'tsc_user')`, [STEAM_ID]);
     await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'tsc_user')`, [STEAM_ID]);

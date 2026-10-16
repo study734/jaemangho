@@ -37,6 +37,8 @@ export interface RecommendationsResult {
   checked: number;
   unverified: number;
   recentUnavailable: string[];
+  sharedPreferences?: number;
+  metadataUnavailable?: number;
 }
 export interface Mission {
   id: string; title: string; description: string | null; kind: 'team-first' | 'catch-up'; unlockedIds: string[]; lockedIds: string[];
@@ -46,6 +48,7 @@ export interface MissionsResult {
   missions: Mission[]; totalPublic: number; completedTogether: number; unknownAchievements: number; unavailableIds: string[]; missingIds: string[];
 }
 export interface ActivityAccount {
+  noticeVersion?: string | null;
   steamId: string; name: string; verifiedAt: string; requestedAt: string | null;
   stoppedAt: string | null; lastSuccessAt: string | null; lastResult: string | null;
 }

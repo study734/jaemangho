@@ -8,6 +8,11 @@ const game = (appId: number, name: string, tags: TasteTag[], max: number, solo =
   source: `https://store.steampowered.com/app/${appId}/`, checkedAt: '2026-10-16',
 });
 export const recommendationCatalog: CatalogGame[] = [
+  // Official Steam feature lists confirm single-player; kept alongside co-op
+  // titles so personal recommendations are not a party-only catalog.
+  { appId: 1145360, name: 'Hades', tags: ['action', 'rpg', 'roguelike'], modes: [{ label: '싱글플레이', min: 1, max: 1, online: false }], source: 'https://store.steampowered.com/app/1145360/', checkedAt: '2026-10-16' },
+  { appId: 2379780, name: 'Balatro', tags: ['strategy', 'roguelike'], modes: [{ label: '싱글플레이', min: 1, max: 1, online: false }], source: 'https://store.steampowered.com/app/2379780/', checkedAt: '2026-10-16' },
+  { appId: 646570, name: 'Slay the Spire', tags: ['strategy', 'roguelike'], modes: [{ label: '싱글플레이', min: 1, max: 1, online: false }], source: 'https://store.steampowered.com/app/646570/', checkedAt: '2026-10-16' },
   game(620, 'Portal 2', ['action', 'adventure', 'puzzle', 'platformer', 'coop'], 2, true, 2),
   game(548430, 'Deep Rock Galactic', ['action', 'shooter', 'survival', 'coop'], 4),
   game(477160, 'Human Fall Flat', ['adventure', 'casual', 'puzzle', 'platformer', 'coop'], 8),
