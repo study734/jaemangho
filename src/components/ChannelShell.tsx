@@ -18,7 +18,7 @@ export function ChannelSidebar({ summary, isAdmin, userName, onOpenSettings }: {
   const router = useRouter();
   const pathname = usePathname();
   const sections = sectionsFor(isAdmin);
-  const categories = sections.filter(s => ['steam', 'lol', 'community', 'settings'].includes(s.id))
+  const categories = sections.filter(s => ['steam', 'schedule', 'lol', 'community', 'settings'].includes(s.id))
     .map(s => s.id === 'settings' ? { ...s, label: '관리자', items: s.items.filter(item => item.href !== '/lol/settings') } : s)
     .filter(s => s.items.length > 0);
   return (

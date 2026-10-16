@@ -4,6 +4,7 @@ import { ServiceMark, UiIcon } from './VisualImage';
 const PLAY = [
   { href: '/steam', title: 'Steam 공통 게임', description: '함께할 멤버를 선택하고 보유 게임을 비교해요. 게임 검색과 무작위 뽑기도 여기서.', service: 'steam' as const },
   { href: '/steam', title: '우리의 공동 도전', description: '선택한 멤버의 게임과 업적을 확인하고 함께 도전할 목표를 찾아요.', service: 'steam' as const },
+  { href: '/play/schedule', title: '일정과 리딤코드', description: '멤버가 올린 게임 이벤트 일정과 리딤코드를 모아 봐요. 기한이 지나면 자동으로 사라져요.', service: null },
   { href: '/lol', title: 'LoL 전적과 랭크', description: '친구들의 최근 전적, 랭크와 게임 현황을 확인해요.', service: 'leagueoflegends' as const },
   { href: '/lol/synergy', title: '듀오 시너지', description: '친구와 함께한 경기 기록에서 듀오 성적을 비교해요.', service: 'leagueoflegends' as const },
 ];

@@ -1508,3 +1508,17 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 @media (max-width: 600px) { .steam-consent-dialog { padding: 20px; } .steam-consent-actions { flex-direction: column; } }
 
 .steam-data-settings fieldset { border: 0; margin: 20px 0; padding: 0; min-width: 0; }
+
+/* 게임 일정·리딤코드 (/play/schedule) */
+.notice-form { display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin-bottom: 40px; }
+.notice-form label { display: flex; flex-direction: column; gap: 4px; color: var(--slate); font-size: 13px; }
+.notice-kinds { display: flex; gap: 8px; }
+.notice-form .btn-primary { align-self: flex-start; border-radius: 999px; min-height: 44px; }
+.notice-section { margin-bottom: 40px; }
+.notice-section h2 { font-size: 18px; margin-bottom: 12px; }
+.notice-empty { color: var(--slate); font-size: 14px; }
+.notice-error { color: var(--accent-pink); font-size: 14px; }
+.notice-row { display: flex; align-items: center; gap: 12px; padding: 12px; }
+.notice-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.notice-main small { color: var(--steel); font-size: 12px; }
+.notice-code { align-self: flex-start; padding: 2px 8px; border-radius: 8px; background: var(--surface-soft); color: var(--ink); user-select: all; }

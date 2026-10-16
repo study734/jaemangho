@@ -6,7 +6,7 @@ export interface NavItem {
   icon: ReactNode;
 }
 
-export type SectionId = 'home' | 'chat' | 'play' | 'memories' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
+export type SectionId = 'home' | 'chat' | 'play' | 'schedule' | 'memories' | 'lol' | 'steam' | 'community' | 'people' | 'settings';
 
 // 상단 메뉴바의 큰 주제와, 각 주제의 좌측 상세 메뉴
 export interface Section {
@@ -87,6 +87,19 @@ const STEAM: NavItem[] = [
   },
 ];
 
+const SCHEDULE: NavItem[] = [
+  {
+    href: '/play/schedule',
+    label: '일정 · 리딤코드',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+      </svg>
+    ),
+  },
+];
+
 const COMMUNITY: NavItem[] = [
   {
     href: '/community',
@@ -151,8 +164,9 @@ export function sectionsFor(isAdmin: boolean): Section[] {
   return [
     { id: 'home', label: '홈', items: HOME },
     { id: 'chat', label: '재순이와 대화', items: [{ href: '/chat', label: '재순이와 대화', icon: HOME[0].icon }] },
-    { id: 'play', label: '같이 놀기', items: [{ ...STEAM[0], href: '/play', label: '같이 놀기' }, ...STEAM, ...LOL] },
+    { id: 'play', label: '같이 놀기', items: [{ ...STEAM[0], href: '/play', label: '같이 놀기' }, ...STEAM, ...SCHEDULE, ...LOL] },
     { id: 'memories', label: '우리 기록', items: [{ ...COMMUNITY[0], href: '/memories', label: '우리 기록' }, ...COMMUNITY] },
+    { id: 'schedule', label: '일정 · 코드', items: SCHEDULE },
     { id: 'lol', label: '롤', items: LOL },
     { id: 'steam', label: 'Steam', items: STEAM },
     { id: 'community', label: '커뮤', items: COMMUNITY },
@@ -167,6 +181,7 @@ export function sectionOf(pathname: string): SectionId {
   if (pathname === '/') return 'home';
   if (pathname === '/chat') return 'chat';
   if (pathname === '/play') return 'play';
+  if (pathname === '/play/schedule') return 'schedule';
   if (pathname === '/memories') return 'memories';
   if (pathname.startsWith('/admin') || pathname.startsWith('/lol/settings')) return 'settings';
   if (pathname.startsWith('/steam')) return 'steam';
@@ -186,7 +201,7 @@ export const PRIMARY_DESTINATIONS = [
 
 export function primarySectionOf(pathname: string) {
   const section = sectionOf(pathname);
-  if (section === 'lol' || section === 'steam') return 'play';
+  if (section === 'lol' || section === 'steam' || section === 'schedule') return 'play';
   if (section === 'community') return 'memories';
   return section;
 }
