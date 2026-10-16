@@ -232,7 +232,7 @@ const styles = {
   recommendScore: { color: 'var(--primary)', fontSize: '13px' },
   hint: { color: 'var(--slate)', fontSize: '13px' },
   warn: { color: 'var(--accent-pink)', fontSize: '13px' },
-  error: { backgroundColor: '#fff8e0', color: '#946f3f', border: '1px solid #fa6e39', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
+  error: { backgroundColor: 'var(--canvas-dark)', color: 'var(--ink)', border: '2px solid #fa6e39', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
   panel: { backgroundColor: 'var(--surface)', border: '1px solid var(--hairline)', borderRadius: '8px', padding: 'var(--panel-padding)', display: 'flex', flexDirection: 'column' as const, gap: '16px' },
   addRow: { display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' as const },
   btn: { padding: '8px 20px' },

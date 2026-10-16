@@ -81,7 +81,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
         )}
 
         {CHANNEL_LINES[pathname] ? (
-          <div className="jaesuni-channel-feed" key={pathname}>
+          <div className="jaesuni-channel-feed" key={pathname} tabIndex={0}>
             <JaesuniMessage line={CHANNEL_LINES[pathname]}>
               {syncAction}
               <div className="jaesuni-tool-content">{children}</div>
@@ -125,26 +125,28 @@ const styles: { [key: string]: CSSProperties } = {
   syncRow: { padding: '16px var(--page-padding) 0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 },
   syncBtn: { fontSize: '12.5px', padding: '6px 14px' },
   errorBanner: {
-    backgroundColor: '#fff8e0',
-    color: '#946f3f',
+    backgroundColor: 'var(--canvas-dark)',
+    color: 'var(--ink)',
     padding: '12px 24px',
     fontSize: '13px',
     fontWeight: 500,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottom: '1.5px solid #fa6e39',
+    borderBottom: '3px solid #fa6e39',
     zIndex: 5,
   },
   errorCloseBtn: {
     fontSize: '11px',
     padding: '4px 10px',
-    color: '#946f3f',
+    color: 'var(--ink)',
     cursor: 'pointer',
     backgroundColor: 'transparent',
-    border: '1px solid #946f3f',
+    border: '2px solid #fa6e39',
     borderRadius: '4px',
     marginLeft: '16px',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
     fontWeight: 600,
   },
 };

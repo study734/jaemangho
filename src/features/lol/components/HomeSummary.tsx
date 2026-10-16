@@ -27,7 +27,7 @@ export function LolHomeSummary() {
       {!isLoading && error && <p>현황을 불러오지 못했어요. 롤 화면에서 다시 확인해 주세요.</p>}
       {!isLoading && !error && members.length === 0 && <p>소환사를 등록하면 친구들의 랭크가 여기에 모여요.</p>}
       {members.length > 0 && (
-        <div className="home-roster">
+        <div className="home-roster" tabIndex={0}>
           <table aria-label="등록 소환사 랭크 요약">
             <thead><tr><th scope="col">소환사</th><th scope="col">티어</th><th scope="col">LP</th><th scope="col">승 / 패</th></tr></thead>
             <tbody>{members.slice(0, 4).map((m) => (
