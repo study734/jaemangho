@@ -38,7 +38,7 @@ export function SettingsDialog({ userName, isAdmin, children, onClose }: {
   }}>
     <aside className="settings-dialog-sidebar">
       <div className="settings-profile">
-        <span className="channel-user-avatar" aria-hidden="true">{userName.slice(0, 1)}</span>
+        <span className="settings-avatar" aria-hidden="true">{userName.slice(0, 1)}</span>
         <div><b>{userName}</b><span>사용자 설정</span></div>
       </div>
       <nav aria-label="설정 메뉴">

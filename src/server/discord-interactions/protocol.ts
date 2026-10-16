@@ -17,11 +17,12 @@ const envelope = {
 };
 export const interactionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal(1) }),
-  z.object({ ...envelope, type: z.literal(2), data: z.discriminatedUnion('type', [
+  z.object({ ...envelope, type: z.literal(2), data: z.discriminatedUnion('name', [
     z.object({
       name: z.literal('게임추천'), type: z.literal(1),
       options: z.array(z.object({ name: z.literal('범위'), type: z.literal(3), value: scope })).max(1).optional(),
     }),
+    z.object({ name: z.literal('패치노트'), type: z.literal(1) }),
     z.object({
       name: z.literal('출처 찾기'), type: z.literal(3), target_id: snowflake,
       resolved: z.object({ messages: z.record(snowflake, z.object({ attachments: z.array(attachment).max(10).default([]) })) }),

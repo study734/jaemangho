@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getViewer } from '@/server/viewer';
+import { VisualImage } from '@/components/VisualImage';
 import { LoginButton } from './login-button';
 
 // 로그인 라이브러리가 돌려주는 오류 코드를 사용자에게 보여줄 문구로 바꾼다
@@ -15,14 +16,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (!error && (await getViewer()).status === 'ok') redirect('/');
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, background: 'var(--canvas-dark)', color: 'var(--ink)' }}>
-      <h1 className="heading-1" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <img src="/favicon.svg" width="48" height="48" alt="" aria-hidden="true" />
-        재망호
-      </h1>
-      <p className="subtitle">{error ? messageFor(error) : '크루 디스코드 서버 멤버만 접속할 수 있습니다.'}</p>
-      {error && <p style={{ color: 'var(--steel)', fontSize: 12 }}>오류 코드: {error}</p>}
-      <LoginButton />
-    </div>
+    <main className="lobby login-lobby">
+      <VisualImage src="/images/jaesuni-home.webp" fallback="" width={1942} height={809} className="lobby-art" />
+      <div className="lobby-veil" aria-hidden="true" />
+      <div className="lobby-edge" aria-hidden="true" />
+      <div className="lobby-main">
+        <section className="lobby-card" aria-labelledby="login-title">
+          <p className="lobby-tape">크루 전용</p>
+          <h1 id="login-title" className="lobby-title login-title"><img src="/favicon.svg" width="56" height="56" alt="" aria-hidden="true" />재망호</h1>
+          <p className="subtitle">{error ? messageFor(error) : '크루 디스코드 서버 멤버만 접속할 수 있습니다.'}</p>
+          {error && <p style={{ color: 'var(--steel)', fontSize: 12 }}>오류 코드: {error}</p>}
+          <LoginButton />
+        </section>
+      </div>
+    </main>
   );
 }
