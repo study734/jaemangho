@@ -1462,3 +1462,19 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
   .chat-reset { margin: 8px 16px 0; }
   .app-chat-link { padding: 8px; gap: 4px; font-size: 12px; }
 }
+
+/* Explicit member scope and opt-in memory stay secondary to conversation. */
+.agent-settings { margin-bottom: 24px; border-bottom: 1px solid var(--hairline); padding-bottom: 12px; font-size: 13px; }
+.agent-settings > summary { cursor: pointer; min-height: 44px; padding: 12px 0; color: var(--primary); line-height: 1.6; }
+.agent-settings fieldset { border: 0; padding: 0; margin: 20px 0; max-height: 220px; overflow-y: auto; }
+.agent-settings legend, .agent-select-label { display: block; color: var(--slate); font-size: 12px; margin-bottom: 8px; }
+.agent-settings fieldset label { display: flex; align-items: center; gap: 10px; min-height: 44px; overflow-wrap: anywhere; }
+.agent-settings fieldset input { accent-color: var(--primary); flex-shrink: 0; }
+.agent-settings .text-input { width: 100%; min-width: 0; padding: 10px; font: inherit; font-size: 13px; }
+.agent-settings textarea { resize: vertical; min-height: 96px; height: auto; line-height: 1.7; }
+.agent-settings form { margin-top: 24px; }
+.agent-settings-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.agent-settings-actions .btn { min-height: 44px; }
+.chat-tool-label { color: var(--accent-pink); font-size: 12px; margin-top: 12px; }
+.chat-inline-evidence { margin-top: 8px; font-size: 12px; color: var(--slate); }
+.chat-inline-evidence summary { cursor: pointer; min-height: 44px; padding: 12px 0; }

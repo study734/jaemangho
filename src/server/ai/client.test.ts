@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { complete, AI_MODEL } from './client';
+import { complete, requestModel, messagesFor, AI_MODEL } from './client';
 import { analysisSchema } from './context';
 
 const input = analysisSchema.parse({ context: { topic: 'general' } });
@@ -26,6 +26,22 @@ describe('NVIDIA client', () => {
     expect(messages.map((message: { role: string }) => message.role)).toEqual(['system', 'user', 'assistant', 'user']);
     expect(messages[2].content).toBe('어떤 분위기?');
     expect(JSON.parse(messages[3].content).question).toBe('가볍게');
+  });
+  it('accepts one native tool call and excludes private selection references from model messages', async () => {
+    const ref = 's_' + '1'.repeat(24);
+    const input = analysisSchema.parse({ context: { topic: 'general' }, selection: { steam: [ref] }, history: [
+      { role: 'user', content: '질문', context: { topic: 'general' }, selection: { steam: [ref] } },
+      { role: 'assistant', content: '답변' },
+    ] });
+    const messages = messagesFor(input, '', { steam: 1, lol: false, changed: false });
+    expect(JSON.stringify(messages)).not.toContain(ref);
+    const response = { choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [
+      { id: 'call_one', type: 'function', function: { name: 'get_common_games', arguments: '{}' } },
+    ] } }] };
+    const transport = vi.fn(async () => Response.json(response));
+    const tools = [{ type: 'function' as const, function: { name: 'get_common_games', description: '공통 게임', parameters: { type: 'object', properties: {} } } }];
+    await expect(requestModel(messages, { apiKey: 'test', fetch: transport, tools })).resolves.toMatchObject({ message: { tool_calls: [{ function: { name: 'get_common_games' } }] } });
+    await expect(requestModel(messages, { apiKey: 'test', fetch: transport })).rejects.toMatchObject({ code: 'invalid_response' });
   });
   it.each(['', 'NVIDIA_API_KEY', '$NVIDIA_API_KEY'])('rejects missing/placeholder credentials: %s', async apiKey => {
     const transport = vi.fn();

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAnalysisService } from './service';
 import type { AnalysisInput } from './context';
 
-const input: AnalysisInput = { context: { topic: 'general' }, question: '', history: [] };
+const input: AnalysisInput = { context: { topic: 'general' }, question: '', history: [], selection: { steam: [], lol: null } };
 const result = { answer: '답변', model: 'test', truncated: false };
 describe('analysis request coordination', () => {
   it('shares identical in-flight calls, separates users and expires cached answers', async () => {
@@ -12,8 +12,7 @@ describe('analysis request coordination', () => {
     const analyze = createAnalysisService(generate, () => time);
     const first = analyze('one', input);
     const duplicate = analyze('one', input);
-    await Promise.resolve();
-    expect(generate).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
     await expect(analyze('one', { ...input, question: '다른 질문' })).rejects.toMatchObject({ status: 429 });
     finish(result);
     await expect(first).resolves.toEqual(result);
@@ -45,6 +44,16 @@ describe('analysis request coordination', () => {
       { role: 'assistant', content: '앞선 답변' },
     ] });
     expect(generate).toHaveBeenCalledTimes(2);
+  });
+  it('invalidates answer reuse when the explicitly stored preference changes', async () => {
+    let note = '협동';
+    const generate = vi.fn(async () => result);
+    const analyze = createAnalysisService(generate, () => 0, async () => note);
+    await analyze('one', input);
+    note = '경쟁';
+    await analyze('one', input);
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate).toHaveBeenLastCalledWith(input, 'one', '경쟁');
   });
   it('bounds global in-flight work without introducing a queue', async () => {
     const generate = vi.fn(() => new Promise<typeof result>(() => {}));

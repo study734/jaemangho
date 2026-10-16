@@ -1,8 +1,8 @@
 import { mkdir } from 'node:fs/promises';
 import { cleanup, createUser, db, expect, loginAs, mockRiot, seedDiscovery, statusOf, test } from './fixtures';
 
-test.beforeEach(cleanup);
-test.afterAll(cleanup);
+test.beforeEach(async () => { await cleanup(); await db.query("delete from steam_members where steam_id in ('76561190000000001','76561190000000002')"); });
+test.afterAll(async () => { await cleanup(); await db.query("delete from steam_members where steam_id in ('76561190000000001','76561190000000002')"); });
 const answer = (text: string) => ({ answer: text, model: 'fixture', truncated: false });
 
 test('AI API는 로그인 보호와 미설정 안내를 유지한다', async ({ page, context }) => {
@@ -182,4 +182,66 @@ test('롤 세 화면·홈·기록에서 익명화한 해당 자료로 대화를 
     await page.getByRole('button', { name: '메시지 보내기' }).click();
     await expect(page.getByRole('article', { name: '재순이 메시지' })).toContainText(`${topic} 자료`);
   }
+});
+
+
+test('멤버 선택·명시적 개인 취향·조회 자료를 대화방에서 관리한다', async ({ page, context, browser }) => {
+  const user = await createUser('agent_owner', '조회하는 친구');
+  const other = await createUser('agent_other', '다른 친구');
+  await db.query(`insert into steam_members(steam_id,persona_name) values ('76561190000000001','선택 친구 1'), ('76561190000000002','선택 친구 2')`);
+  await loginAs(context, user);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  let calls = 0;
+  const evidence = { capturedAt: new Date().toISOString(), context: { topic: 'steam', mode: 'common', scope: 'all', preference: 'balanced', people: 2, excluded: 0, unverified: 0, recentUnavailable: 0,
+    games: [{ name: 'Portal 2', owners: 2, totalMinutes: 120 }] } };
+  await page.route('**/api/ai', route => {
+    calls++;
+    const input = route.request().postDataJSON();
+    expect(input.selection.steam).toHaveLength(2);
+    expect(route.request().postData()).not.toContain('76561190000000001');
+    expect(route.request().postData()).not.toContain('선택 친구');
+    return route.fulfill({ json: { ...answer('두 명이 공통으로 보유한 게임에 Portal 2가 있어. 최대 인원은 스토어에서 확인해 줘.'), toolsUsed: ['Steam 공통 게임 조회'], evidence } });
+  });
+  await page.goto('/chat');
+  const panel = page.getByRole('complementary', { name: '현재 참고 자료' });
+  await panel.getByText('멤버·취향 설정', { exact: true }).click();
+  await panel.getByRole('checkbox', { name: '선택 친구 1' }).check();
+  await panel.getByRole('checkbox', { name: '선택 친구 2' }).check();
+  const preference = panel.getByRole('textbox', { name: '재순이가 기억할 내 취향' });
+  await preference.fill('경쟁 게임보다 협동 게임을 좋아해.');
+  expect(calls).toBe(0);
+  expect((await db.query('select note from ai_preferences where user_id=$1', [user.id])).rowCount).toBe(0);
+  await panel.getByRole('button', { name: '취향 저장' }).click();
+  await expect(panel.getByRole('status')).toContainText('취향을 저장했어요');
+  await page.getByRole('textbox', { name: '재순이에게 메시지' }).fill('선택한 두 명의 공통 게임을 찾아줘');
+  await page.getByRole('button', { name: '메시지 보내기' }).click();
+  const reply = page.getByRole('article', { name: '재순이 메시지' });
+  await expect(reply.getByText('Steam 공통 게임 조회', { exact: true })).toBeVisible();
+  await expect(panel.locator('.chat-source-list')).toContainText('Portal 2');
+  expect(calls).toBe(1);
+  await mkdir('output/playwright', { recursive: true });
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    if (width <= 1024) await page.getByRole('button', { name: '참고 자료 1', exact: true }).click();
+    await expect(preference).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `output/playwright/agent-settings-${width}.png` });
+    if (width <= 1024) await page.getByRole('button', { name: '닫기', exact: true }).click();
+  }
+  const separate = await browser.newContext();
+  try {
+    await loginAs(separate, other);
+    const otherPage = await separate.newPage();
+    await otherPage.goto('/chat');
+    await otherPage.getByText('멤버·취향 설정', { exact: true }).click();
+    await expect(otherPage.getByRole('textbox', { name: '재순이가 기억할 내 취향' })).toHaveValue('');
+  } finally { await separate.close(); }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.reload();
+  await page.getByText('멤버·취향 설정', { exact: true }).click();
+  await expect(preference).toHaveValue('경쟁 게임보다 협동 게임을 좋아해.');
+  await expect(panel.getByRole('checkbox', { name: '선택 친구 1' })).not.toBeChecked();
+  await panel.getByRole('button', { name: '기억 지우기' }).click();
+  await expect(panel.getByRole('status')).toContainText('취향을 지웠어요');
+  expect((await db.query('select note from ai_preferences where user_id=$1', [user.id])).rowCount).toBe(0);
 });

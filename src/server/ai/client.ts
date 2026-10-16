@@ -9,17 +9,35 @@ export class AiError extends Error {
     super(message, upstreamStatus ? { cause: { status: upstreamStatus } } : undefined); this.code = code; this.status = status;
   }
 }
+export interface ToolDefinition { type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }
+export interface ModelMessage { role: 'system' | 'user' | 'assistant' | 'tool'; content: string | null; tool_call_id?: string;
+  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] }
 const completionSchema = z.object({ choices: z.array(z.object({
-  finish_reason: z.string().nullable().optional(), message: z.object({ content: z.string().trim().min(1).max(16000) }),
+  finish_reason: z.string().nullable().optional(), message: z.object({
+    content: z.string().trim().max(16000).nullable().optional(),
+    tool_calls: z.array(z.object({ id: z.string().min(1).max(200), type: z.literal('function'),
+      function: z.object({ name: z.string().min(1).max(100), arguments: z.string().max(2000) }),
+    })).min(1).max(1).optional(),
+  }),
 })).min(1) });
 
-// Fixed endpoint/model and an injected transport keep credentials on the server
-// and allow failures to be reproduced without contacting NVIDIA.
-export async function complete(input: AnalysisInput, options: { apiKey?: string; fetch?: typeof fetch; timeoutMs?: number } = {}) {
+export function messagesFor(input: AnalysisInput, preference = '', scope?: { steam: number; lol: boolean; changed: boolean }): ModelMessage[] {
+  return [{ role: 'system', content: SYSTEM_PROMPT },
+    ...(preference ? [{ role: 'user' as const, content: JSON.stringify({ savedPreference: preference, note: '사용자가 저장한 취향 자료. 현재 질문이 우선한다.' }) }] : []),
+    ...input.history.map(message => message.role === 'user'
+      ? { role: 'user' as const, content: JSON.stringify({ question: message.content, context: message.context }) }
+      : { role: 'assistant' as const, content: message.content }),
+    { role: 'user', content: JSON.stringify({ context: input.context, question: input.question, ...(scope ? { selectedMembers: scope } : {}) }) }];
+}
+
+export interface ModelOptions { apiKey?: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal; tools?: ToolDefinition[] }
+// Provider transport has no dependency on Jaemangho's tools, database or UI.
+export async function requestModel(messages: ModelMessage[], options: ModelOptions = {}) {
   const key = (options.apiKey ?? process.env.NVIDIA_API_KEY)?.trim();
   if (!key || key === '$NVIDIA_API_KEY' || key === 'NVIDIA_API_KEY')
     throw new AiError('not_configured', 503, 'AI 연결이 준비되지 않았어요. 서버의 NVIDIA_API_KEY 설정을 확인해 주세요.');
-  const signal = AbortSignal.timeout(options.timeoutMs ?? 25_000);
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
+  const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let response: Response;
   try {
     response = await (options.fetch ?? fetch)('https://integrate.api.nvidia.com/v1/chat/completions', {
@@ -27,10 +45,7 @@ export async function complete(input: AnalysisInput, options: { apiKey?: string;
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       // GLM-5.3-Flash defaults to max reasoning; low suits short chat turns.
       body: JSON.stringify({ model: AI_MODEL, reasoning_effort: 'low', temperature: 0.5, top_p: 1, max_tokens: 2048, stream: false,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...input.history.map(message => message.role === 'user'
-          ? { role: 'user', content: JSON.stringify({ question: message.content, context: message.context }) }
-          : { role: 'assistant', content: message.content }),
-        { role: 'user', content: JSON.stringify({ context: input.context, question: input.question }) }] }),
+        messages, ...(options.tools ? { tools: options.tools, tool_choice: 'auto', parallel_tool_calls: false } : {}), }),
     });
   } catch {
     throw signal.aborted ? new AiError('timeout', 504, 'AI 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.')
@@ -47,10 +62,17 @@ export async function complete(input: AnalysisInput, options: { apiKey?: string;
   try {
     const result = completionSchema.parse(await response.json());
     const choice = result.choices[0];
-    if (choice.finish_reason && !['stop', 'length'].includes(choice.finish_reason)) throw new Error('invalid completion');
-    return { answer: choice.message.content, truncated: choice.finish_reason === 'length', model: AI_MODEL };
+    if (choice.finish_reason && !['stop', 'length', 'tool_calls'].includes(choice.finish_reason)) throw new Error('invalid completion');
+    if (!choice.message.tool_calls && !choice.message.content) throw new Error('empty completion');
+    if (choice.message.tool_calls && (!options.tools || choice.finish_reason === 'length')) throw new Error('unexpected tool call');
+    return { message: { ...choice.message, content: choice.message.content ?? null }, truncated: choice.finish_reason === 'length', model: AI_MODEL };
   } catch {
     if (signal.aborted) throw new AiError('timeout', 504, 'AI 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.');
     throw new AiError('invalid_response', 502, 'AI 응답을 읽지 못했어요. 다시 시도해 주세요.');
   }
+}
+
+export async function complete(input: AnalysisInput, options: ModelOptions = {}) {
+  const result = await requestModel(messagesFor(input), options);
+  return { answer: result.message.content!, model: result.model, truncated: result.truncated };
 }

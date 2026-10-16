@@ -22,7 +22,7 @@ describe('AI authenticated boundary', () => {
     const response = await POST(request());
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toBe('no-store');
-    expect(analyze).toHaveBeenCalledExactlyOnceWith('user', { context: { topic: 'general' }, question: '', history: [] });
+    expect(analyze).toHaveBeenCalledExactlyOnceWith('user', { context: { topic: 'general' }, question: '', history: [], selection: { steam: [], lol: null } });
   });
   it('returns recoverable errors with safe diagnostics and IDs', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
