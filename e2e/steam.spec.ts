@@ -225,7 +225,7 @@ test('추천 범위를 바꾸면 일부 보유·전원 미보유 후보와 안�
   await expect(page.getByLabel('오늘은 어떤 게임?')).toHaveValue('discovery');
   await page.getByRole('button', { name: '추천받기 (2명)' }).click();
   await expect(page.getByText('보유 목록에 없는 멤버: 철수, 영희', { exact: true })).toBeVisible();
-  await expect(page.getByText('추천 기준: Steam 인기·신규 목록 순', { exact: true })).toBeVisible();
+  await expect(page.getByText('추천 기준: Steam 인기·신규 후보 + 공통 취향', { exact: true })).toBeVisible();
   await expect(page.getByText(/추천 점수 70/)).toHaveCount(0);
   await expect(page.getByText(/개인별 플레이|보유자별 플레이/)).toHaveCount(0);
   for (const width of [1440, 1024, 390]) {

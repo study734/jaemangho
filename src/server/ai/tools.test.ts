@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const fakes = vi.hoisted(() => ({ steam: vi.fn(), roster: vi.fn(), compare: vi.fn(), proxy: vi.fn(), sql: vi.fn(), personal: vi.fn() }));
+const fakes = vi.hoisted(() => ({ steam: vi.fn(), roster: vi.fn(), compare: vi.fn(), proxy: vi.fn(), sql: vi.fn(), consent: vi.fn() }));
 vi.mock('../steam/roster', () => ({ listSteamMembers: fakes.steam }));
 vi.mock('../steam/games', () => ({ compareGames: fakes.compare }));
 vi.mock('../lol/roster', () => ({ listRoster: fakes.roster }));
 vi.mock('../riot/proxy', () => ({ proxyRiot: fakes.proxy }));
 vi.mock('../db', () => ({ db: async () => fakes.sql }));
-vi.mock('../steam/personalized', () => ({ personalizedGames: fakes.personal }));
+vi.mock('../steam/consent', () => ({ hasSteamConsent: fakes.consent }));
 vi.mock('./steam-tools', () => ({ steamArguments: {}, steamRead: vi.fn() }));
 import { memberChoices, parseTool, readTool } from './tools';
 const signal = () => new AbortController().signal;
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.resetAllMocks(); fakes.consent.mockResolvedValue(true);
   fakes.steam.mockResolvedValue([{ steamId: '76561190000000001', name: 'private-name' }]);
   fakes.roster.mockResolvedValue([{ id: 'private-id', gameName: 'private-name', tagLine: 'private-tag' }]);
   fakes.compare.mockResolvedValue({ games: [{ name: 'Portal 2', totalMinutes: 60, owners: 1, appId: 620 }], excluded: [] });
@@ -51,18 +51,12 @@ describe('read-only agent tools', () => {
     await expect(readTool('get_activity_summary', { steam: [], lol: null }, controller.signal)).rejects.toThrow();
     expect(fakes.sql).not.toHaveBeenCalled();
   });
-  it('passes authenticated identity to recommendations but returns only anonymous display facts', async () => {
-    fakes.steam.mockResolvedValue([{ steamId: '76561190000000001', name: 'private-name', ownerId: 'actor' }]);
-    const choices = await memberChoices();
-    fakes.personal.mockResolvedValue({ kind: 'personal', people: 1, excluded: [], recentUnavailable: [], metadataUnavailable: 0,
-      sharedPreferences: 1, catalogSize: 10, games: [{ appId: 620, name: 'Portal 2', totalMinutes: 120, owners: 1, score: 80, modes: [{ label: '온라인 협동', min: 2, max: 2, online: true }], reasons: ['저장한 취향'], checkedAt: '2026-10-16', missingIds: [] }] });
-    const result = await readTool('get_personal_games', { steam: [choices.steam[0].ref], lol: null }, signal(), 'actor');
-    expect(fakes.personal).toHaveBeenCalledExactlyOnceWith('actor', { ids: ['76561190000000001'], scope: 'any', solo: false }, expect.any(AbortSignal));
-    expect(result.context).toMatchObject({ kind: 'personal', games: [{ modes: [{ min: 2, max: 2 }] }] });
-    expect(JSON.stringify(result)).not.toMatch(/actor|private-|7656119|appId/);
-    const fresh = await readTool('get_personal_games', { steam: [choices.steam[0].ref], lol: null }, signal(), 'actor', { scope: 'new', solo: true });
-    expect(fresh.context).toMatchObject({ scope: 'unowned' });
-    expect(fakes.personal).toHaveBeenLastCalledWith('actor', { ids: ['76561190000000001'], scope: 'new', solo: true }, expect.any(AbortSignal));
-    expect(await readTool('get_personal_games', { steam: [choices.steam[0].ref], lol: null }, signal(), 'other')).toMatchObject({ status: 'selection_required' });
+  it('requires Steam feature consent for Steam tools and removes personal recommendation tools', async () => {
+    expect(() => parseTool('get_personal_games', '{}')).toThrow('unsupported_tool');
+    fakes.consent.mockResolvedValue(false);
+    const result = await readTool('get_common_games', { steam: [], lol: null }, signal(), 'actor');
+    expect(result.status).toBe('selection_required');
+    expect(fakes.compare).not.toHaveBeenCalled();
+    expect(fakes.steam).not.toHaveBeenCalled();
   });
 });

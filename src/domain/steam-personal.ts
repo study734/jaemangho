@@ -6,19 +6,3 @@ export interface GameTaste { likes: TasteTag[]; avoids: TasteTag[]; likedGames: 
 export const emptyTaste = (): GameTaste => ({ likes: [], avoids: [], likedGames: [], avoidedGames: [] });
 export interface GameMode { label: string; min: number; max: number; online: boolean }
 export interface CatalogGame { appId: number; name: string; tags: TasteTag[]; modes: GameMode[]; source: string; checkedAt: string; note?: string }
-export interface TasteRecommendation extends CatalogGame { score: number | null; reasons: string[]; owners: number; totalMinutes: number; missingIds: string[]; modes: GameMode[] }
-export interface PersonalResult { games: TasteRecommendation[]; excluded: string[]; recentUnavailable: string[];
-  people: number; sharedPreferences: number; catalogSize: number; sourceGames: number; metadataUnavailable: number;
-  capturedAt: string }
-
-// Only anonymous display facts cross into AI context; never profile notes, member
-// IDs or the legend linking a recommendation to a particular person's taste.
-export function recommendationFacts(result: Pick<PersonalResult, 'people' | 'excluded' | 'metadataUnavailable' | 'recentUnavailable'> &
-  { games: Pick<TasteRecommendation, 'name' | 'totalMinutes' | 'owners' | 'score' | 'modes' | 'reasons' | 'checkedAt'>[] }) {
-  return { topic: 'steam' as const, mode: 'recommendations' as const, scope: 'any' as const, preference: 'balanced' as const,
-    kind: 'personal' as const, people: result.people, excluded: result.excluded.length, unverified: result.metadataUnavailable,
-    recentUnavailable: result.recentUnavailable.length, games: result.games.map(game => ({ name: game.name,
-      totalMinutes: game.totalMinutes, owners: game.owners, score: game.score, modes: game.modes,
-      recommendationReasons: game.reasons, sourceCheckedAt: game.checkedAt,
-    })) };
-}

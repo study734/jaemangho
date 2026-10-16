@@ -1,8 +1,7 @@
 'use client';
 
 import { AiPanel } from '@/features/ai';
-import { SteamGames, PersonalRecommendations } from '@/features/steam';
-import { recommendationFacts } from '@/domain/steam-personal';
+import { SteamGames } from '@/features/steam';
 import { useLol } from '@/features/lol';
 import type { AiContext } from '@/server/ai/context';
 import { lolContext, steamContext } from './ai-context';
@@ -18,10 +17,6 @@ export function SteamWithAi(props: { initialQuery: string; linkResult?: string }
     const context = steamContext(snapshot);
     return context ? <AiInsight context={context} /> : null;
   }} />;
-}
-
-export function PersonalGamesWithAi() {
-  return <PersonalRecommendations renderAnalysis={result => <AiInsight context={recommendationFacts(result)} />} />;
 }
 
 export function LolAi({ view }: { view: 'overview' | 'synergy' | 'mastery' }) {

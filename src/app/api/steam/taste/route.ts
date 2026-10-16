@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requireUser } from '@/server/viewer';
+import { requireSteamUser } from '@/server/steam/consent';
 import { parseBounded, serverError } from '@/server/http';
 import { readTaste, saveTaste, deleteTaste, tasteSchema, TasteInputError } from '@/server/steam/tastes';
 import { listSteamMembers } from '@/server/steam/roster';
@@ -7,7 +7,7 @@ import { recommendationCatalog } from '@/server/steam/catalog';
 import { tasteTags, tasteLabels } from '@/domain/steam-personal';
 
 export async function GET() {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   try {
     const [taste, members] = await Promise.all([readTaste(user.id), listSteamMembers()]);
@@ -15,7 +15,7 @@ export async function GET() {
   } catch (error) { return serverError(error, 'steam.taste.GET'); }
 }
 export async function PUT(request: Request) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const input = await parseBounded(request, tasteSchema, 16_384);
   if (!input.ok) return input.response;
@@ -28,7 +28,7 @@ export async function PUT(request: Request) {
   }
 }
 export async function DELETE(request: Request) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const input = await parseBounded(request, z.object({}).strict(), 100);
   if (!input.ok) return input.response;

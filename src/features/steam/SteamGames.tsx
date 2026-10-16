@@ -1,17 +1,21 @@
 'use client';
 
 import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
 import { type Mode, type OwnershipScope, type Preference, steamApi } from './api';
 import { createGamesModel, type GamesSnapshot } from './gamesModel';
-import { SteamActivitySettings } from './ActivitySettings';
+import { SteamConsentGate } from './ConsentGate';
+import { SteamTasteSettings } from './TasteSettings';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
 const hours = (minutes: number) => (minutes === 0 ? '0시간' : `${Math.max(1, Math.round(minutes / 60)).toLocaleString()}시간`);
 const duration = (minutes: number) => minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60).toLocaleString()}시간${minutes % 60 ? ` ${minutes % 60}분` : ''}`;
 const scopeLabels = { all: '모두 보유', any: '일부 보유 포함', unowned: '아무도 미보유' };
 
-export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { initialQuery?: string; linkResult?: string;
+export function SteamGames(props: { initialQuery?: string; linkResult?: string; renderAnalysis?: (snapshot: GamesSnapshot) => ReactNode }) {
+  return <SteamConsentGate><SteamGamesContent {...props} /></SteamConsentGate>;
+}
+
+function SteamGamesContent({ initialQuery = '', linkResult, renderAnalysis }: { initialQuery?: string; linkResult?: string;
   renderAnalysis?: (snapshot: GamesSnapshot) => ReactNode }) {
   const [model] = useState(() => createGamesModel(steamApi, initialQuery));
   const snapshot = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getServerSnapshot);
@@ -33,9 +37,9 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
     <div style={styles.container}>
       <header style={styles.header}>
         <h2 className="heading-3 visual-heading" style={styles.title}><ServiceMark service="steam" size={36} />같이 할 Steam 게임</h2>
-        <p style={styles.hint}>함께할 사람을 고르고 보유 범위를 선택해 게임을 찾아요. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보유 여부를 확인할 수 있습니다.</p>
-        <Link className="btn btn-secondary" href="/steam/recommend">내 취향으로 게임 추천</Link>
+        <p style={styles.hint}>함께할 멤버의 플레이 기록과 동의한 저장 취향을 섞어 협동 게임을 찾아요. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보유 여부를 확인할 수 있습니다.</p>
       </header>
+
 
       {error && <div style={styles.error} role="alert">{error}
         {members.length === 0 && <button className="btn btn-secondary" disabled={loading} onClick={loadMembers}>목록 다시 불러오기</button>}
@@ -95,7 +99,7 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
           </select>
           <label htmlFor="steam-recommend-preference" style={styles.hint}>오늘은 어떤 게임?</label>
           <select id="steam-recommend-preference" className="text-input" value={scope === 'unowned' ? 'discovery' : preference} disabled={busy !== null || scope === 'unowned'} onChange={e => model.setPreference(e.target.value as Preference)}>
-            {scope === 'unowned' && <option value="discovery">Steam 인기·신규 목록 순</option>}
+            {scope === 'unowned' && <option value="discovery">Steam 인기·신규 후보 + 공통 취향</option>}
             <option value="balanced">경험이 비슷한 게임</option>
             <option value="familiar">익숙한 게임</option>
             <option value="fresh">새로 해 볼 게임</option>
@@ -105,7 +109,7 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
             {busy === 'recommend' ? '추천 찾는 중...' : `추천받기 (${selected.length}명)`}
           </button>
         </div>
-        <p style={styles.hint}>2~20명을 선택해 주세요. {scope === 'all' ? '모두 보유한 게임만 추천해요.' : scope === 'any' ? '한 명 이상 보유한 게임을 포함하고, 보유 목록에 없는 멤버를 표시해요.' : 'Steam 인기·신규 목록에서 전원의 보유 목록에 없는 게임을 찾아요. 플레이 경험 기준은 적용하지 않아요.'} 멀티플레이·협동 지원을 확인해요.</p>
+        <p style={styles.hint}>2~20명을 선택해 주세요. {scope === 'all' ? '모두 보유한 게임만 추천해요.' : scope === 'any' ? '한 명 이상 보유한 게임을 포함하고, 보유 목록에 없는 멤버를 표시해요.' : 'Steam 인기·신규 목록에서 전원의 보유 목록에 없는 게임을 찾아요. 확인한 게임 특성과 참여자 취향을 함께 반영해요.'} 온라인 협동 지원을 확인해요. 아래 내 추천 데이터·취향 설정에서 좋아하거나 피하는 게임을 알려 주세요.</p>
 
         <div style={styles.addRow} className="steam-compare-row">
           <select className="text-input" value={mode} disabled={busy !== null} onChange={(e) => model.setMode(e.target.value as Mode)} aria-label="찾을 게임 종류">
@@ -118,11 +122,13 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
         </div>
       </section>
 
+      <SteamTasteSettings linkResult={linkResult} />
+
       {recommendations && (
         <section style={styles.panel} aria-labelledby="steam-recommend-title">
           <h3 id="steam-recommend-title" style={styles.recommendTitle}>오늘 같이 할 게임</h3>
           <p style={styles.hint}>추천 범위: {scopeLabels[recommendations.scope]} · {recommendations.ids.map(nameOf).join(', ')}</p>
-          <p style={styles.hint}>추천 기준: {recommendations.scope === 'unowned' ? 'Steam 인기·신규 목록 순' : ({ balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임', recent: '요즘 크루픽 (최근 2주)' })[recommendations.preference]}</p>
+          <p style={styles.hint}>추천 기준: {recommendations.scope === 'unowned' ? 'Steam 인기·신규 후보 + 공통 취향' : ({ balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임', recent: '요즘 크루픽 (최근 2주)' })[recommendations.preference]}</p>
           {recommendations.data.excluded.length > 0 ? (
             <p style={styles.warn} role="status">게임 목록을 확인할 수 없는 사람: {recommendations.data.excluded.map(nameOf).join(', ')}. 전원의 보유 목록을 확인할 수 없어 추천을 보류했어요. 게임 세부 정보를 공개하거나 선택을 바꿔 주세요.</p>
           ) : (
@@ -131,10 +137,11 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
               {recommendations.data.unverified > 0 && <p style={styles.warn} role="status">스토어 정보를 확인하지 못한 {recommendations.data.unverified}개는 추천에서 제외했어요. 잠시 후 다시 추천받아 보세요.</p>}
               {(recommendations.data.recentUnavailable ?? []).length > 0 && <p style={styles.warn} role="status">최근 기록을 확인할 수 없는 사람: {recommendations.data.recentUnavailable.map(nameOf).join(', ')}. 확인된 기록만 반영했어요.</p>}
               <p style={styles.hint}>최대 인원과 온라인 플레이 방식은 Steam에서 확인해 주세요. 플레이 시간은 실력을 뜻하지 않아요.</p>
-              {recommendations.scope === 'unowned' ? <p style={styles.hint}>Steam 전체 게임을 검색한 결과는 아니에요. 플레이 기록이 없는 후보에는 경험 점수를 표시하지 않아요. 무료 게임은 보유 목록에 없어도 시작할 수 있으니 Steam에서 확인해 주세요.</p> :
-                recommendations.preference === 'recent' ? <details style={styles.hint}><summary>추천 점수는 어떻게 정하나요?</summary><p>최근 2주 플레이한 멤버 비율 70%와 플레이 시간 30%를 반영해요. 시간은 로그로 반영하고 합계 14시간에서 상한을 두며 보유 비율을 적용해요. 확인할 수 없는 기록은 미플레이로 확정하지 않아요.</p></details> : <details style={styles.hint}><summary>추천 점수는 어떻게 정하나요?</summary><p>보유자의 플레이 경험, 경험 차이, 새로움에 선택한 기준의 가중치를 적용하고 선택한 멤버의 보유 비율을 반영해요. 미보유자의 경험은 추측하지 않아요. 플레이 경험은 8시간까지 반영하고, 점수는 후보 비교용이며 만족 확률이 아니에요. 경험이 비슷한 게임은 경험 40%·균형 40%·새로움 20%, 익숙한 게임은 70%·20%·10%, 새로 해 볼 게임은 10%·20%·70%예요.</p></details>}
+              <p style={styles.hint}>저장 취향 반영 {recommendations.data.sharedPreferences ?? 0}명 · 동의하지 않은 취향은 사용하지 않아요. 전체 Steam 검색이 아닌 보유·인기·신규 후보에서 찾아요.</p>
+              {!!recommendations.data.metadataUnavailable && <p style={styles.warn} role="status">게임 특성 {recommendations.data.metadataUnavailable}개 조회 실패 · 확인하지 못한 유사성 근거는 제외했어요.</p>}
+              <details style={styles.hint}><summary>추천 점수는 어떻게 정하나요?</summary><p>확인한 플레이 특성과 동의한 저장 취향으로 참여자별 적합도를 계산해요. 평균 60%와 가장 낮은 적합도 40%를 섞은 취향 점수 70%, 선택한 플레이 경험 기준 30%를 반영해요. 명시적으로 제외한 게임은 빼고 피하는 장르는 감점해요. 플레이 시간은 약한 신호이며 점수는 만족 확률이 아니에요. 취향·플레이 근거가 없으면 기존 경험 기준을 사용하고, 전원 미보유 후보는 점수를 표시하지 않아요.</p></details>
               <p style={styles.hint} role="status">추천 {visibleRecommendations.length}개{query.trim() && ` / 전체 ${recommendations.data.games.length}개`}</p>
-              {recommendations.data.games.length === 0 ? <p style={styles.hint}>{recommendations.data.totalCandidates === 0 ? (recommendations.preference === 'recent' && recommendations.scope !== 'unowned' ? '확인된 최근 2주 플레이 후보가 없어요. 최근 기록 공개 여부를 확인하거나 기준을 바꿔 보세요.' : recommendations.scope === 'all' ? '선택한 모두가 가진 게임이 없어요. 멤버 선택을 바꿔 보세요.' : recommendations.scope === 'any' ? '선택한 멤버의 보유 게임 후보가 없어요.' : '현재 Steam 인기·신규 목록에 전원의 보유 목록에 없는 후보가 없어요.') : '검사한 후보에서 멀티플레이·협동 지원을 확인한 게임이 없어요. 추천 범위나 기준을 바꾸거나 공통 게임을 비교해 보세요.'}</p>
+              {recommendations.data.games.length === 0 ? <p style={styles.hint}>{recommendations.data.totalCandidates === 0 ? (recommendations.preference === 'recent' && recommendations.scope !== 'unowned' ? '확인된 최근 2주 플레이 후보가 없어요. 최근 기록 공개 여부를 확인하거나 기준을 바꿔 보세요.' : recommendations.scope === 'all' ? '선택한 모두가 가진 게임이 없어요. 멤버 선택을 바꿔 보세요.' : recommendations.scope === 'any' ? '선택한 멤버의 보유 게임 후보가 없어요.' : '현재 Steam 인기·신규 목록에 전원의 보유 목록에 없는 후보가 없어요.') : '검사한 후보에서 협동 지원과 확인된 인원 조건을 만족한 게임이 없어요. 추천 범위나 기준을 바꾸거나 공통 게임을 비교해 보세요.'}</p>
                 : visibleRecommendations.length === 0 && <p style={styles.hint}>검색한 이름과 일치하는 추천이 없습니다. 검색어를 바꿔 보세요.</p>}
               {visibleRecommendations.length > 0 && <button className="btn btn-primary" disabled={busy !== null} onClick={model.draw}>{drawn ? '다시 뽑기' : '오늘의 게임 뽑기'}</button>}
               {drawn && <div style={styles.extra} role="status"><h4>오늘의 게임: {drawn.name}</h4><p style={styles.hint}>{drawn.reasons.join(' · ')}</p><p style={styles.hint}>현재 검색 결과에서 같은 확률로 뽑아요. 후보가 둘 이상이면 직전 게임을 제외해요.</p><a className="btn btn-link" href={`https://store.steampowered.com/app/${drawn.appId}/`} target="_blank" rel="noopener noreferrer">뽑은 게임 Steam에서 확인</a></div>}
@@ -208,7 +215,6 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
         </section>
       )}
       {renderAnalysis?.(snapshot)}
-      <SteamActivitySettings linkResult={linkResult} />
     </div>
   );
 }

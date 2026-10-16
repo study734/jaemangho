@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server';
 import { parseQuery, serverError } from '@/server/http';
 import { SteamNotConfiguredError, SteamUpstreamError } from '@/server/steam/client';
 import { compareGames, gamesQuerySchema } from '@/server/steam/games';
-import { requireUser } from '@/server/viewer';
+import { requireSteamUser } from '@/server/steam/consent';
 
 export async function GET(request: NextRequest) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const query = parseQuery(request.nextUrl.searchParams, gamesQuerySchema);
   if (!query.ok) return query.response;

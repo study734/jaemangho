@@ -23,6 +23,20 @@ describe.skipIf(!testDbUrl)('explicit game tastes (isolated DB)', () => {
     await pool.query('update steam_tastes set profile=profile || $2::jsonb where user_id=$1', [users[0], JSON.stringify({ share: true, together: [{ appId: 620, steamIds: ids }] })]);
     expect(await store.readTaste(users[0])).toEqual(profile);
   });
+  it('uses only newly opted-in profiles for selected owned accounts and honors revocation', async () => {
+    await store.saveTaste(users[0], { ...emptyTaste(), likes: ['puzzle'] });
+    expect((await store.readGroupTastes(ids)).size).toBe(0);
+    await store.saveTaste(users[0], { ...emptyTaste(), likes: ['puzzle'] });
+    await store.saveTaste(users[1], { ...emptyTaste(), likes: ['cooking'] });
+    for (const user of users) await pool.query(`insert into steam_feature_consents(user_id,notice_version,storage_country) values($1,'steam-common-v1','test')`, [user]);
+    expect([...(await store.readGroupTastes([ids[0]])).keys()]).toEqual([ids[0]]);
+    expect((await store.readGroupTastes(ids)).size).toBe(2);
+    await pool.query('update steam_feature_consents set revoked_at=now() where user_id=$1', [users[0]]);
+    expect([...(await store.readGroupTastes(ids)).keys()]).toEqual([ids[1]]);
+    await pool.query('update steam_members set owner_id=null where steam_id=$1', [ids[1]]);
+    expect((await store.readGroupTastes(ids)).size).toBe(0);
+    await pool.query('update steam_members set owner_id=$2 where steam_id=$1', [ids[1], users[1]]);
+  });
   it('deletes only the caller\'s game tastes', async () => {
     await store.saveTaste(users[1], { ...emptyTaste(), likes: ['cooking'] });
     await store.deleteTaste(users[0]);

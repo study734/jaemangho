@@ -1483,23 +1483,28 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .chat-tool-label { color: var(--accent-pink); font-size: 12px; margin-top: 12px; }
 .chat-inline-evidence { margin-top: 8px; font-size: 12px; color: var(--slate); }
 .chat-inline-evidence summary { cursor: pointer; min-height: 44px; padding: 12px 0; }
-.personal-recommendations { max-width: 1100px; margin: 0 auto; padding: 24px var(--page-padding); color: var(--ink); }
-.personal-recommendations header, .personal-recommendations > section { margin-bottom: 32px; }
 .personal-muted { color: var(--slate); font-size: 13px; line-height: 1.7; }
 .personal-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 .personal-controls > label { display: flex; flex-direction: column; gap: 8px; }
-.personal-recommendations fieldset { border: 0; margin: 20px 0; padding: 0; min-width: 0; }
-.personal-members { display: flex; flex-wrap: wrap; gap: 16px; }
-.personal-members label { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.personal-controls > .personal-check, .personal-check { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 44px; }
+.personal-check input { flex-shrink: 0; }
 .personal-preferences { padding: 20px 0; margin: 24px 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
 .personal-preferences summary { cursor: pointer; min-height: 44px; }
 .personal-tag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
 .personal-tag-grid label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.personal-game-list { padding: 0; list-style: none; }
-.personal-game-list > li { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--hairline); }
-.personal-game-list h4 { margin: 0; font-size: 18px; }
-.personal-game-list p { margin: 8px 0; }
-.personal-game-list ul { padding-left: 20px; color: var(--slate); font-size: 14px; line-height: 1.7; }
-.personal-cover { width: 200px; height: auto; aspect-ratio: 200 / 94; object-fit: contain; border-radius: 8px; }
 @media (max-width: 1024px) { .personal-tag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .personal-tag-grid, .personal-game-list > li { grid-template-columns: minmax(0, 1fr); } .personal-cover { width: min(100%, 320px); } .personal-controls { align-items: stretch; flex-direction: column; } }
+@media (max-width: 600px) { .personal-tag-grid { grid-template-columns: minmax(0, 1fr); } .personal-controls { align-items: stretch; flex-direction: column; } }
+
+.steam-consent-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; overflow-y: auto; background: var(--surface); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: 12px; line-height: 1.65; }
+.steam-consent-dialog::backdrop { background: rgb(0 0 0 / 70%); }
+.steam-consent-dialog h2 { margin-bottom: 16px; }
+.steam-consent-dialog p, .steam-consent-dialog dl { margin-bottom: 16px; }
+.steam-consent-dialog dl > div { margin: 12px 0; }
+.steam-consent-dialog dt { font-weight: 700; }
+.steam-consent-dialog dd { margin: 4px 0 0; color: var(--slate); font-size: 14px; }
+.steam-consent-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.steam-data-settings { border-top: 1px solid var(--hairline); padding-top: 16px; }
+.steam-data-settings > summary { cursor: pointer; min-height: 44px; }
+@media (max-width: 600px) { .steam-consent-dialog { padding: 20px; } .steam-consent-actions { flex-direction: column; } }
+
+.steam-data-settings fieldset { border: 0; margin: 20px 0; padding: 0; min-width: 0; }

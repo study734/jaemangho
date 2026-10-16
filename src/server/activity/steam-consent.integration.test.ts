@@ -16,6 +16,7 @@ describe.skipIf(!testDbUrl)('Steam 수집 요청·중단·삭제 (DB)', () => {
     await pool.query(`insert into "user" (id, name, email, "emailVerified") values
       ('tco_owner', '소유자', 'tco1@test.invalid', false),
       ('tco_other', '다른사람', 'tco2@test.invalid', false)`);
+    await pool.query(`insert into steam_feature_consents(user_id,notice_version,storage_country) values('tco_owner','steam-common-v1','test')`);
     await pool.query(`insert into steam_members (steam_id, persona_name, owner_id) values ($1, '테스트', 'tco_owner')`, [STEAM_ID]);
     await pool.query(`insert into steam_verified_accounts (steam_id, user_id) values ($1, 'tco_owner')`, [STEAM_ID]);
   });

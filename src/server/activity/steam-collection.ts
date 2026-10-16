@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { pool } from '../pool';
 import { getLibrary, SteamNotConfiguredError, SteamPayloadError, SteamUpstreamError, type Library } from '../steam/client';
 import { recordSteamObservation } from './steam-facts';
+import { STEAM_NOTICE_VERSION } from './steam-policy';
+import { STEAM_FEATURE_NOTICE } from '../steam/consent';
 
 const WEEK_MS = 7 * 86_400_000;
 const JOB = 'steam_activity';
@@ -15,6 +17,7 @@ export interface SteamCollectionOptions {
   maxAccounts?: number;
   budgetMs?: number;
   fetchLibrary?: (steamId: string) => Promise<Library>;
+  steamIds?: string[];
 }
 
 function errorCode(error: unknown): string {
@@ -24,7 +27,8 @@ function errorCode(error: unknown): string {
   return 'collection_failed';
 }
 
-// 호출 경로와 예약 작업은 아직 연결하지 않는다. 확인된 계정의 명시적 요청만 처리한다.
+// Activity settings visits/request handlers pass only the actor's verified IDs.
+// No cron: the first observation runs after consent, then on visits when due.
 export async function runSteamCollection(source: 'scheduled' | 'manual', options: SteamCollectionOptions = {}) {
   const { now = new Date(), maxAccounts = MAX_ACCOUNTS, budgetMs = 45_000, fetchLibrary = getLibrary } = options;
   if (!Number.isInteger(maxAccounts) || maxAccounts < 1 || maxAccounts > MAX_ACCOUNTS) throw new Error('Invalid account limit');
@@ -55,10 +59,14 @@ export async function runSteamCollection(source: 'scheduled' | 'manual', options
       join steam_members m on m.steam_id = r.steam_id and m.owner_id = r.requested_by
       join steam_verified_accounts v on v.steam_id = r.steam_id and v.user_id = r.requested_by
       join "user" u on u.id = r.requested_by and not coalesce(u.banned, false)
+      join steam_feature_consents f on f.user_id=r.requested_by and f.notice_version=$6 and f.revoked_at is null
       left join steam_collection_state s on s.steam_id = r.steam_id
       where r.stopped_at is null and (s.last_success_at is null or s.last_success_at <= $1)
+        and ($3::text[] is null or r.steam_id=any($3::text[]))
+        and (s.last_attempt_at is null or s.last_attempt_at <= $4)
+        and r.notice_version=$5
       order by s.last_success_at nulls first, r.requested_at, r.steam_id limit $2`,
-    [dueBefore, maxAccounts + 1])).rows;
+    [dueBefore, maxAccounts + 1, options.steamIds ?? null, new Date(now.getTime() - 15 * 60_000), STEAM_NOTICE_VERSION, STEAM_FEATURE_NOTICE])).rows;
     const result = { eligible: eligible.length, collected: 0, unavailable: 0, failed: 0, changes: 0, deferred: 0 };
     const selected = eligible.slice(0, maxAccounts);
     result.deferred = eligible.length - selected.length;

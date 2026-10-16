@@ -1,3 +1,3 @@
-import { PersonalGamesWithAi } from '../../ai';
+import { redirect } from 'next/navigation';
 
-export default function SteamRecommendationsPage() { return <PersonalGamesWithAi />; }
+export default function SteamRecommendationsPage() { redirect('/steam'); }

@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server';
 import { parseQuery, serverError } from '@/server/http';
 import { SteamNotConfiguredError, SteamUpstreamError } from '@/server/steam/client';
 import { findMissions, missionsQuerySchema } from '@/server/steam/missions';
-import { requireUser } from '@/server/viewer';
+import { requireSteamUser } from '@/server/steam/consent';
 
 export async function GET(request: NextRequest) {
-  const user = await requireUser();
+  const user = await requireSteamUser();
   if (user instanceof Response) return user;
   const query = parseQuery(request.nextUrl.searchParams, missionsQuerySchema);
   if (!query.ok) return query.response;
