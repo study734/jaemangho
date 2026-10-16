@@ -14,6 +14,7 @@
 - **듀오 시너지 분석** (`/lol/synergy`), **챔피언 숙련도** (`/lol/mastery`), **설정** (`/lol/settings`, Riot 연결 확인)
 - **Steam 공통 협동 게임 추천** (`/steam`): 2~20명을 선택하고 **모두 보유 / 일부 보유 포함 / 아무도 미보유** 범위를 고릅니다. 보유·누적·최근 플레이와 동의 후 저장한 관측 증가분, 공통 추천 반영에 동의한 멤버의 게임 취향을 함께 사용합니다. 경험 기준 상위 40개(전원 미보유는 Steam 인기·신규 목록의 앞 40개)를 재정렬해 온라인 협동 지원을 확인한 최대 12개를 추천합니다. 확인 카탈로그에 인원이 있으면 선택한 인원에 맞는 온라인 모드도 확인하며, 그 외 게임의 최대 인원은 스토어에서 직접 확인합니다. 한 명이라도 보유 목록을 확인할 수 없으면 추천을 보류하고 최근 기록·게임 특성·지원 정보 실패를 구분합니다. 무료·패스·구매 조건은 스토어에서 확인합니다. 취향 원문은 다른 멤버에게 반환하지 않습니다.
 - **Steam 협동 게임 세일** (`/steam`): 선택한 멤버 중 아직 없는 사람이 있는 확인된 협동 게임의 한국 스토어 가격과 세일 여부, 모두 구매할 때의 합계를 세일 순으로 보여줍니다. 아래 Steam 협동 게임 세일 절 참고.
+- **패치노트**: 웹에 추가된 기능은 `/updates`(설정 메뉴 아래), 디스코드 봇·명령에 추가된 기능은 디스코드 `/패치노트`(본인에게만 표시)에서 최신순으로 봅니다. 새 기능을 배포할 때 `src/lib/patch-notes.ts` 맨 위에 `area: 'web' | 'discord'` 항목을 추가합니다(사용자에게 보이는 변화만, 양쪽에 걸치면 각각). 디스코드 쪽은 `/패치노트`가 처음이면 `npm run discord:register -- --apply`(사전 확인 후)로 명령을 등록해야 합니다.
 - **관리자** (`/admin`): 아래 참고
 
 ## 기술 구성
@@ -122,7 +123,7 @@ src/
 1. 기존 Discord 로그인·수집과 **같은 앱**의 공개키를 `DISCORD_PUBLIC_KEY`에 설정하고 재배포합니다.
 2. 해당 앱의 **Interactions Endpoint URL**을 `https://<도메인>/api/discord/interactions`로 설정합니다. 이 방식은 Gateway로 interactions를 받는 방식과 양립하지 않으므로, 기존 앱에서 다른 명령을 처리 중인지 먼저 확인합니다. REST 채팅 수집에는 영향을 주지 않습니다.
 3. 앱의 서버 설치에 `applications.commands` scope가 포함돼 있는지 확인합니다. `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_BOT_TOKEN`은 같은 앱·서버의 기존 설정을 사용합니다. 상시 실행 봇이나 Message Content Intent는 필요하지 않습니다.
-4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버의 `/게임추천`·`출처 찾기`만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
+4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버의 `/게임추천`·`/패치노트`·`출처 찾기`만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
 5. 디스코드에서 세 범위, 계정 연결 없음, 비공개 목록과 실제 답변 표시를 확인합니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
 
 구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `commands.json`(명령 배열)에 있습니다. 테스트: `npm test -- src/server/discord-interactions scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결 검증은 `TEST_DATABASE_URL`이 필요합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.

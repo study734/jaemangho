@@ -1,0 +1,43 @@
+// 패치노트. 새 기능을 배포할 때 맨 위에 항목을 추가한다(최신순). 사용자에게 보이는 변화만 적는다.
+// area: 'web'은 /updates 화면, 'discord'는 /패치노트 명령에 나온다. 양쪽에 걸친 기능은 각각 한 항목씩 적는다.
+export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
+
+export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-10-17', area: 'discord', title: '출처 찾기', items: [
+    '메시지를 우클릭 → 앱 → "출처 찾기"로 애니 장면 짤의 작품명·화수·장면 시각을 찾아줘요.',
+  ] },
+  { date: '2026-10-17', area: 'web', title: '협동 게임 세일', items: [
+    'Steam 화면에 협동 게임 세일 패널이 생겼어요. 아직 없는 사람이 있는 게임의 가격과 합계를 보여줘요.',
+  ] },
+  { date: '2026-10-16', area: 'web', title: 'Steam 추천에 취향 반영', items: [
+    'Steam 공통 추천에 동의한 멤버의 게임 취향이 함께 반영돼요.',
+    'API 키가 없을 때 재순이가 쉬는 중이라고 안내해요.',
+  ] },
+  { date: '2026-10-12', area: 'discord', title: '게임 추천 명령', items: [
+    '/게임추천으로 함께할 친구 2~20명을 골라 Steam 게임을 추천받을 수 있어요.',
+  ] },
+  { date: '2026-10-12', area: 'web', title: '디스코드 위젯', items: [
+    '홈에 디스코드 서버 위젯이 생겼어요.',
+  ] },
+  { date: '2026-10-10', area: 'web', title: '발견 무대와 홈 개편', items: [
+    '홈이 쇼츠처럼 넘겨 보는 "오늘의 발견"으로 바뀌었어요.',
+    'Steam 추천 범위 선택, 최근 크루픽, 도전 과제, 게임 뽑기가 추가됐어요.',
+    '디스코드 서버처럼 채널을 탐색하고 재순이 메시지로 보는 화면이 생겼어요.',
+  ] },
+  { date: '2026-10-04', area: 'web', title: '재망호 시작', items: [
+    '멤버 목록과 프로필, 개념글·뜨거웠던 순간·주간 시상식, 채팅 명예의 전당, Steam 공통 게임이 열렸어요.',
+  ] },
+];
+
+export const patchNotesFor = (area: PatchNote['area']) => PATCH_NOTES.filter(n => n.area === area);
+
+// 디스코드 메시지 한도(2000자) 안에서 최신 항목부터 채운다.
+export function discordPatchNotesText(limit = 1900) {
+  let text = '**📜 재망호 디스코드 패치노트**';
+  for (const n of patchNotesFor('discord')) {
+    const block = `\n\n**${n.title}** · ${n.date}\n${n.items.map(i => `• ${i}`).join('\n')}`;
+    if (text.length + block.length > limit) break;
+    text += block;
+  }
+  return text;
+}
