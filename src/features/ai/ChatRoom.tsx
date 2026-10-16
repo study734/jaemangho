@@ -14,6 +14,13 @@ function JaesuniAvatar({ large = false }: { large?: boolean }) {
   </span>;
 }
 
+// 키가 없어 쉬는 중인 재순이. 그림이 실패해도 안내 문구는 그대로 쓸 수 있다.
+function RestingJaesuni() {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return <img ref={node => { if (node?.complete && node.naturalWidth === 0) setFailed(true); }} className="chat-unavailable-art" src="/images/jaesuni-resting.webp" alt="재망호 막내 재순이가 ‘현재 사용할 수 없어요’ 팻말을 들고 있는 모습" width={720} height={661} onError={() => setFailed(true)} />;
+}
+
 function AttachmentLabel({ attachment }: { attachment: Attachment }) {
   const view = contextView(attachment.context);
   return <div className="chat-attachment-label"><span>{view.title}<small>{view.summary}</small></span></div>;
@@ -29,7 +36,8 @@ export function ChatRoom({ unavailable = false }: { unavailable?: boolean }) {
   const input = useRef<HTMLTextAreaElement>(null);
   const material = attachment ?? [...messages].reverse().find(message => message.evidence)?.evidence ?? null;
   const view = material ? contextView(material.context) : null;
-  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [messages, busy, error]);
+  // 빈 대화는 맨 위(제목·안내)에서 시작한다. 새 메시지·대기·오류가 생겼을 때만 끝으로 이동한다.
+  useEffect(() => { if (messages.length || busy || error) end.current?.scrollIntoView({ block: 'nearest' }); }, [messages, busy, error]);
   return <div className="chat-room">
     <section className="chat-conversation" aria-label="재순이와 개인 대화">
       <header className="chat-toolbar"><span className="chat-private">나만 보는 대화</span>
@@ -41,7 +49,7 @@ export function ChatRoom({ unavailable = false }: { unavailable?: boolean }) {
         <div className={`chat-intro${messages.length ? ' chat-intro-compact' : ''}`}>
           <JaesuniAvatar large /><p className="chat-kicker">재망호의 막내 · AI</p><h1>재순이와 대화</h1>
           <p>오늘 같이 할 게임, 아쉬웠던 한 판.<br />무슨 이야기부터 할까?</p>
-          {unavailable && <div className="chat-unavailable" role="status"><strong>재순이는 잠깐 쉬는 중이야</strong><p>대답하려면 API 키가 필요한데 아직 못 받았어… 관리자가 키를 챙겨 주면 바로 돌아올게! 그동안 Steam 게임 고르기나 전적은 평소처럼 볼 수 있어.</p></div>}
+          {unavailable && <div className="chat-unavailable" role="status"><RestingJaesuni /><div><strong>재순이는 잠깐 쉬는 중이야</strong><p>대답하려면 API 키가 필요한데 아직 못 받았어… 관리자가 키를 챙겨 주면 바로 돌아올게! 그동안 Steam 게임 고르기나 전적은 평소처럼 볼 수 있어.</p></div></div>}
           {!messages.length && <div className="chat-starters" role="group" aria-label="대화 시작 예시">{['오늘 같이 할 게임 고르자', '최근 전적을 같이 보고 싶어', '재순이는 뭘 도와줘?'].map(prompt => <button type="button" key={prompt} onClick={() => { model.setDraft(prompt); input.current?.focus(); }}>{prompt}<img src="/ui/arrow-right.svg" width={16} height={16} alt="" /></button>)}</div>}
         </div>
         {messages.map((message, i) => <article key={i} className="chat-message" aria-label={message.role === 'user' ? '내 메시지' : '재순이 메시지'}>
