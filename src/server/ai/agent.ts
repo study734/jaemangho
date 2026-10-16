@@ -7,9 +7,9 @@ import { reportFailure } from '../diagnostics';
 export interface AgentAnswer { answer: string; model: string; truncated: boolean; toolsUsed?: string[];
   evidence?: { context: AiContext; capturedAt: string } }
 
-function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+function bounded<T>(work: Promise<T>, signal: AbortSignal, where: () => { phase: string; elapsedMs: number }): Promise<T> {
   return new Promise((resolve, reject) => {
-    const abort = () => reject(new AiError('timeout', 504, '조회·답변 시간이 길어졌어요. 범위를 줄여 다시 요청해 주세요.'));
+    const abort = () => reject(Object.assign(new AiError('timeout', 504, '조회·답변 시간이 길어졌어요. 범위를 줄여 다시 요청해 주세요.'), where()));
     work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
     if (signal.aborted) abort();
     else signal.addEventListener('abort', abort, { once: true });
@@ -24,14 +24,18 @@ export function createAgent(deps = {
 }, budgetMs = 25_000) {
   return async (input: AnalysisInput, userId: string, preference = ''): Promise<AgentAnswer> => {
     const signal = AbortSignal.timeout(budgetMs);
+    const startedAt = Date.now();
+    let phase = 'acquire'; // last started step; reported when the budget runs out
     const requestId = await deps.acquire(userId);
     async function work(): Promise<AgentAnswer> {
       signal.throwIfAborted();
       const previousSelection = input.history.filter(message => message.role === 'user').at(-1)?.selection ?? { steam: [], lol: null };
       const changed = JSON.stringify(previousSelection) !== JSON.stringify(input.selection);
       const messages = messagesFor(input, preference, { steam: new Set(input.selection.steam).size, lol: !!input.selection.lol, changed });
+      phase = 'charge';
       await deps.charge(requestId);
       signal.throwIfAborted();
+      phase = 'model';
       const first = await deps.generate(messages, { tools: toolDefinitions, signal });
       const call = first.message.tool_calls?.[0];
       if (!call) return { answer: first.message.content!, model: first.model, truncated: first.truncated };
@@ -40,6 +44,7 @@ export function createAgent(deps = {
       catch { throw new AiError('invalid_response', 502, '재순이의 조회 요청을 확인하지 못했어요. 다시 질문해 주세요.'); }
       const { name, args } = parsed;
       let result;
+      phase = 'tool';
       try { result = await deps.execute(name, input.selection, signal, userId, args); }
       catch (error) {
         signal.throwIfAborted();
@@ -48,8 +53,10 @@ export function createAgent(deps = {
       }
       signal.throwIfAborted();
       messages.push({ role: 'assistant', ...first.message }, { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+      phase = 'charge';
       await deps.charge(requestId);
       signal.throwIfAborted();
+      phase = 'model';
       // No tools are offered in the final call, so execution cannot recurse.
       messages.push({ role: 'system', content: '조회 단계가 끝났다. 방금 도구가 돌려준 결과만 한국어 일반 문장으로 설명한다. 추가 도구 호출·도구 이름 추측·XML/JSON 호출 문법 출력은 금지한다. 최근 2주 시간과 누적 시간을 구분한다.' });
       const final = await deps.generate(messages, { signal });
@@ -59,7 +66,7 @@ export function createAgent(deps = {
         ...('context' in result && result.context ? { evidence: { context: result.context, capturedAt: new Date().toISOString() } } : {}),
       };
     }
-    try { return await bounded(work(), signal); }
+    try { return await bounded(work(), signal, () => ({ phase, elapsedMs: Date.now() - startedAt })); }
     catch (error) {
       if (error instanceof AiError && error.code === 'upstream' && error.status === 429) await deps.pause();
       throw error;
