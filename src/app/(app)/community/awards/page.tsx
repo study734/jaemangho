@@ -29,7 +29,7 @@ export default async function AwardsPage() {
         <p style={styles.hint}>아직 시상식이 없습니다. 한 주가 끝나면 첫 칭호가 나옵니다.</p>
       ) : (
         weeks.map((w) => (
-          <section key={w} style={styles.panel}>
+          <section key={w} className="panel-hard" style={styles.panel}>
             <h3 className="heading-5" style={styles.panelTitle}>{weekLabel(w)}</h3>
             <ul style={styles.list}>
               {(Object.keys(TITLES) as (keyof typeof TITLES)[]).flatMap((key) => {

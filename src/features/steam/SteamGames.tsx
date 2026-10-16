@@ -52,7 +52,7 @@ function SteamGamesContent({ initialQuery = '', linkResult, renderAnalysis }: { 
         {!result && !recommendations && <p className="game-search-hint">함께할 멤버를 선택하고 비교하거나 추천받으면{query.trim() ? ` “${query.trim()}”을(를)` : ' 게임을'} 결과에서 찾아요.</p>}
       </div>
 
-      <section style={styles.panel}>
+      <section className="panel-hard" style={styles.panel}>
         <label htmlFor="steam-profile-input" style={styles.hint}>Steam 프로필</label>
         <form onSubmit={add} style={styles.addRow} className="steam-add-row">
           <input
@@ -128,7 +128,7 @@ function SteamGamesContent({ initialQuery = '', linkResult, renderAnalysis }: { 
       <SteamDeals key={selected.join(',')} ids={selected} nameOf={nameOf} />
 
       {recommendations && (
-        <section style={styles.panel} aria-labelledby="steam-recommend-title">
+        <section className="panel-hard" style={styles.panel} aria-labelledby="steam-recommend-title">
           <h3 id="steam-recommend-title" style={styles.recommendTitle}>오늘 같이 할 게임</h3>
           <p style={styles.hint}>추천 범위: {scopeLabels[recommendations.scope]} · {recommendations.ids.map(nameOf).join(', ')}</p>
           <p style={styles.hint}>추천 기준: {recommendations.scope === 'unowned' ? 'Steam 인기·신규 후보 + 공통 취향' : ({ balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임', recent: '요즘 크루픽 (최근 2주)' })[recommendations.preference]}</p>
@@ -187,7 +187,7 @@ function SteamGamesContent({ initialQuery = '', linkResult, renderAnalysis }: { 
       )}
 
       {result && (
-        <section style={styles.panel}>
+        <section className="panel-hard" style={styles.panel}>
           <p style={styles.hint}>비교한 사람: {result.ids.map(nameOf).join(', ')}</p>
           {result.data.excluded.length > 0 && (
             <p style={styles.warn}>

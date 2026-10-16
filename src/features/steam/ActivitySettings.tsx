@@ -30,7 +30,7 @@ export function SteamActivitySettings({ linkResult }: { linkResult?: string }) {
     : linkResult === 'already-linked' ? '이 Steam 계정은 다른 사용자에게 이미 확인돼 있습니다.'
       : linkResult === 'failed' ? 'Steam 계정 확인에 실패했습니다. 다시 시도해 주세요.' : null;
 
-  return <section style={styles.panel} aria-labelledby="steam-activity-heading">
+  return <section className="panel-hard" style={styles.panel} aria-labelledby="steam-activity-heading">
     <div style={styles.head}>
       <div><h3 id="steam-activity-heading" className="heading-4">내 Steam 기록 관리</h3><p style={styles.hint}>확인된 내 계정의 기록을 미리 준비해 공통 추천에 사용해요. 중단하면 저장 기록의 추천 이용도 멈춰요.</p></div>
       <a className="btn btn-secondary" href="/api/steam/activity/start">Steam 계정 확인</a>
