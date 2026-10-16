@@ -1,32 +1,38 @@
 import { requireAdmin } from '@/server/viewer';
-import { AiError, messagesFor, requestModel, type ModelMessage } from '@/server/ai/client';
-import { toolDefinitions } from '@/server/ai/tools';
-import { analysisSchema } from '@/server/ai/context';
 
 export const maxDuration = 60;
 
-// Admin-only timing probe for the NVIDIA call as it really runs on this deployment.
-// Only timings and error codes are returned: no prompt, answer or key.
-async function probe(name: string, messages: ModelMessage[], tools?: typeof toolDefinitions) {
-  const started = Date.now();
-  let headersMs: number | null = null;
+// Admin-only timing probe for NVIDIA as it really runs on this deployment. Calls are
+// sequential and capped so the response always arrives before maxDuration (4 x 11s). `at` lets a
+// run be compared with a local probe at the same moment: provider latency drifts over time.
+// Only timings and HTTP statuses are returned: no prompt, answer or key.
+const BASE = 'https://integrate.api.nvidia.com/v1';
+const chat = (model: string, extra: object = {}) => ({ method: 'POST', body: JSON.stringify({ model, max_tokens: 64, stream: false, messages: [{ role: 'user', content: '안녕' }], ...extra }) });
+
+async function probe(name: string, path: string, key: string, init: RequestInit = {}) {
+  const started = Date.now(), at = new Date(started).toISOString();
   try {
-    await requestModel(messages, { timeoutMs: 40_000, tools, onStage: () => { headersMs = Date.now() - started; } });
-    return { name, ok: true, headersMs, totalMs: Date.now() - started };
+    const response = await fetch(`${BASE}${path}`, { cache: 'no-store', signal: AbortSignal.timeout(11_000), ...init,
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } });
+    const headersMs = Date.now() - started;
+    await response.arrayBuffer();
+    return { name, at, status: response.status, headersMs, totalMs: Date.now() - started };
   } catch (error) {
-    const known = error instanceof AiError;
-    return { name, ok: false, headersMs, totalMs: Date.now() - started, code: known ? error.code : 'unexpected', status: known ? error.status : undefined };
+    return { name, at, status: null, error: error instanceof Error ? error.name : 'unknown', totalMs: Date.now() - started };
   }
 }
 
 export async function GET() {
   const admin = await requireAdmin();
   if (admin instanceof Response) return admin;
-  const full = messagesFor(analysisSchema.parse({ context: { topic: 'general' }, question: '재순이는 뭘 도와줘?' }));
-  // Sequential on purpose: two parallel calls could slow each other and blur the result.
+  const key = process.env.NVIDIA_API_KEY?.trim() ?? '';
+  if (!key) return Response.json({ error: 'NVIDIA_API_KEY is not set' }, { status: 503 });
+  const glm = chat('z-ai/glm-5.3-flash', { reasoning_effort: 'low' });
   const results = [
-    await probe('minimal', [{ role: 'user', content: '안녕' }]),
-    await probe('full-with-tools', full, toolDefinitions),
+    await probe('GET /models (authenticated)', '/models', key),
+    await probe('chat glm-5.3-flash, minimal #1', '/chat/completions', key, glm),
+    await probe('chat glm-5.3-flash, minimal #2', '/chat/completions', key, glm),
+    await probe('chat glm-5.3-flash, minimal #3', '/chat/completions', key, glm),
   ];
   return Response.json({ region: process.env.VERCEL_REGION ?? null, runtime: process.version, results }, { headers: { 'Cache-Control': 'no-store' } });
 }
