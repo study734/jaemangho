@@ -12,7 +12,7 @@ export function SteamDeals({ ids, nameOf }: { ids: string[]; nameOf: (id: string
   const [model] = useState(() => createDealsModel(steamApi, ids));
   const { data, loading, error } = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getServerSnapshot);
   return (
-    <section style={styles.panel} aria-labelledby="steam-deals-title">
+    <section className="panel-hard" style={styles.panel} aria-labelledby="steam-deals-title">
       <h3 id="steam-deals-title" style={styles.title}>같이 사면 좋은 협동 게임</h3>
       <p style={styles.hint}>확인된 협동 게임 중 선택한 인원이 함께 할 수 있고 아직 안 가진 멤버가 있는 게임의 한국 스토어 가격이에요. 세일 중인 게임이 먼저 나와요.</p>
       <div><button className="btn btn-secondary" disabled={loading || ids.length < 2} onClick={() => void model.load()}>

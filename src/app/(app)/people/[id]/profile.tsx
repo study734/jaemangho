@@ -50,7 +50,7 @@ export function Profile({ person, unowned, topGames, awards }: {
       {error && <div style={styles.error} role="alert">{error}</div>}
       {(saving || message) && <p style={styles.hint} role="status">{saving ? '계정 연결 정보를 저장하는 중입니다.' : message}</p>}
 
-      <section style={styles.panel}>
+      <section className="panel-hard" style={styles.panel}>
         <h3 className="heading-5" style={styles.panelTitle}>칭호</h3>
         {awards.length === 0 ? <p style={styles.hint}>아직 받은 칭호가 없습니다. 매주 월요일 시상식에서 나옵니다.</p> : (
           <ul style={{ ...styles.list, flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
@@ -63,7 +63,7 @@ export function Profile({ person, unowned, topGames, awards }: {
         )}
       </section>
 
-      <section style={styles.panel}>
+      <section className="panel-hard" style={styles.panel}>
         <h3 className="heading-5" style={styles.panelTitle}>롤</h3>
         {person.lol.length === 0 ? <p style={styles.hint}>연결된 롤 계정이 없습니다.</p> : (
           <ul style={styles.list}>
@@ -77,7 +77,7 @@ export function Profile({ person, unowned, topGames, awards }: {
         )}
       </section>
 
-      <section style={styles.panel}>
+      <section className="panel-hard" style={styles.panel}>
         <h3 className="heading-5" style={styles.panelTitle}>Steam</h3>
         {person.steam.length === 0 ? <p style={styles.hint}>연결된 Steam 계정이 없습니다. 디스코드에 Steam을 연결해 두고 다시 로그인하면 자동으로 연결됩니다.</p> : (
           <ul style={styles.list}>
@@ -110,7 +110,7 @@ export function Profile({ person, unowned, topGames, awards }: {
       </section>
 
       {hasUnowned && (
-        <section style={styles.panel}>
+        <section className="panel-hard" style={styles.panel}>
           <h3 className="heading-5" style={styles.panelTitle}>주인 없는 계정</h3>
           <p style={styles.hint}>{person.name}님의 계정이면 연결해 주세요.</p>
           <ul style={styles.list}>

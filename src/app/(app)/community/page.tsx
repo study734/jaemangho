@@ -53,7 +53,7 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
       )}
 
       {moments.length > 0 && (
-        <section style={styles.panel}>
+        <section className="panel-hard" style={styles.panel}>
           <h3 className="heading-5" style={styles.panelTitle}>뜨거웠던 순간 (최근 8일)</h3>
           <p style={styles.hint}>10분 동안 여러 명이 몰려서 말한 때. 누르면 그 순간의 첫 메시지로 이동합니다.</p>
           <ul style={styles.plain}>
@@ -69,7 +69,7 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
       )}
 
       {funny.length > 0 && (
-        <section style={styles.panel}>
+        <section className="panel-hard" style={styles.panel}>
           <h3 className="heading-5" style={styles.panelTitle}>웃음 유발 (최근 8일)</h3>
           <p style={styles.hint}>이 말 직후 2분 안에 다른 사람들의 ㅋ가 가장 많이 쏟아진 메시지.</p>
           <ul style={styles.plain}>

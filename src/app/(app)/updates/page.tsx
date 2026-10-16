@@ -8,7 +8,7 @@ export default function UpdatesPage() {
         <p style={styles.hint}>재망호에 추가되고 바뀐 기능을 최신순으로 모았어요.</p>
       </header>
       {patchNotesFor('web').map(note => (
-        <section key={`${note.date}-${note.title}`} style={styles.panel}>
+        <section key={`${note.date}-${note.title}`} className="panel-hard" style={styles.panel}>
           <h3 className="heading-5" style={styles.panelTitle}>{note.title} <time dateTime={note.date} style={styles.date}>{note.date}</time></h3>
           <ul style={styles.list}>{note.items.map(item => <li key={item}>{item}</li>)}</ul>
         </section>
