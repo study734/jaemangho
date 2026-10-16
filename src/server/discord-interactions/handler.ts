@@ -1,5 +1,6 @@
 import { canUseCommand } from './access';
 import { gameRecommendations } from './games';
+import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
 import { friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type Interaction, type Message } from './protocol';
 
@@ -61,7 +62,9 @@ async function processCommand(interaction: Interaction): Promise<Message> {
   const userId = interaction.member.user.id;
   if (!await canUseCommand(userId)) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
   if (interaction.type === 2) {
-    return interaction.data.type === 3 ? findSource(interaction.data) : friendPicker(userId, interaction.data.options?.[0]?.value ?? 'all');
+    const { data } = interaction;
+    if (data.name === '패치노트') return privateMessage(discordPatchNotesText());
+    return data.name === '출처 찾기' ? findSource(data) : friendPicker(userId, data.options?.[0]?.value ?? 'all');
   }
   const chosen = selection(interaction);
   if (!chosen) return privateMessage('선택창이 만료됐거나 다른 사람의 선택창이에요. /게임추천을 다시 실행해 주세요.');

@@ -204,3 +204,15 @@ describe('Discord delivery failure and recovery', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('private-token'); expect(sleep).not.toHaveBeenCalled();
   });
 });
+
+describe('slash command 패치노트', () => {
+  it('shows only the Discord notes through the same account check', async () => {
+    vi.mocked(canUseCommand).mockResolvedValue(true);
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(lastMessage().content).toContain('출처 찾기');
+    expect(lastMessage().content).not.toContain('디스코드 위젯');
+    vi.mocked(canUseCommand).mockResolvedValue(false);
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(lastMessage().content).toContain('차단');
+  });
+});
