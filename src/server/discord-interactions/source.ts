@@ -41,6 +41,7 @@ export async function findSource(data: MessageCommand, fetchFn: typeof fetch = f
   return privateMessage([
     `**${title}**${ep != null && ep !== '' ? ` ${ep}화` : ''} · ${clock(best.from)} 부근 · 일치도 ${percent}%`,
     best.similarity < 0.9 ? '일치도가 낮아 다른 작품일 수 있어요.' : '',
-    `<https://anilist.co/anime/${best.anilist.id}>`,
+    // Angle brackets only suppress Discord's link preview; plain concatenation, not an HTML template.
+    '<https://anilist.co/anime/' + best.anilist.id + '>',
   ].filter(Boolean).join('\n'));
 }
