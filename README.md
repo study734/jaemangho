@@ -162,7 +162,7 @@ src/
 | `DISCORD_PUBLIC_KEY` | (선택) 슬래시 명령 HTTP 요청의 서명 검증용 공개키(64자리 16진수). 미설정 시 명령 API는 꺼짐 |
 | `SESSION_SECRET` | 로그인 비밀키(세션 서명용) 랜덤 문자열, 32자 이상 (`openssl rand -base64 32`) |
 | `STEAM_API_KEY` | (선택) Steam Web API 키. 없으면 Steam 기능은 503을 돌려줍니다. 32자리 16진수. |
-| `NVIDIA_API_KEY` | (선택) 재순이 AI 해설용 NVIDIA API 키. 서버에서만 사용하며 미설정이면 AI 요청만 503을 반환합니다. |
+| `NVIDIA_API_KEY` | (선택) 재순이 AI 해설용 NVIDIA API 키. 서버에서만 사용하며 미설정이면 AI 요청만 503을 반환합니다. 미설정일 때 `/chat`은 "재순이는 잠깐 쉬는 중이야" 안내를 보이고 입력은 유지하며, 질문하면 같은 말투의 503 안내(`NOT_CONFIGURED_MESSAGE`)가 나옵니다. |
 | `DATABASE_URL` | Postgres 연결 문자열 (Vercel에서 Neon을 연결하면 자동 등록) |
 | `DATABASE_URL_UNPOOLED` | (선택) 마이그레이션이 우선 사용하는 직접 연결 주소. Neon 연동이 자동 등록합니다. |
 | `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. |

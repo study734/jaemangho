@@ -19,7 +19,8 @@ function AttachmentLabel({ attachment }: { attachment: Attachment }) {
   return <div className="chat-attachment-label"><span>{view.title}<small>{view.summary}</small></span></div>;
 }
 
-export function ChatRoom() {
+// unavailable: 서버에 AI 키가 없을 때. 입력은 그대로 두고(서버가 같은 안내로 답한다) 상단에 이유를 알린다.
+export function ChatRoom({ unavailable = false }: { unavailable?: boolean }) {
   const { model, userName, messages, attachment, busy, error, draft } = useChat();
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [materialsHidden, setMaterialsHidden] = useState(false);
@@ -40,6 +41,7 @@ export function ChatRoom() {
         <div className={`chat-intro${messages.length ? ' chat-intro-compact' : ''}`}>
           <JaesuniAvatar large /><p className="chat-kicker">재망호의 막내 · AI</p><h1>재순이와 대화</h1>
           <p>오늘 같이 할 게임, 아쉬웠던 한 판.<br />무슨 이야기부터 할까?</p>
+          {unavailable && <div className="chat-unavailable" role="status"><strong>재순이는 잠깐 쉬는 중이야</strong><p>대답하려면 API 키가 필요한데 아직 못 받았어… 관리자가 키를 챙겨 주면 바로 돌아올게! 그동안 Steam 게임 고르기나 전적은 평소처럼 볼 수 있어.</p></div>}
           {!messages.length && <div className="chat-starters" role="group" aria-label="대화 시작 예시">{['오늘 같이 할 게임 고르자', '최근 전적을 같이 보고 싶어', '재순이는 뭘 도와줘?'].map(prompt => <button type="button" key={prompt} onClick={() => { model.setDraft(prompt); input.current?.focus(); }}>{prompt}<img src="/ui/arrow-right.svg" width={16} height={16} alt="" /></button>)}</div>}
         </div>
         {messages.map((message, i) => <article key={i} className="chat-message" aria-label={message.role === 'user' ? '내 메시지' : '재순이 메시지'}>

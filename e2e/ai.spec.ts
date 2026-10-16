@@ -10,6 +10,10 @@ test('AI API는 로그인 보호와 미설정 안내를 유지한다', async ({ 
   expect(await statusOf(page, '/api/ai', { method: 'POST', body: { context: { topic: 'general' } } })).toBe(401);
   await loginAs(context, await createUser('ai_config', 'E2E AI 설정'));
   expect(await statusOf(page, '/api/ai', { method: 'POST', body: { context: { topic: 'general' } } })).toBe(503);
+  // 키가 없으면 대화방은 보이되 재순이 말투로 이유를 알린다. 입력은 막지 않는다.
+  await page.goto('/chat');
+  await expect(page.getByRole('status').filter({ hasText: '재순이는 잠깐 쉬는 중이야' })).toContainText('API 키가 필요한데');
+  await expect(page.getByRole('textbox', { name: '재순이에게 메시지' })).toBeEnabled();
 });
 
 test('질문 예시는 전송 없이 초안을 채우고 여러 턴을 실제 요청에 포함한다', async ({ page, context }) => {
