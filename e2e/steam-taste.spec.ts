@@ -36,6 +36,10 @@ test('개인 취향을 저장하고 내 플레이 기록으로 실제 서버에�
   await page.reload();
   await page.getByText('내 게임 취향 설정', { exact: true }).click();
   await expect(page.getByRole('combobox', { name: '퍼즐 취향', exact: true })).toHaveValue('like');
+  // 새로고침은 결과를 지우므로, 화면 크기별 확인과 대화 첨부 전에 다시 추천받는다.
+  await page.getByText('내 게임 취향 설정', { exact: true }).click();
+  await page.getByRole('button', { name: '내 취향으로 추천받기', exact: true }).click();
+  await expect(page.locator('.personal-game-list').getByRole('heading', { name: 'Human Fall Flat', exact: true })).toBeVisible();
   for (const width of [1440, 1024, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
