@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState, useSyncExternalStore } from 'react
 import { type Mode, type OwnershipScope, type Preference, steamApi } from './api';
 import { createGamesModel, type GamesSnapshot } from './gamesModel';
 import { SteamConsentGate } from './ConsentGate';
+import { SteamDeals } from './DealsPanel';
 import { SteamTasteSettings } from './TasteSettings';
 import { ServiceMark, UiIcon, VisualImage } from './VisualImage';
 
@@ -123,6 +124,8 @@ function SteamGamesContent({ initialQuery = '', linkResult, renderAnalysis }: { 
       </section>
 
       <SteamTasteSettings linkResult={linkResult} />
+
+      <SteamDeals key={selected.join(',')} ids={selected} nameOf={nameOf} />
 
       {recommendations && (
         <section style={styles.panel} aria-labelledby="steam-recommend-title">

@@ -89,7 +89,7 @@ async function recommend(ids: string[], preference: Preference, scope: Ownership
     sharedPreferences: ranked.sharedPreferences, metadataUnavailable: ranked.metadataUnavailable };
 }
 
-function fitsParty(appId: number, people: number) {
-  const known = recommendationCatalog.find(game => game.appId === appId);
+export function fitsParty(appId: number, people: number, catalog = recommendationCatalog) {
+  const known = catalog.find(game => game.appId === appId);
   return !known || known.modes.some(mode => mode.online && mode.min <= people && mode.max >= people);
 }

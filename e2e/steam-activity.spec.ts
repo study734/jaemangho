@@ -18,7 +18,7 @@ test('좌측 Steam 진입은 필수 동의 모달을 띄우고 Escape·API 호�
   expect((await context.request.post('/api/steam/consent', { headers: { origin: 'https://other.invalid' }, data: { accepted: true, noticeVersion: 'steam-common-v1' } })).status()).toBe(403);
   await page.keyboard.press('Escape'); await expect(modal).toBeVisible();
   await page.mouse.click(2, 2); await expect(modal).toBeVisible();
-  for (const path of ['/api/steam/members', '/api/steam/games?ids=76561190000000001', '/api/steam/recommendations?ids=76561190000000001,76561190000000002', '/api/steam/taste']) expect(await statusOf(page, path)).toBe(403);
+  for (const path of ['/api/steam/members', '/api/steam/games?ids=76561190000000001', '/api/steam/recommendations?ids=76561190000000001,76561190000000002', '/api/steam/deals?ids=76561190000000001,76561190000000002', '/api/steam/taste']) expect(await statusOf(page, path)).toBe(403);
   await page.getByRole('link', { name: '동의하지 않고 나가기' }).click();
   await expect(page).toHaveURL(/\/play$/);
   await page.goto('/steam'); await expect(modal).toBeVisible();
