@@ -1603,3 +1603,6 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .player-details-dialog { border: 2px solid var(--hairline-strong) !important; border-radius: 12px; box-shadow: 6px 6px 0 var(--hairline) !important; }
 .comparison-table th { font-weight: 800; letter-spacing: .3px; border-bottom-color: var(--primary); }
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+
+/* 체크박스·라디오·진행 막대 등 브라우저 기본 강조색을 토큰으로 맞춘다. */
+:root { accent-color: var(--primary); }
