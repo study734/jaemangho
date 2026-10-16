@@ -47,7 +47,7 @@ test('질문 예시는 전송 없이 초안을 채우고 여러 턴을 실제 �
     { role: 'user', content: '오늘 같이 할 게임 고르자' }, { role: 'assistant', content: '오늘은 가볍게 할까, 승부를 볼까?' },
   ] });
   await input.fill('다음 질문 초안');
-  await page.getByRole('link', { name: 'Steam 공통 게임', exact: true }).first().click();
+  await page.getByRole('navigation', { name: '주제' }).getByRole('link', { name: 'Steam', exact: true }).click();
   await page.getByRole('link', { name: '재순이와 대화', exact: true }).first().click();
   await expect(input).toHaveValue('다음 질문 초안');
   await expect(page.getByRole('article', { name: '재순이 메시지' })).toHaveCount(2);

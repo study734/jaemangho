@@ -8,10 +8,9 @@ import { listHighlights } from '@/server/chat/highlights';
 import { listAwards } from '@/server/chat/awards';
 import { chatNotice } from '@/server/chat/notice';
 import { getHomeFeed } from '@/server/home';
-import { HomeMembers } from './home';
 import { getViewer } from '@/server/viewer';
 import { unstable_cache } from 'next/cache';
-import { Home, HomeCommunity, HomeRecent } from './home';
+import { Home, HomeCommunity, HomeMembers, HomeRecent, LobbyParty } from './home';
 import { getDiscoveryFeed } from '@/server/discovery';
 import { reportFailure } from '@/server/diagnostics';
 
@@ -49,6 +48,11 @@ async function Members() {
   return feed ? <HomeMembers people={feed.people} /> : null;
 }
 
+async function Party() {
+  const feed = await homeFeed();
+  return feed ? <LobbyParty people={feed.people} /> : null;
+}
+
 async function Recent() {
   const feed = await homeFeed();
   if (feed) return <HomeRecent activity={feed.activity} />;
@@ -56,7 +60,7 @@ async function Recent() {
 }
 
 function DiscoveryLoading() {
-  return <section className="discovery-deck discovery-loading" aria-labelledby="discovery-title" aria-busy="true"><p className="home-eyebrow">재순이의 오늘의 발견</p><h1 id="discovery-title">오늘은 무슨 일이 있었을까?</h1><p role="status">확인된 기록에서 오늘의 발견을 찾고 있어요.</p></section>;
+  return <section className="discovery-deck lobby-deck discovery-loading" aria-labelledby="discovery-title" aria-busy="true"><article className="lobby-card"><p className="lobby-tape">재순이의 오늘의 발견</p><h1 id="discovery-title" className="lobby-title">오늘은 무슨 일이 있었을까?</h1><p role="status">확인된 기록에서 오늘의 발견을 찾고 있어요.</p></article></section>;
 }
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ discovery?: string }> }) {
@@ -64,6 +68,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return <Home
     name={result.status === 'ok' ? result.viewer.name : ''}
     discovery={<Suspense fallback={<DiscoveryLoading />}><Discovery selected={searchParams} /></Suspense>}
+    party={<Suspense fallback={null}><Party /></Suspense>}
     week={<Suspense fallback={<section className="home-data-notice" role="status">우리 기록을 고르는 중이에요.</section>}><Week /></Suspense>}
     community={<Suspense fallback={<section className="home-data-notice" role="status">디스코드 활동을 불러오는 중이에요.</section>}><Community /></Suspense>}
     members={<Suspense fallback={<section className="member-list" role="status"><p className="member-empty">멤버를 불러오는 중이에요.</p></section>}><Members /></Suspense>}

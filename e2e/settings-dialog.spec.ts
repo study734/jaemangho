@@ -4,12 +4,12 @@ import { cleanup, createUser, expect, loginAs, mockRiot, test } from './fixtures
 test.beforeEach(cleanup);
 test.afterAll(cleanup);
 
-test('하단 설정은 채널을 유지하고 모달에서 연결을 확인하며 닫힌 뒤 포커스를 돌려준다', async ({ page, context }) => {
+test('상단 설정은 화면을 유지하고 모달에서 연결을 확인하며 닫힌 뒤 포커스를 돌려준다', async ({ page, context }) => {
   await loginAs(context, await createUser('settings_dialog', '설정 친구'));
   await mockRiot(page);
   await page.goto('/play');
-  await expect(page.locator('.channel-scroll a[href="/lol/settings"]')).toHaveCount(0);
-  const trigger = page.locator('.channel-user').getByRole('button', { name: '설정', exact: true });
+  await expect(page.getByRole('navigation', { name: '주제' }).locator('a[href="/lol/settings"]')).toHaveCount(0);
+  const trigger = page.getByRole('banner').getByRole('button', { name: '설정', exact: true });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '사용자 설정' });
   await expect(dialog.getByRole('heading', { name: '계정 정보' })).toBeVisible();
@@ -58,7 +58,7 @@ test('PC·태블릿·모바일에서 긴 이름과 설정 내용을 넘침 없�
 test('관리자 링크는 기존 관리자에게 표시되고 같은 화면으로 이어진다', async ({ page, context }) => {
   await loginAs(context, await createUser('settings_admin', '설정 관리자', 'admin'));
   await page.goto('/');
-  await page.locator('.channel-user').getByRole('button', { name: '설정', exact: true }).click();
+  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
   await page.getByRole('dialog').getByRole('link', { name: '관리자 화면' }).click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
