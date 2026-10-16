@@ -1587,3 +1587,19 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .segmented-tab-active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: 3px 3px 0 var(--accent-pink); }
 [aria-label="관리자 메뉴"][role="tablist"] { gap: 12px !important; padding: 0 6px 8px; border-bottom: 2px solid var(--hairline) !important; }
 .lobby-card > .lobby-tape { align-self: flex-start; }
+
+/* 패널 안쪽 공용 부품(버튼·입력·카드·모달·표)도 로비와 같은 하드 오프셋 문법을 쓴다. */
+.btn-primary, .btn-primary:hover { box-shadow: 3px 3px 0 var(--primary-pressed); }
+.btn-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--primary-pressed); }
+.btn-secondary { border: 2px solid var(--hairline-strong); box-shadow: 3px 3px 0 var(--hairline); }
+.btn-secondary:hover { border-color: var(--primary); background: var(--surface-soft); }
+.btn-secondary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--hairline); }
+.btn:disabled, .btn:disabled:active { box-shadow: none; transform: none; }
+.chat-composer .btn { box-shadow: none; }
+.text-input { border-width: 2px; }
+.text-input:focus { border-color: var(--primary); box-shadow: 3px 3px 0 var(--primary-pressed); }
+.card-base, .card-feature, .card-feature-dark { border: 2px solid var(--hairline-strong); box-shadow: 4px 4px 0 var(--hairline); }
+.card-base:hover { transform: none; border-color: var(--primary); box-shadow: 4px 4px 0 var(--hairline); }
+.player-details-dialog { border: 2px solid var(--hairline-strong) !important; border-radius: 12px; box-shadow: 6px 6px 0 var(--hairline) !important; }
+.comparison-table th { font-weight: 800; letter-spacing: .3px; border-bottom-color: var(--primary); }
+@media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
