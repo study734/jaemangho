@@ -23,15 +23,20 @@ export function createAnalysisService(
     const key = createHash('sha256').update(JSON.stringify([userId, input, preference])).digest('hex');
     const pending = active.get(userId);
     if (pending?.key === key) return pending.task;
-    const cached = cache.get(key);
+    // Steam tools depend on current shared game tastes. Reusing an old answer
+    // after a save/withdrawal would hide that change. In-flight dedup remains.
+    const cacheable = input.selection.steam.length === 0;
+    const cached = cacheable ? cache.get(key) : undefined;
     if (cached) return cached.result;
     const times = (attempts.get(userId) ?? []).filter(time => time > at - 60_000);
     if (pending || active.size >= 4 || times.length >= 6 || (!attempts.has(userId) && attempts.size >= 1000))
       throw new AiError('busy', 429, 'AI 요청이 많아요. 잠시 후 다시 시도해 주세요.');
     attempts.set(userId, [...times, at]);
     const task = Promise.resolve().then(() => generate(input, userId, preference)).then(result => {
-      if (cache.size >= 100) cache.delete(cache.keys().next().value!);
-      cache.set(key, { result, until: now() + 300_000 });
+      if (cacheable) {
+        if (cache.size >= 100) cache.delete(cache.keys().next().value!);
+        cache.set(key, { result, until: now() + 300_000 });
+      }
       return result;
     }).finally(() => { active.delete(userId); });
     active.set(userId, { key, task });

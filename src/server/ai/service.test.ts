@@ -61,4 +61,11 @@ describe('analysis request coordination', () => {
     for (let i = 0; i < 4; i++) void analyze(String(i), input);
     await expect(analyze('fifth', input)).rejects.toMatchObject({ status: 429 });
   });
+  it('refreshes Steam tool answers so a game taste save or sharing withdrawal takes effect', async () => {
+    const generate = vi.fn(async () => result);
+    const analyze = createAnalysisService(generate, () => 0);
+    const selected = { ...input, selection: { steam: ['s_' + 'a'.repeat(24)], lol: null } };
+    await analyze('one', selected); await analyze('one', selected);
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
 });

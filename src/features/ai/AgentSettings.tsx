@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useChat } from './ChatProvider';
 
 interface Choices { steam: { ref: string; label: string }[]; lol: { ref: string; label: string }[] }
@@ -52,6 +53,7 @@ export function AgentSettings() {
         <label className="agent-select-label" htmlFor="agent-preference">재순이가 기억할 내 취향</label>
         <textarea id="agent-preference" className="text-input" rows={3} maxLength={400} value={note} disabled={saving || busy} onChange={event => setNote(event.target.value)} placeholder="예: 경쟁 게임보다 협동 게임을 좋아해." />
         <p className="chat-muted">저장 버튼을 누른 내용만 계정에 보관하고 NVIDIA에 전송해요. 개인정보·비밀값은 적지 마세요.</p>
+        <p className="chat-muted">대화용 개인 메모예요. 추천 순위와 공유할 취향은 <Link href="/steam/recommend">게임 취향 설정</Link>에서 관리해요.</p>
         <div className="agent-settings-actions"><button className="btn btn-secondary" disabled={saving || busy || note.trim() === saved}>{saving ? '저장 중…' : '취향 저장'}</button>
           <button type="button" className="chat-text-button" disabled={saving || busy || !saved} onClick={() => void save('')}>기억 지우기</button></div>
       </form>

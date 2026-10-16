@@ -28,7 +28,7 @@ describe('bounded Jaesuni agent', () => {
     const d = deps(); d.generate.mockResolvedValueOnce(call).mockResolvedValueOnce(message);
     const answer = await createAgent(d)(input, 'actor');
     expect(answer.toolsUsed).toEqual(['Steam 공통 게임 조회 · 선택 필요']);
-    expect(d.execute).toHaveBeenCalledExactlyOnceWith('get_common_games', input.selection, expect.any(AbortSignal));
+    expect(d.execute).toHaveBeenCalledExactlyOnceWith('get_common_games', input.selection, expect.any(AbortSignal), 'actor');
     expect(d.generate).toHaveBeenCalledTimes(2);
     expect(d.generate.mock.calls[1][1]).not.toHaveProperty('tools');
     expect(d.generate.mock.calls[1][0].at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'one' });

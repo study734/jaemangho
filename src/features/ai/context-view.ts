@@ -1,10 +1,10 @@
 export function contextView(context: Record<string, unknown>) {
   if (context.topic === 'steam') return {
-    title: '함께할 Steam 게임', href: '/steam',
+    title: context.kind === 'personal' ? '내 취향 Steam 추천' : context.kind === 'group' ? '모임 Steam 추천' : '함께할 Steam 게임', href: context.kind ? '/steam/recommend' : '/steam',
     summary: `${context.people}명 선택 · ${Array.isArray(context.games) ? context.games.length : 0}개 후보`,
-    warning: Number(context.excluded) + Number(context.unverified) + Number(context.recentUnavailable) > 0 ? '일부 보유 목록·최근 기록을 확인하지 못했어요.' : '',
-    items: (Array.isArray(context.games) ? context.games : []).map((game: { name: string; owners?: number; totalMinutes: number }) => ({
-      title: game.name, detail: `${game.owners === undefined ? '보유 인원 집계 없음' : `${game.owners}명 보유`} · 합계 ${Math.round(game.totalMinutes / 60)}시간`,
+    warning: Number(context.excluded) + Number(context.unverified) + Number(context.recentUnavailable) > 0 ? '일부 보유 목록·최근 기록·게임 정보를 확인하지 못했어요.' : '',
+    items: (Array.isArray(context.games) ? context.games : []).map((game: { name: string; owners?: number; totalMinutes: number; modes?: { label: string; min: number; max: number }[] }) => ({
+      title: game.name, detail: `${game.owners === undefined ? '보유 인원 집계 없음' : `${game.owners}명 보유`} · 합계 ${Math.round(game.totalMinutes / 60)}시간${game.modes?.length ? ` · ${game.modes.map(mode => `${mode.label} ${mode.min === mode.max ? mode.min : `${mode.min}~${mode.max}`}명`).join(' · ')}` : ''}`,
     })),
   };
   if (context.topic === 'lol') {

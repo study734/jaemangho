@@ -39,7 +39,7 @@ export function createAgent(deps = {
       try { name = parseTool(call.function.name, call.function.arguments); }
       catch { throw new AiError('invalid_response', 502, '재순이의 조회 요청을 확인하지 못했어요. 다시 질문해 주세요.'); }
       let result;
-      try { result = await deps.execute(name, input.selection, signal); }
+      try { result = await deps.execute(name, input.selection, signal, userId); }
       catch (error) {
         signal.throwIfAborted();
         const errorId = reportFailure(`ai.tool.${name}`, error);

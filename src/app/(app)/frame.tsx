@@ -15,6 +15,7 @@ import { SettingsDialog } from '@/components/SettingsDialog';
 
 const CHANNEL_LINES: Record<string, string> = {
   '/steam': '같이 할 게임은 여기서 찾으면 돼. 멤버를 고르면 보유 게임 비교와 추천을 보여줄게.',
+  '/steam/recommend': '내 취향과 플레이 기록, 오늘 모인 인원에 맞춰 게임을 찾아줄게. 추천마다 근거와 인원 정보를 붙여뒀어.',
   '/lol': '친구들의 랭크와 최근 전적을 모아뒀어. 소환사를 누르면 자세히 볼 수 있어.',
   '/lol/squad': '같이 볼 소환사들을 등록하는 곳이야. Riot ID로 검색해서 추가할 수 있어.',
   '/lol/synergy': '함께한 경기 기록으로 듀오 성적을 비교해줄게.',

@@ -18,6 +18,26 @@ export async function parseBody<S extends z.ZodType>(request: Request, schema: S
   return result.success ? { ok: true, data: result.data } : invalid(result.error);
 }
 
+// Enforce the byte limit for streamed/chunked input before JSON allocation.
+export async function parseBounded<S extends z.ZodType>(request: Request, schema: S, limit: number): Promise<Parsed<z.infer<S>>> {
+  if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin)
+    return { ok: false, response: Response.json({ error: '다른 사이트에서 요청할 수 없어요.' }, { status: 403 }) };
+  const reader = request.body?.getReader();
+  if (!reader) return { ok: false, response: Response.json({ error: '입력 내용이 필요해요.' }, { status: 400 }) };
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) { await reader.cancel(); return { ok: false, response: Response.json({ error: '입력 내용이 너무 커요.' }, { status: 413 }) }; }
+      chunks.push(value);
+    }
+  } catch { return { ok: false, response: Response.json({ error: '입력 내용을 읽지 못했어요.' }, { status: 400 }) }; }
+  return parseBody(new Request(request.url, { method: 'POST', body: Buffer.concat(chunks) }), schema);
+}
+
 export function parseQuery<S extends z.ZodType>(params: URLSearchParams, schema: S): Parsed<z.infer<S>> {
   const result = schema.safeParse(Object.fromEntries(params));
   return result.success ? { ok: true, data: result.data } : invalid(result.error);
