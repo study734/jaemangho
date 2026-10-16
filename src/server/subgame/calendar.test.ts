@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { calendarTag } from './test-html';
 import { parseCalendar, SubgameFormatError } from './calendar';
 
-const anchor = (key: string, game: string, title: string, meta: string) =>
-  `<a href="/events?q=x" class="c" data-hc="" data-hc-title="${title}" data-hc-sub="${game}" data-hc-meta="${meta}" data-hc-color="bg-rose-500" data-hc-memo-key="${key}" data-hc-like-count="0"><span title="${game}"></span></a>`;
+const anchor = (key: string, game: string, title: string, meta: string) => calendarTag({ key, game, title, meta });
 
 describe('subgamecals 일정 파싱', () => {
   const html = [

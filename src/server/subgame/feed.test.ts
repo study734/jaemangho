@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Sql } from '../db';
 import { parseThreads } from './config';
+import { calendarTag } from './test-html';
 import { formatMessage, monthsToFetch, runSubgameFeed } from './feed';
 
 const a = (key: string, game: string, title: string, status: string) =>
-  `<a data-hc-title="${title}" data-hc-sub="${game}" data-hc-meta="이벤트 · 10월 1일 (목) ~ 10월 9일 (금) · ${status}" data-hc-memo-key="${key}"></a>`;
+  calendarTag({ key, game, title, meta: '이벤트 · 10월 1일 (목) ~ 10월 9일 (금) · ' + status });
 const page = [a('k1', '붕괴: 스타레일', '진행 일정', '진행중'), a('k2', '붕괴: 스타레일', '끝난 일정', '종료'), a('k3', '원신', '설정에 없는 게임', '진행중'), a('k4', '붕괴: 스타레일', '예정 일정', '예정')].join('');
 const THREAD = '1560711427130392627';
 

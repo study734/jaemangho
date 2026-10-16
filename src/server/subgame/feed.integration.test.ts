@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { calendarTag } from './test-html';
 import { openTestDb, testDbUrl } from '../testing/db';
 
 describe.skipIf(!testDbUrl)('외부 일정 게시 (DB)', () => {
   let pool: Awaited<ReturnType<typeof openTestDb>>;
   let feed: typeof import('./feed');
   const THREAD = '1560711427130392627';
-  const html = `<a data-hc-title="동시 일정" data-hc-sub="테스트게임" data-hc-meta="이벤트 · 10월 1일 (목) · 진행중" data-hc-memo-key="it_k1"></a>`;
+  const html = calendarTag({ key: 'it_k1', game: '테스트게임', title: '동시 일정', meta: '이벤트 · 10월 1일 (목) · 진행중' });
   const cleanup = () => pool.query(`delete from subgame_posts where memo_key like 'it_%'`);
 
   beforeAll(async () => { pool = await openTestDb(); feed = await import('./feed'); await cleanup(); });
