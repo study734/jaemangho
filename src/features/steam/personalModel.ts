@@ -10,12 +10,12 @@ export const personalApi = {
   settings: (signal: AbortSignal) => json<TasteSettings>('/api/steam/taste', signal),
   save: (taste: GameTaste, signal: AbortSignal) => json<{ taste: GameTaste }>('/api/steam/taste', signal, { method: 'PUT', body: JSON.stringify(taste) }),
   clear: (signal: AbortSignal) => json('/api/steam/taste', signal, { method: 'DELETE', body: '{}' }),
-  recommend: (input: { kind: 'personal' | 'group'; ids: string[]; scope: 'all' | 'any' | 'new'; solo: boolean }, signal: AbortSignal) =>
+  recommend: (input: { ids: string[]; scope: 'all' | 'any' | 'new'; solo: boolean }, signal: AbortSignal) =>
     json<PersonalResult>('/api/steam/personalized', signal, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 export function createPersonalModel(api = personalApi) {
-  const initial = { settings: null as TasteSettings | null, taste: emptyTaste(), saved: emptyTaste(), kind: 'personal' as 'personal' | 'group',
+  const initial = { settings: null as TasteSettings | null, taste: emptyTaste(), saved: emptyTaste(),
     selected: [] as string[], scope: 'any' as 'all' | 'any' | 'new', solo: false, busy: '' as '' | 'load' | 'save' | 'recommend', result: null as PersonalResult | null, error: '', status: '' };
   let snapshot = initial, revision = 0;
   let controller: AbortController | null = null;
@@ -41,7 +41,6 @@ export function createPersonalModel(api = personalApi) {
       const settings = await api.settings(signal);
       return { settings, taste: settings.taste, saved: settings.taste, selected: settings.members.filter(member => member.own).slice(0, 1).map(member => member.steamId) };
     }),
-    setKind(kind: 'personal' | 'group') { if (!snapshot.busy) update({ kind, result: null, error: '', selected: kind === 'personal' ? snapshot.settings?.members.filter(member => member.own).slice(0, 1).map(member => member.steamId) ?? [] : snapshot.selected }); },
     setSelected(selected: string[]) { if (!snapshot.busy) update({ selected, result: null, error: '' }); },
     setScope(scope: typeof initial.scope) { if (!snapshot.busy) update({ scope, result: null }); },
     setSolo(solo: boolean) { if (!snapshot.busy) update({ solo, result: null }); },
@@ -52,10 +51,10 @@ export function createPersonalModel(api = personalApi) {
     }),
     clear: () => run('save', async signal => {
       await api.clear(signal);
-      return { taste: emptyTaste(), saved: emptyTaste(), result: null, status: '게임 취향과 직접 남긴 함께한 기록을 지웠어요.' };
+      return { taste: emptyTaste(), saved: emptyTaste(), result: null, status: '게임 취향을 지웠어요.' };
     }),
     recommend: () => run('recommend', async signal => {
-      const result = await api.recommend({ kind: snapshot.kind, ids: [...snapshot.selected], scope: snapshot.scope, solo: snapshot.solo }, signal);
+      const result = await api.recommend({ ids: [...snapshot.selected], scope: snapshot.scope, solo: snapshot.solo }, signal);
       return { result };
     }),
     cancel() { revision++; controller?.abort(); update({ busy: '' }); },

@@ -37,12 +37,14 @@ describe('taste and recommendation HTTP contracts', () => {
     expect((await PUT(request({ ...emptyTaste(), userId: 'other' }))).status).toBe(400);
     expect((await PUT(request({ ...emptyTaste(), likes: ['puzzle'], avoids: ['puzzle'] }))).status).toBe(400);
     expect((await PUT(request({ ...emptyTaste(), likedGames: [999999] }))).status).toBe(400);
-    expect(fakes.save).not.toHaveBeenCalled();
+    expect((await PUT(request({ ...emptyTaste(), share: true, together: [] }))).status).toBe(200); // legacy keys are dropped
+    expect(fakes.save).toHaveBeenCalledExactlyOnceWith('actor', emptyTaste());
   });
   it('validates recommendation inputs and passes actor separately from selected accounts', async () => {
-    expect((await POST(request({ kind: 'personal', ids: [] }, 'POST'))).status).toBe(400);
-    expect((await POST(request({ kind: 'personal', ids: ['76561190000000001'], userId: 'other' }, 'POST'))).status).toBe(400);
-    expect((await POST(request({ kind: 'personal', ids: ['76561190000000001'] }, 'POST'))).status).toBe(200);
-    expect(fakes.recommend).toHaveBeenCalledExactlyOnceWith('actor', { kind: 'personal', ids: ['76561190000000001'], scope: 'any', solo: false }, expect.any(AbortSignal));
+    expect((await POST(request({ ids: [] }, 'POST'))).status).toBe(400);
+    expect((await POST(request({ ids: ['76561190000000001', '76561190000000002'] }, 'POST'))).status).toBe(400);
+    expect((await POST(request({ ids: ['76561190000000001'], userId: 'other' }, 'POST'))).status).toBe(400);
+    expect((await POST(request({ ids: ['76561190000000001'] }, 'POST'))).status).toBe(200);
+    expect(fakes.recommend).toHaveBeenCalledExactlyOnceWith('actor', { ids: ['76561190000000001'], scope: 'any', solo: false }, expect.any(AbortSignal));
   });
 });

@@ -1,4 +1,4 @@
-import type { CatalogGame, GameTaste, PersonalResult, TasteRecommendation, TasteTag } from '../../domain/steam-personal';
+import type { CatalogGame, GameTaste, TasteRecommendation, TasteTag } from '../../domain/steam-personal';
 import type { OwnedGame, RecentGame } from './client';
 
 export interface MemberSignal { steamId: string; games: OwnedGame[]; recent: RecentGame[] | null; taste: GameTaste }
@@ -25,32 +25,24 @@ function affinity(game: CatalogGame, member: MemberSignal, metadata: Map<number,
 // Scores compare this candidate set, not satisfaction probabilities. Explicit
 // exclusions win; logarithmic playtime is a weak signal, not proof of liking.
 export function rankByTaste(catalog: CatalogGame[], members: MemberSignal[], metadata: Map<number, TasteTag[]>,
-  options: { kind: 'personal' | 'group'; scope: 'all' | 'any' | 'new'; solo: boolean; examples: PersonalResult['groupExamples'] }): TasteRecommendation[] {
+  options: { scope: 'all' | 'any' | 'new'; solo: boolean }): TasteRecommendation[] {
   return catalog.flatMap(game => {
     if (members.some(member => member.taste.avoidedGames.includes(game.appId))) return [];
-    const modes = game.modes.filter(mode => options.kind === 'group'
-      ? mode.online && mode.min <= members.length && mode.max >= members.length
-      : !options.solo || mode.min === 1);
+    const modes = game.modes.filter(mode => !options.solo || mode.min === 1);
     if (!modes.length) return [];
     const missingIds = members.filter(member => !member.games.some(owned => owned.appId === game.appId)).map(member => member.steamId);
     const owners = members.length - missingIds.length;
     if ((options.scope === 'all' && missingIds.length) || (options.scope === 'new' && !missingIds.length)) return [];
     const signals = members.map(member => affinity(game, member, metadata));
     const mean = signals.reduce((sum, signal) => sum + signal.value, 0) / signals.length;
-    const minimum = Math.min(...signals.map(signal => signal.value));
-    const example = options.examples.filter(example => example.appId !== game.appId).map(example => ({ example,
-      value: overlap(game.tags, metadata.get(example.appId) ?? []) * (example.source === 'user-reported' ? 1 : 0.7) * example.players / members.length,
-    })).sort((a, b) => b.value - a.value)[0];
-    const hasSignal = signals.some(signal => signal.hasSignal) || (example?.value ?? 0) > 0;
-    const base = options.kind === 'group' ? 0.6 * mean + 0.4 * minimum : mean;
-    const score = hasSignal ? Math.round(100 * clamp(base * (options.kind === 'group' ? 0.75 : 1) + (example?.value ?? 0) * 0.25)) : null;
+    const hasSignal = signals.some(signal => signal.hasSignal);
+    const score = hasSignal ? Math.round(100 * clamp(mean)) : null;
     const reasons = [owners === members.length ? '선택한 모두의 보유 목록에서 확인' : `${members.length}명 중 ${owners}명 보유 목록에서 확인`];
     const liked = signals.filter(signal => signal.likedTags.length || signal.likedGame).length;
     if (liked) reasons.push(`${liked}명의 저장한 선호와 일치`);
     if (signals.some(signal => signal.avoided)) reasons.push('일부 참여자의 피하는 장르와 겹쳐 감점');
     const similar = signals.map(signal => signal.similar).filter(signal => signal && signal.value > 0).sort((a, b) => b!.value - a!.value)[0];
     if (similar) reasons.push(`플레이한 ${similar.source.name}과 게임 특성 유사`);
-    if (example && example.value > 0) reasons.push(`${example.example.source === 'user-reported' ? '사용자가 함께했다고 남긴' : '여러 멤버가 각각 플레이한'} ${example.example.name}과 유사`);
     if (!hasSignal) reasons.push('취향·플레이 근거 부족 · 개인화 점수 없음');
     const totalMinutes = members.reduce((sum, member) => sum + (member.games.find(owned => owned.appId === game.appId)?.minutes ?? 0), 0);
     return [{ ...game, modes, score, reasons, owners, missingIds, totalMinutes }];

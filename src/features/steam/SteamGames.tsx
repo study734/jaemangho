@@ -34,7 +34,7 @@ export function SteamGames({ initialQuery = '', linkResult, renderAnalysis }: { 
       <header style={styles.header}>
         <h2 className="heading-3 visual-heading" style={styles.title}><ServiceMark service="steam" size={36} />같이 할 Steam 게임</h2>
         <p style={styles.hint}>함께할 사람을 고르고 보유 범위를 선택해 게임을 찾아요. 프로필의 &quot;게임 세부 정보&quot;가 공개여야 보유 여부를 확인할 수 있습니다.</p>
-        <Link className="btn btn-secondary" href="/steam/recommend">개인 취향·공통 게임 추천</Link>
+        <Link className="btn btn-secondary" href="/steam/recommend">내 취향으로 게임 추천</Link>
       </header>
 
       {error && <div style={styles.error} role="alert">{error}
