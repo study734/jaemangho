@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { complete, requestModel, messagesFor, AI_MODEL } from './client';
+import { complete, requestModel, messagesFor, AI_MODEL, NOT_CONFIGURED_MESSAGE, aiKeyConfigured } from './client';
 import { analysisSchema } from './context';
 
 const input = analysisSchema.parse({ context: { topic: 'general' } });
 const success = () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: '  설명입니다.  ' } }] });
 describe('NVIDIA client', () => {
+  it('treats empty and example-placeholder keys as not configured with a clear in-character notice', async () => {
+    for (const key of [undefined, '', '   ', 'NVIDIA_API_KEY', '$NVIDIA_API_KEY']) expect(aiKeyConfigured(key)).toBe(false);
+    expect(aiKeyConfigured(' nvapi-real ')).toBe(true);
+    await expect(requestModel(messagesFor(input), { apiKey: '' })).rejects.toMatchObject({ code: 'not_configured', status: 503, message: NOT_CONFIGURED_MESSAGE });
+    expect(NOT_CONFIGURED_MESSAGE).toContain('API 키가 없어서');
+  });
   it('reports the body stage only after response headers arrive', async () => {
     const stages: string[] = [];
     await requestModel(messagesFor(input), { apiKey: 'k', fetch: vi.fn(async () => success()), onStage: stage => stages.push(stage) });

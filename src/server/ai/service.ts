@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AiError, complete } from './client';
+import { AiError, NOT_CONFIGURED_MESSAGE, aiKeyConfigured, complete } from './client';
 import { runAgent } from './agent';
 import { readPreference } from './store';
 import type { AgentAnswer } from './agent';
@@ -47,7 +47,6 @@ export function createAnalysisService(
 const coordinatedAgent = createAnalysisService(runAgent, Date.now, readPreference);
 export async function analyze(userId: string, input: AnalysisInput) {
   // Preserve configuration errors without starting DB quota work or provider calls.
-  if (!process.env.NVIDIA_API_KEY?.trim() || ['$NVIDIA_API_KEY', 'NVIDIA_API_KEY'].includes(process.env.NVIDIA_API_KEY.trim()))
-    throw new AiError('not_configured', 503, 'AI 연결이 준비되지 않았어요. 서버의 NVIDIA_API_KEY 설정을 확인해 주세요.');
+  if (!aiKeyConfigured()) throw new AiError('not_configured', 503, NOT_CONFIGURED_MESSAGE);
   return coordinatedAgent(userId, input);
 }

@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { SYSTEM_PROMPT, type AnalysisInput } from './context';
 
 export const AI_MODEL = 'z-ai/glm-5.3-flash';
+// 재순이 말투의 안내. 키 이름·설정 위치는 사용자에게 보이지 않는다.
+export const NOT_CONFIGURED_MESSAGE = '앗, 재순이는 지금 API 키가 없어서 대답을 못 해… 관리자가 키를 챙겨 주면 바로 돌아올게!';
+// 비었거나 예제 자리표시자면 미설정으로 본다. 이 판정은 한 곳에서만 한다.
+export const aiKeyConfigured = (key: string | undefined = process.env.NVIDIA_API_KEY) => {
+  const value = key?.trim();
+  return !!value && value !== '$NVIDIA_API_KEY' && value !== 'NVIDIA_API_KEY';
+};
 export class AiError extends Error {
   code: 'not_configured' | 'network' | 'timeout' | 'invalid_response' | 'upstream' | 'busy';
   status: number;
@@ -37,8 +44,7 @@ export interface ModelOptions { apiKey?: string; fetch?: typeof fetch; timeoutMs
 // Provider transport has no dependency on Jaemangho's tools, database or UI.
 export async function requestModel(messages: ModelMessage[], options: ModelOptions = {}) {
   const key = (options.apiKey ?? process.env.NVIDIA_API_KEY)?.trim();
-  if (!key || key === '$NVIDIA_API_KEY' || key === 'NVIDIA_API_KEY')
-    throw new AiError('not_configured', 503, 'AI 연결이 준비되지 않았어요. 서버의 NVIDIA_API_KEY 설정을 확인해 주세요.');
+  if (!aiKeyConfigured(key)) throw new AiError('not_configured', 503, NOT_CONFIGURED_MESSAGE);
   const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let response: Response;
