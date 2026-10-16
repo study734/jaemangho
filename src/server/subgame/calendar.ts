@@ -3,8 +3,15 @@
 // 연도는 쓰지 않는다: 날짜 문구는 사이트가 보여주는 그대로 전달한다.
 export const CALENDAR_URL = 'https://www.subgamecals.com/calendar';
 
-export class SubgameFormatError extends Error {}
-export class SubgameFetchError extends Error {}
+// code·status·phase는 src/server/diagnostics.ts가 로그에 남기는 진단 정보다(메시지·주소는 남지 않는다).
+export class SubgameFormatError extends Error { code = 'invalid_response'; phase = 'calendar'; }
+export class SubgameFetchError extends Error {
+  phase = 'calendar';
+  code: 'network' | 'timeout' | 'invalid_response';
+  status?: number;
+  elapsedMs?: number;
+  constructor(code: 'network' | 'timeout' | 'invalid_response', status?: number, elapsedMs?: number) { super(code); this.code = code; this.status = status; this.elapsedMs = elapsedMs; }
+}
 
 export type EventStatus = '진행중' | '예정' | '종료';
 export interface CalendarEvent { key: string; game: string; title: string; kind: string; range: string; status: EventStatus }
@@ -32,9 +39,14 @@ export function parseCalendar(html: string): { events: CalendarEvent[]; skipped:
 }
 
 export async function fetchCalendar(month: string, fetchFn: typeof fetch = fetch) {
+  const started = Date.now();
+  const fail = (error: unknown) => { throw new SubgameFetchError(error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'timeout' : 'network', undefined, Date.now() - started); };
   let res: Response;
   try { res = await fetchFn(`${CALENDAR_URL}?month=${month}`, { signal: AbortSignal.timeout(15_000), cache: 'no-store', headers: { 'User-Agent': 'jaemangho-subgame-feed (private friend app)' } }); }
-  catch { throw new SubgameFetchError('network'); }
-  if (!res.ok) throw new SubgameFetchError(`http_${res.status}`);
-  return parseCalendar(await res.text());
+  catch (error) { return fail(error); }
+  if (!res.ok) throw new SubgameFetchError('invalid_response', res.status, Date.now() - started);
+  // 본문을 읽는 중의 시간 초과도 같은 방식으로 구분한다.
+  let html: string;
+  try { html = await res.text(); } catch (error) { return fail(error); }
+  return parseCalendar(html);
 }
