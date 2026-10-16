@@ -14,6 +14,7 @@ export interface SummaryRow {
 
 interface SidebarProps {
   isAdmin: boolean;
+  summary?: SummaryRow[];
 }
 
 
@@ -40,12 +41,12 @@ export function SidebarSummary({ summary }: { summary: SummaryRow[] }) {
   );
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isAdmin }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isAdmin, summary }) => {
   const pathname = usePathname();
   const section = sectionsFor(isAdmin).find((s) => s.id === sectionOf(pathname))!;
   return (
     <aside className={`detail-sidebar${section.items.length === 1 ? ' detail-sidebar-single' : ''}`} style={styles.sidebar}>
-      <div style={styles.sectionTitle}>{section.label}</div>
+      <div className="detail-sidebar-title" style={styles.sectionTitle}>{section.label}</div>
 
       <nav aria-label={`${section.label} 상세 메뉴`} style={styles.nav}>
         {section.items.map((item) => (
@@ -61,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin }) => {
           </Link>
         ))}
       </nav>
-
+      {section.id === 'lol' && summary && <SidebarSummary summary={summary} />}
     </aside>
   );
 };

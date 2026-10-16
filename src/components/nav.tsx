@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ServiceMark, UiIcon } from './VisualImage';
 
 export interface NavItem {
   href: string;
@@ -166,7 +167,7 @@ export function sectionsFor(isAdmin: boolean): Section[] {
     { id: 'memories', label: '우리 기록', items: [{ ...COMMUNITY[0], href: '/memories', label: '우리 기록' }, ...COMMUNITY] },
     { id: 'lol', label: '롤', items: LOL },
     { id: 'steam', label: 'Steam', items: STEAM },
-    { id: 'community', label: '커뮤', items: COMMUNITY },
+    { id: 'community', label: '우리 기록', items: COMMUNITY },
     { id: 'people', label: '멤버', items: PEOPLE },
     { id: 'settings', label: isAdmin ? '설정 · 관리자' : '설정', items: isAdmin ? [...SETTINGS, UPDATES, ADMIN] : [...SETTINGS, UPDATES] },
   ];
@@ -194,6 +195,28 @@ export const PRIMARY_DESTINATIONS = [
   { id: 'memories', href: '/memories', label: '우리 기록', icon: 'star' },
   { id: 'people', href: '/people', label: '멤버', icon: 'people' },
 ] as const;
+
+// 로비 메뉴 타일과 상단 탭이 함께 쓰는 목적지. 새 주제는 여기에 한 줄을 더한다.
+export const MAIN_DESTINATIONS = [
+  { id: 'home', href: '/', label: '홈', sub: '오늘의 발견', icon: { ui: 'house-door' } },
+  { id: 'steam', href: '/steam', label: 'Steam', sub: '공통 협동 게임', icon: { service: 'steam' } },
+  { id: 'lol', href: '/lol', label: '롤', sub: '전적 · 시너지', icon: { service: 'leagueoflegends' } },
+  { id: 'memories', href: '/memories', label: '우리 기록', sub: '시상식 · 개념글', icon: { ui: 'star' } },
+  { id: 'people', href: '/people', label: '멤버', sub: '친구들', icon: { ui: 'people' } },
+] as const;
+
+export type MainDestination = (typeof MAIN_DESTINATIONS)[number];
+
+export function DestinationIcon({ destination, size }: { destination: MainDestination; size: number }) {
+  return 'service' in destination.icon ? <ServiceMark service={destination.icon.service} size={size} /> : <UiIcon name={destination.icon.ui} size={size} />;
+}
+
+// 지금 화면이 속한 목적지. 같이 놀기·재순이 대화·설정은 어느 쪽에도 속하지 않는다.
+export function mainSectionOf(pathname: string): MainDestination['id'] | null {
+  const section = sectionOf(pathname);
+  if (section === 'community' || section === 'memories') return 'memories';
+  return section === 'home' || section === 'steam' || section === 'lol' || section === 'people' ? section : null;
+}
 
 export function primarySectionOf(pathname: string) {
   const section = sectionOf(pathname);

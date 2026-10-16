@@ -99,38 +99,29 @@ test('제공 기능은 재순이 메시지의 임베드에서 사용하고 모�
   expect(positions.toolsBottom).toBeLessThanOrEqual(positions.summariesTop);
 });
 
-test('PC 오른쪽은 멤버 활동 패널이고 헤더 버튼으로 접고 펼칠 수 있다', async ({ page, context }) => {
+test('홈은 로비로 시작하고 로비 아래에 멤버 활동 패널이 이어진다', async ({ page, context }) => {
   await loginAs(context, await createUser('channel_shell', '채널친구'));
   await page.setViewportSize({ width: 1504, height: 640 });
   await page.goto('/');
   const feed = page.locator('.home-channel-feed');
   const members = page.getByRole('complementary', { name: '멤버 활동과 최근 접속' });
-  const initial = await members.boundingBox();
+  await members.scrollIntoViewIfNeeded();
   await expect(members.getByRole('heading', { name: /최근 활동/ })).toBeVisible();
   await expect(members.locator('.member-activity-card')).toContainText('사이트 접속');
   await expect(members.locator('.member-row')).toContainText('채널친구');
   await expect(members.getByRole('search')).toHaveCount(0);
   await expect(feed.getByRole('search')).toBeVisible();
-  await expect(page.locator('.channel-sidebar').getByRole('link', { name: '멤버', exact: true })).toHaveCount(0);
-  await feed.evaluate(el => { el.scrollTop = el.scrollHeight; });
-  await expect.poll(() => feed.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-  expect((await members.boundingBox())!.y).toBe(initial!.y);
-  const toggle = page.getByRole('button', { name: '멤버 활동 패널' });
-  const expandedWidth = (await feed.boundingBox())!.width;
-  await toggle.click();
-  await expect(members).toBeHidden();
-  await expect(page.getByRole('region', { name: '재망호 디스코드 서버', exact: true })).toBeHidden();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  expect((await feed.boundingBox())!.width).toBeGreaterThan(expandedWidth);
-  await toggle.click();
-  await expect(members).toBeVisible();
-  await expect(page.locator('.channel-user')).toBeVisible();
-  const rail = page.getByRole('navigation', { name: '서버 목록' });
-  await page.locator('.channel-sidebar').getByRole('link', { name: 'Steam 공통 게임' }).click();
+  // 홈은 로비다: 서버 레일·채널 목록·채널 헤더 없이 로비 메뉴로 이동한다.
+  await expect(page.locator('.channel-sidebar')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '서버 목록' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '로비 메뉴' }).getByRole('link')).toHaveCount(5);
+  await expect(page.locator('.lobby-party')).toContainText('채널친구');
+  const topics = page.getByRole('navigation', { name: '주제', exact: true });
+  await page.getByRole('navigation', { name: '로비 메뉴' }).getByRole('link', { name: /Steam/ }).click();
   await expect(page).toHaveURL(/\/steam$/);
-  await expect(rail.getByRole('link', { name: '재망호 서버' })).toHaveAttribute('aria-current', 'true');
+  await expect(topics.getByRole('link', { name: 'Steam', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(rail).toBeHidden();
+  await expect(topics).toBeHidden();
   await expect(page.getByRole('navigation', { name: '주요 메뉴' })).toBeVisible();
 });
 
@@ -152,11 +143,12 @@ test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리�
     for (const selector of ['.home-card-heading', '.community-graphic-heading']) {
       expect(await home.locator(selector).evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
     }
-    for (const selector of ['.home-play', '.discovery-deck', '.game-cover-grid']) {
+    expect(await page.locator('.lobby-card').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    for (const selector of ['.home-play', '.game-cover-grid']) {
       expect(await home.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
     await expect(home.locator('.home-play').getByText(`${name}님, 멤버만 고르면 시작할 수 있어요.`)).toBeVisible();
-    await home.locator('.discovery-deck').scrollIntoViewIfNeeded();
+    await page.locator('.lobby-card').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `output/playwright/home-long-name-${width}.png` });
     const avatar = home.locator('.member-avatar img').first();
     await avatar.scrollIntoViewIfNeeded();
@@ -271,7 +263,7 @@ test('모바일에서 메뉴와 주요 행동을 쓸 수 있고 본문이 넘치
     expect(await covers.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     const logout = await page.getByRole('button', { name: '로그아웃' }).boundingBox();
     expect(logout!.height).toBeGreaterThanOrEqual(44);
-    const discovery = await page.locator('.discovery-deck').boundingBox();
+    const discovery = await page.locator('.lobby').boundingBox();
     const play = await page.locator('.home-play').boundingBox();
     expect(play!.y).toBeGreaterThanOrEqual(discovery!.y + discovery!.height);
   }
@@ -292,10 +284,10 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await page.route('**/images/jaesuni-home.webp', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
-  await expect(page.locator('.discovery-dialogue .dc-head')).toHaveText('재순이앱');
+  await expect(page.locator('.discovery-dialogue .lobby-tape')).toHaveText('재순이');
   await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
   await expect(page.locator('.home-tools-message .visual-fallback')).toHaveText('재');
-  const stage = await page.locator('.discovery-deck .dc-message').boundingBox();
+  const stage = await page.locator('.lobby').boundingBox();
   const title = await page.locator('.discovery-dialogue').boundingBox();
   expect(title!.y).toBeGreaterThanOrEqual(stage!.y);
   expect(title!.y + title!.height).toBeLessThanOrEqual(stage!.y + stage!.height);

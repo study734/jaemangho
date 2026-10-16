@@ -10,7 +10,7 @@ test('좌측 Steam 진입은 필수 동의 모달을 띄우고 Escape·API 호�
   let memberReads = 0;
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/steam/members') memberReads++; });
   await page.goto('/');
-  await page.getByRole('link', { name: 'Steam 공통 게임', exact: true }).first().click();
+  await page.getByRole('navigation', { name: '로비 메뉴' }).getByRole('link', { name: /Steam/ }).click();
   const modal = page.getByRole('dialog', { name: 'Steam 공통 게임 이용 동의' });
   await expect(modal).toBeVisible();
   expect(memberReads).toBe(0);
