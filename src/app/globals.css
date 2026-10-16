@@ -1439,3 +1439,22 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 /* 인라인 스타일로 그린 최상위 패널(프로필·시상식·패치노트·Steam·숙련도)을 같은 모서리·테두리·오프셋으로 맞춘다. 재순이 패널 안에서는 겹쳐 쌓지 않도록 오프셋을 뺀다. */
 .panel-hard { border: 2px solid var(--hairline-strong) !important; border-radius: 12px !important; box-shadow: 4px 4px 0 var(--hairline); }
 .jaesuni-embed .panel-hard { box-shadow: none; }
+
+/* 접근성: 활성 탭(라벤더) 위 글자는 어두운 색, 키보드로 스크롤하는 영역에도 포커스 링 */
+.segmented-tab-active > span { color: var(--on-primary) !important; }
+[tabindex="0"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* 로비 등장 모션: 개별 translate 속성만 써서 타일의 사선(transform)과 겹치지 않는다. 동작 줄이기에서는 쓰지 않는다. */
+@keyframes lobby-in { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+@keyframes lobby-in-right { from { opacity: 0; translate: 28px 0; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .lobby-tile { animation: lobby-in 420ms cubic-bezier(.2, .9, .3, 1.1) backwards; }
+  .lobby-tile:nth-child(2) { animation-delay: 60ms; }
+  .lobby-tile:nth-child(3) { animation-delay: 120ms; }
+  .lobby-tile:nth-child(4) { animation-delay: 180ms; }
+  .lobby-tile:nth-child(5) { animation-delay: 240ms; }
+  .lobby-dialog { animation: lobby-in 420ms 300ms cubic-bezier(.2, .9, .3, 1.1) backwards; }
+  .lobby-party li { animation: lobby-in-right 380ms cubic-bezier(.2, .9, .3, 1.1) backwards; }
+  .lobby-party li:nth-child(2) { animation-delay: 80ms; }
+  .lobby-party li:nth-child(3) { animation-delay: 160ms; }
+}
