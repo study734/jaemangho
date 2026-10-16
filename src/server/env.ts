@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseThreads } from './subgame/config';
 
 // 환경변수 점검. 값이 없는 것뿐 아니라 "변수 이름이 값으로 들어간 경우"처럼 형식이 틀린 것도 잡는다.
 // (예전에 DISCORD_CLIENT_ID의 값이 글자 그대로 "DISCORD_CLIENT_ID"였던 적이 있다.)
@@ -23,6 +24,8 @@ const schema = z.object({
   CRON_SECRET: z.string().min(16, '16자 이상이어야 합니다').or(z.literal('')).optional(),
   // 선택: Steam 기능을 쓸 때만 필요하다. 설정했다면 형식을 점검한다.
   STEAM_API_KEY: z.string().regex(/^[0-9A-Fa-f]{32}$/, '32자리 16진수 Steam 키여야 합니다').or(z.literal('')).optional(),
+  // 선택: 외부 일정 게시용 {"게임 이름": "포럼 스레드 ID"} JSON. 설정했다면 형식을 점검한다.
+  SUBGAME_THREADS: z.string().refine(value => { try { parseThreads(value); return true; } catch { return false; } }, '{"게임 이름":"스레드 ID"} 형식의 JSON이어야 합니다').or(z.literal('')).optional(),
   // 운영 알림 전용 Discord webhook. URL에 포함된 토큰을 표시하거나 로그로 남기지 않는다.
   OPS_ALERT_WEBHOOK_URL: z.string().regex(/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d{17,20}\/[\w-]+$/, 'Discord webhook 주소여야 합니다').or(z.literal('')).optional(),
 });
