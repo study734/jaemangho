@@ -35,11 +35,12 @@ export function createAgent(deps = {
       const first = await deps.generate(messages, { tools: toolDefinitions, signal });
       const call = first.message.tool_calls?.[0];
       if (!call) return { answer: first.message.content!, model: first.model, truncated: first.truncated };
-      let name;
-      try { name = parseTool(call.function.name, call.function.arguments); }
+      let parsed;
+      try { parsed = parseTool(call.function.name, call.function.arguments); }
       catch { throw new AiError('invalid_response', 502, '재순이의 조회 요청을 확인하지 못했어요. 다시 질문해 주세요.'); }
+      const { name, args } = parsed;
       let result;
-      try { result = await deps.execute(name, input.selection, signal, userId); }
+      try { result = await deps.execute(name, input.selection, signal, userId, args); }
       catch (error) {
         signal.throwIfAborted();
         const errorId = reportFailure(`ai.tool.${name}`, error);
@@ -50,6 +51,7 @@ export function createAgent(deps = {
       await deps.charge(requestId);
       signal.throwIfAborted();
       // No tools are offered in the final call, so execution cannot recurse.
+      messages.push({ role: 'system', content: '조회 단계가 끝났다. 방금 도구가 돌려준 결과만 한국어 일반 문장으로 설명한다. 추가 도구 호출·도구 이름 추측·XML/JSON 호출 문법 출력은 금지한다. 최근 2주 시간과 누적 시간을 구분한다.' });
       const final = await deps.generate(messages, { signal });
       if (final.message.tool_calls || !final.message.content) throw new AiError('invalid_response', 502, '조회 결과의 답변을 읽지 못했어요.');
       return { answer: final.message.content, model: final.model, truncated: final.truncated,

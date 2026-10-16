@@ -28,10 +28,11 @@ describe('bounded Jaesuni agent', () => {
     const d = deps(); d.generate.mockResolvedValueOnce(call).mockResolvedValueOnce(message);
     const answer = await createAgent(d)(input, 'actor');
     expect(answer.toolsUsed).toEqual(['Steam 공통 게임 조회 · 선택 필요']);
-    expect(d.execute).toHaveBeenCalledExactlyOnceWith('get_common_games', input.selection, expect.any(AbortSignal), 'actor');
+    expect(d.execute).toHaveBeenCalledExactlyOnceWith('get_common_games', input.selection, expect.any(AbortSignal), 'actor', {});
     expect(d.generate).toHaveBeenCalledTimes(2);
     expect(d.generate.mock.calls[1][1]).not.toHaveProperty('tools');
-    expect(d.generate.mock.calls[1][0].at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'one' });
+    expect(d.generate.mock.calls[1][0].at(-2)).toMatchObject({ role: 'tool', tool_call_id: 'one' });
+    expect(d.generate.mock.calls[1][0].at(-1)).toMatchObject({ role: 'system' });
     expect(d.charge).toHaveBeenCalledTimes(2);
   });
   it('rejects invented tools and arguments before executing anything', async () => {
@@ -48,7 +49,7 @@ describe('bounded Jaesuni agent', () => {
     try {
       const answer = await createAgent(d)(input, 'actor');
       expect(answer.toolsUsed?.[0]).toContain('조회 실패');
-      const toolMessage = d.generate.mock.calls[1][0].at(-1);
+      const toolMessage = d.generate.mock.calls[1][0].at(-2);
       expect(toolMessage.content).toContain('unavailable');
       expect(toolMessage.content).not.toContain('private-');
     } finally { log.mockRestore(); }
@@ -77,4 +78,12 @@ describe('bounded Jaesuni agent', () => {
     expect(d.charge).not.toHaveBeenCalled(); expect(d.generate).not.toHaveBeenCalled();
     expect(d.release).toHaveBeenCalledExactlyOnceWith('request');
   });
+});
+
+it('전달된 추천 조건을 검증해 도구로 전달하고 최종 답변은 추가 도구를 받지 않는다', async () => {
+  const d = deps();
+  d.generate.mockResolvedValueOnce({ ...call, message: { ...call.message, tool_calls: [{ ...call.message.tool_calls[0], function: { name: 'get_steam_recommendations', arguments: JSON.stringify({ scope: 'unowned', preference: 'fresh' }) } }] } }).mockResolvedValueOnce(message);
+  await createAgent(d)(input, 'actor');
+  expect(d.execute).toHaveBeenCalledExactlyOnceWith('get_steam_recommendations', input.selection, expect.any(AbortSignal), 'actor', { scope: 'unowned', preference: 'fresh' });
+  expect(d.generate.mock.calls[1][1]).not.toHaveProperty('tools');
 });

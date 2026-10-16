@@ -245,3 +245,38 @@ test('멤버 선택·명시적 개인 취향·조회 자료를 대화방에서 �
   await expect(panel.getByRole('status')).toContainText('취향을 지웠어요');
   expect((await db.query('select note from ai_preferences where user_id=$1', [user.id])).rowCount).toBe(0);
 });
+
+test('Steam 최근 시간과 공개 과제 조회 자료를 PC·태블릿·모바일에서 읽는다', async ({ page, context }) => {
+  await loginAs(context, await createUser('ai_steam_tools', 'E2E Steam 조회'));
+  let calls = 0;
+  await page.route('**/api/ai', route => {
+    calls++;
+    return route.fulfill({ json: { ...answer(calls === 1 ? '최근 2주에 Portal 2를 합계 두 시간 했어.' : '공개 목표는 두 명이 아직 달성하지 않았어.'), toolsUsed: [calls === 1 ? 'Steam 보유·플레이 조회' : 'Steam 공개 도전 과제 조회'], evidence: { capturedAt: new Date().toISOString(), context: {
+      topic: 'steam', mode: calls === 1 ? 'recent' : 'missions', scope: 'any', preference: 'balanced', people: 2, excluded: 0, unverified: 0, recentUnavailable: 0,
+      games: [{ name: 'Portal 2', totalMinutes: 600, recentMinutes: 120, owners: 2 }],
+      ...(calls === 2 ? { missions: { game: 'Portal 2', state: 'ok', unknownAchievements: 0, unavailable: 0, goals: [{ title: '공개 협동 목표', kind: 'team-first', remaining: 2 }] } } : {}),
+    } } } });
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/chat');
+  const input = page.getByRole('textbox', { name: '재순이에게 메시지' });
+  const panel = page.getByRole('complementary', { name: '현재 참고 자료' });
+  await input.fill('최근 2주에 한 게임 알려줘');
+  await input.press('Enter');
+  await expect(panel).toContainText('최근 2주 합계 2시간');
+  await expect(panel).not.toContainText('누적 합계 10시간');
+  await input.fill('Portal 2 공개 도전 과제 조회해줘');
+  await input.press('Enter');
+  await expect(panel).toContainText('공개 협동 목표');
+  await expect(panel).toContainText('미달성 2명');
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    if (width <= 1024) await page.getByRole('button', { name: '참고 자료 1', exact: true }).click();
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('협동 달성 여부 미확인');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await mkdir('output/playwright', { recursive: true });
+    await page.screenshot({ path: `output/playwright/steam-agent-${width}.png` });
+    if (width <= 1024) await page.getByRole('button', { name: '닫기', exact: true }).click();
+  }
+});

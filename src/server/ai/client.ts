@@ -45,7 +45,9 @@ export async function requestModel(messages: ModelMessage[], options: ModelOptio
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       // GLM-5.3-Flash defaults to max reasoning; low suits short chat turns.
       body: JSON.stringify({ model: AI_MODEL, reasoning_effort: 'low', temperature: 0.5, top_p: 1, max_tokens: 2048, stream: false,
-        messages, ...(options.tools ? { tools: options.tools, tool_choice: 'auto', parallel_tool_calls: false } : {}), }),
+        // NIM can emit raw call markup after a native tool result when this is
+        // omitted. Explicitly end tool selection for conversation/final replies.
+        messages, ...(options.tools ? { tools: options.tools, tool_choice: 'auto', parallel_tool_calls: false } : { tool_choice: 'none' }), }),
     });
   } catch {
     throw signal.aborted ? new AiError('timeout', 504, 'AI 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.')
@@ -64,6 +66,9 @@ export async function requestModel(messages: ModelMessage[], options: ModelOptio
     const choice = result.choices[0];
     if (choice.finish_reason && !['stop', 'length', 'tool_calls'].includes(choice.finish_reason)) throw new Error('invalid completion');
     if (!choice.message.tool_calls && !choice.message.content) throw new Error('empty completion');
+    // Never execute provider call markup emitted as ordinary content, or show it
+    // as a successful answer when no native tool call was returned.
+    if (choice.message.content && /<\/?(?:tool_call|arg_key|arg_value|function)[\s>]|<\|tool_call/i.test(choice.message.content)) throw new Error('tool markup in content');
     if (choice.message.tool_calls && (!options.tools || choice.finish_reason === 'length')) throw new Error('unexpected tool call');
     return { message: { ...choice.message, content: choice.message.content ?? null }, truncated: choice.finish_reason === 'length', model: AI_MODEL };
   } catch {

@@ -6,6 +6,7 @@ vi.mock('../lol/roster', () => ({ listRoster: fakes.roster }));
 vi.mock('../riot/proxy', () => ({ proxyRiot: fakes.proxy }));
 vi.mock('../db', () => ({ db: async () => fakes.sql }));
 vi.mock('../steam/personalized', () => ({ personalizedGames: fakes.personal }));
+vi.mock('./steam-tools', () => ({ steamArguments: {}, steamRead: vi.fn() }));
 import { memberChoices, parseTool, readTool } from './tools';
 const signal = () => new AbortController().signal;
 beforeEach(() => {
@@ -59,6 +60,9 @@ describe('read-only agent tools', () => {
     expect(fakes.personal).toHaveBeenCalledExactlyOnceWith('actor', { kind: 'personal', ids: ['76561190000000001'], scope: 'any', solo: false }, expect.any(AbortSignal));
     expect(result.context).toMatchObject({ kind: 'personal', games: [{ modes: [{ min: 2, max: 2 }] }] });
     expect(JSON.stringify(result)).not.toMatch(/actor|private-|7656119|appId/);
+    const fresh = await readTool('get_personal_games', { steam: [choices.steam[0].ref], lol: null }, signal(), 'actor', { scope: 'new', solo: true });
+    expect(fresh.context).toMatchObject({ scope: 'unowned' });
+    expect(fakes.personal).toHaveBeenLastCalledWith('actor', { kind: 'personal', ids: ['76561190000000001'], scope: 'new', solo: true }, expect.any(AbortSignal));
     expect(await readTool('get_personal_games', { steam: [choices.steam[0].ref], lol: null }, signal(), 'other')).toMatchObject({ status: 'selection_required' });
   });
 });

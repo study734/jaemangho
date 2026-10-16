@@ -12,7 +12,7 @@ describe('NVIDIA client', () => {
     expect(url).toBe('https://integrate.api.nvidia.com/v1/chat/completions');
     expect(init.headers).toHaveProperty('Authorization', 'Bearer private-key');
     expect(init.body).not.toContain('private-key');
-    expect(JSON.parse(init.body as string)).toMatchObject({ model: AI_MODEL, stream: false, reasoning_effort: 'low' });
+    expect(JSON.parse(init.body as string)).toMatchObject({ model: AI_MODEL, stream: false, reasoning_effort: 'low', tool_choice: 'none' });
   });
   it('sends conversation as user and assistant messages with per-turn snapshots', async () => {
     const transport = vi.fn(async () => success());
@@ -66,4 +66,8 @@ describe('NVIDIA client', () => {
     }
     await expect(complete(input, { apiKey: 'test', fetch: async () => Response.json({ choices: [{ finish_reason: 'length', message: { content: '일부' } }] }) })).resolves.toMatchObject({ truncated: true });
   });
+});
+
+it.each(['<tool_call>get_steam_recent_games<arg_key>scope</arg_key><arg_value>each</arg_value></tool_call>', '<function name="invented">{}</function>'])('rejects internal provider call markup as ordinary answer: %s', async content => {
+  await expect(requestModel(messagesFor(input), { apiKey: 'test', fetch: async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content } }] }) })).rejects.toMatchObject({ code: 'invalid_response' });
 });
