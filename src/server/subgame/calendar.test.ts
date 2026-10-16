@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calendarTag } from './test-html';
-import { parseCalendar, SubgameFormatError } from './calendar';
+import { failureDetails } from '../diagnostics';
+import { fetchCalendar, parseCalendar, SubgameFormatError } from './calendar';
 
 const anchor = (key: string, game: string, title: string, meta: string) => calendarTag({ key, game, title, meta });
 
@@ -25,5 +26,17 @@ describe('subgamecals 일정 파싱', () => {
   it('형식이 바뀌어 읽을 항목이 없으면 빈 목록이 아니라 오류다', () => {
     expect(() => parseCalendar('<html>없음</html>')).toThrow(SubgameFormatError);
     expect(() => parseCalendar(anchor('k', 'g', 't', '이상한 형식'))).toThrow(SubgameFormatError);
+  });
+});
+
+describe('일정 가져오기 실패는 원인이 로그에 구분되어 남는다', () => {
+  const diagnose = async (fetchFn: typeof fetch) => failureDetails(await fetchCalendar('2026-10', fetchFn).catch(error => error));
+
+  it('시간 초과·연결 실패·HTTP 오류·형식 오류를 구분한다', async () => {
+    const timeout = Object.assign(new Error('x'), { name: 'TimeoutError' });
+    expect(await diagnose((async () => { throw timeout; }) as typeof fetch)).toMatchObject({ code: 'timeout', phase: 'calendar' });
+    expect(await diagnose((async () => { throw new TypeError('fetch failed'); }) as typeof fetch)).toMatchObject({ code: 'network', phase: 'calendar' });
+    expect(await diagnose((async () => new Response('no', { status: 403 })) as typeof fetch)).toMatchObject({ code: 'invalid_response', status: 403 });
+    expect(await diagnose((async () => new Response('<html>없음</html>')) as typeof fetch)).toMatchObject({ code: 'invalid_response', phase: 'calendar' });
   });
 });

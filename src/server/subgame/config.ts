@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export class SubgameConfigError extends Error {}
+export class SubgameConfigError extends Error { code = 'not_configured'; }
 
 // SUBGAME_THREADS: {"붕괴: 스타레일": "<포럼 스레드 ID>", ...}. 게임 이름은 사이트에 표시되는 그대로.
 const threadsSchema = z.record(z.string().min(1), z.string().regex(/^\d{17,20}$/, '숫자 ID(17~20자리)여야 합니다'));
