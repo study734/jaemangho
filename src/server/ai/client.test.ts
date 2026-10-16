@@ -5,6 +5,15 @@ import { analysisSchema } from './context';
 const input = analysisSchema.parse({ context: { topic: 'general' } });
 const success = () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: '  설명입니다.  ' } }] });
 describe('NVIDIA client', () => {
+  it('reports the body stage only after response headers arrive', async () => {
+    const stages: string[] = [];
+    await requestModel(messagesFor(input), { apiKey: 'k', fetch: vi.fn(async () => success()), onStage: stage => stages.push(stage) });
+    expect(stages).toEqual(['modelbody']);
+    const never = vi.fn((_url: unknown, init?: RequestInit) => new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))));
+    const quiet: string[] = [];
+    await expect(requestModel(messagesFor(input), { apiKey: 'k', fetch: never as unknown as typeof fetch, timeoutMs: 10, onStage: stage => quiet.push(stage) })).rejects.toMatchObject({ code: 'timeout' });
+    expect(quiet).toEqual([]);
+  });
   it('uses the fixed server endpoint and never includes the key in the prompt', async () => {
     const transport = vi.fn(async () => success());
     await expect(complete(input, { apiKey: 'private-key', fetch: transport })).resolves.toEqual({ answer: '설명입니다.', model: AI_MODEL, truncated: false });
