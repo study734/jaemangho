@@ -3,6 +3,11 @@ import { z } from 'zod';
 
 export const snowflake = z.string().regex(/^\d{17,20}$/);
 const scope = z.enum(['all', 'any', 'unowned']);
+// Only Discord's own CDN URLs are forwarded to the lookup service.
+const attachment = z.object({
+  url: z.string().url().refine(url => ['cdn.discordapp.com', 'media.discordapp.net'].includes(new URL(url).hostname)),
+  content_type: z.string().optional(),
+});
 const envelope = {
   id: snowflake,
   application_id: snowflake,
@@ -12,10 +17,16 @@ const envelope = {
 };
 export const interactionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal(1) }),
-  z.object({ ...envelope, type: z.literal(2), data: z.object({
-    name: z.literal('게임추천'), type: z.literal(1),
-    options: z.array(z.object({ name: z.literal('범위'), type: z.literal(3), value: scope })).max(1).optional(),
-  }) }),
+  z.object({ ...envelope, type: z.literal(2), data: z.discriminatedUnion('type', [
+    z.object({
+      name: z.literal('게임추천'), type: z.literal(1),
+      options: z.array(z.object({ name: z.literal('범위'), type: z.literal(3), value: scope })).max(1).optional(),
+    }),
+    z.object({
+      name: z.literal('출처 찾기'), type: z.literal(3), target_id: snowflake,
+      resolved: z.object({ messages: z.record(snowflake, z.object({ attachments: z.array(attachment).max(10).default([]) })) }),
+    }),
+  ]) }),
   z.object({ ...envelope, type: z.literal(3), data: z.object({
     component_type: z.literal(5),
     custom_id: z.string().regex(/^steamrec:v1:\d{17,20}:(all|any|unowned):\d{10}$/),

@@ -80,6 +80,24 @@ describe('signed Discord request', () => {
   });
 });
 
+describe('message command 출처 찾기', () => {
+  const sourceCommand = (attachments: unknown[]) => parsed({ ...command(), data: { name: '출처 찾기', type: 3, target_id: friend,
+    resolved: { messages: { [friend]: { attachments } } } } });
+  it('is gated by the same account check and never starts a lookup for a denied requester', async () => {
+    vi.mocked(canUseCommand).mockResolvedValue(false);
+    await completeInteraction(sourceCommand([{ url: 'https://cdn.discordapp.com/a.png', content_type: 'image/png' }]));
+    expect(lastMessage().content).toContain('차단');
+    expect(fetchFn.mock.calls.every(call => !String(call[0]).includes('trace.moe'))).toBe(true);
+  });
+  it('looks up the clicked message attachment and edits the private reply', async () => {
+    fetchFn.mockImplementation(async (url: string) => new Response(String(url).includes('trace.moe')
+      ? JSON.stringify({ result: [{ anilist: { id: 1, title: { native: '作品' } }, episode: 1, from: 60, similarity: 0.95 }] }) : '{}'));
+    await completeInteraction(sourceCommand([{ url: 'https://cdn.discordapp.com/a.png', content_type: 'image/png' }]));
+    expect(lastMessage().content).toContain('**作品** 1화 · 1:00 부근');
+    expect(recommendGames).not.toHaveBeenCalled();
+  });
+});
+
 describe('game recommendation flow', () => {
   it('checks bans on every command/click and never starts Steam for a denied requester', async () => {
     vi.mocked(canUseCommand).mockResolvedValue(false);
