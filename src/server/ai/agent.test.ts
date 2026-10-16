@@ -86,6 +86,9 @@ describe('bounded Jaesuni agent', () => {
     expect(failureDetails(error)).toMatchObject({ code: 'timeout', phase: 'model', elapsedMs: expect.any(Number) });
     d.charge.mockImplementation(() => new Promise(() => {}));
     expect(await createAgent(d, 20)(input, 'actor').catch(error => error)).toMatchObject({ phase: 'charge' });
+    d.charge.mockResolvedValue(undefined);
+    d.generate.mockImplementation((_messages: unknown, options: { onStage?: (stage: string) => void }) => { options.onStage?.('modelbody'); return new Promise(() => {}); });
+    expect(await createAgent(d, 20)(input, 'actor').catch(error => error)).toMatchObject({ phase: 'modelbody' });
   });
 });
 

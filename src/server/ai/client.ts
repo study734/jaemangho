@@ -32,7 +32,8 @@ export function messagesFor(input: AnalysisInput, preference = '', scope?: { ste
     { role: 'user', content: JSON.stringify({ context: input.context, question: input.question, ...(scope ? { selectedMembers: scope } : {}) }) }];
 }
 
-export interface ModelOptions { apiKey?: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal; tools?: ToolDefinition[] }
+// onStage('modelbody') fires once response headers arrive, so a timeout log can tell "no response" from "slow body".
+export interface ModelOptions { apiKey?: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal; tools?: ToolDefinition[]; onStage?: (stage: 'modelbody') => void }
 // Provider transport has no dependency on Jaemangho's tools, database or UI.
 export async function requestModel(messages: ModelMessage[], options: ModelOptions = {}) {
   const key = (options.apiKey ?? process.env.NVIDIA_API_KEY)?.trim();
@@ -55,6 +56,7 @@ export async function requestModel(messages: ModelMessage[], options: ModelOptio
     throw signal.aborted ? new AiError('timeout', 504, 'AI 응답 시간이 길어졌어요. 잠시 후 다시 시도해 주세요.')
       : new AiError('network', 502, 'AI 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
   }
+  options.onStage?.('modelbody');
   if (!response.ok) {
     // Never read/forward upstream error text, which can include request data.
     void response.body?.cancel();
