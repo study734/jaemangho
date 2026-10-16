@@ -6,6 +6,8 @@ import { AiError } from '@/server/ai/client';
 import { analyze } from '@/server/ai/service';
 
 export const maxDuration = 30;
+// Experiment: from icn1 the NVIDIA call got no response headers within 25s (phase=model, 3 of 3). Revert if iad1 does not help.
+export const preferredRegion = 'iad1';
 
 export async function POST(request: Request) {
   const user = await requireUser();
