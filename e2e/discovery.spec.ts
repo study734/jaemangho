@@ -30,7 +30,7 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await mkdir('output/playwright', { recursive: true });
     for (const width of [1504, 390]) {
       await page.setViewportSize({ width, height: 1045 });
-      await expect.poll(() => deck.locator('.discovery-mascot').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await expect.poll(() => page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' }).evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await page.screenshot({ path: `output/playwright/discovery-before-${width}.png` });
     }
     await page.setViewportSize({ width: 1504, height: 1045 });
@@ -51,7 +51,7 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await expect(deck.locator('.discovery-avatar img')).toHaveAttribute('src', '/brands/discord.svg');
     expect(await deck.locator('.discovery-avatar img').evaluate(el => getComputedStyle(el).objectFit)).toBe('cover');
     await page.setViewportSize({ width: 390, height: 844 });
-    await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+    await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished)));
     await page.screenshot({ path: 'output/playwright/discovery-reveal-mobile.png' });
     const nextAction = await deck.getByRole('button', { name: '다음 발견' }).boundingBox();
     const mobileNav = await page.getByRole('navigation', { name: '주요 메뉴' }).boundingBox();
@@ -70,16 +70,16 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await mkdir('output/playwright', { recursive: true });
     for (const width of [1504, 1024, 390]) {
       await page.setViewportSize({ width, height: 1045 });
-      await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+      await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished)));
       await page.screenshot({ path: `output/playwright/discovery-content-${width}.png` });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (width === 1504) {
         const play = await page.locator('.home-play').boundingBox();
         const search = await page.getByRole('search').boundingBox();
         const actions = await page.locator('.home-action-stack').boundingBox();
-        const discovery = await deck.boundingBox();
+        const discovery = await page.locator('.lobby').boundingBox();
         expect(play!.height).toBeLessThan(250);
-        // 게임 도구는 발견 아래 중앙에 있고 오른쪽은 멤버 활동만 표시한다.
+        // 게임 도구는 로비 아래 중앙에 있고 오른쪽은 멤버 활동만 표시한다.
         expect(actions!.y).toBeGreaterThanOrEqual(discovery!.y + discovery!.height);
         expect(search!.x).toBeGreaterThan(play!.x + play!.width);
         await expect(page.locator('.home-channel-feed').getByRole('search')).toBeVisible();
@@ -99,7 +99,7 @@ test('선별된 칭호·인물·비교 기록을 공개하고 반응·공유·�
     await expect(deck.getByText('평소의 3.3배로 붐빈 10분')).toBeVisible();
     await deck.getByRole('button', { name: '결과 공개' }).click();
     await expect(deck.getByRole('img', { name: '평소 중앙값 12개, 이 순간 40개' })).toBeVisible();
-    await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+    await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished)));
     await page.screenshot({ path: 'output/playwright/discovery-comparison-mobile.png' });
     await page.locator('.home-record-award').click();
     await expect(deck.getByText('새벽 2~6시, 가장 많이 말한 사람')).toBeVisible();
@@ -199,6 +199,6 @@ test('반응 저장 실패와 현재 목록에 없는 공유 기록을 명확히
   // 접으면 공유 안내가 초기화된다. 다시 공유하여 같은 실패 흐름을 실제 보이는 영역에서 검증한다.
   await deck.getByRole('button', { name: '친구에게 공유' }).click();
   await expect(deck.getByLabel('공유할 발견 링크')).toHaveValue(/discovery=play%3Asteam/);
-  await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(animation => animation.finished)));
+  await deck.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished)));
   await page.screenshot({ path: 'output/playwright/discovery-empty-and-share-failure.png' });
 });

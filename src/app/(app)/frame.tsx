@@ -8,7 +8,6 @@ import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
 import { MobileNavigation, TopBar } from '@/components/TopBar';
-import { ChannelHeader, ChannelSidebar, ServerRail } from '@/components/ChannelShell';
 import { UiIcon } from '@/components/VisualImage';
 import { JaesuniMessage } from '@/components/JaesuniMessage';
 import { SettingsDialog } from '@/components/SettingsDialog';
@@ -23,6 +22,7 @@ const CHANNEL_LINES: Record<string, string> = {
   '/community/awards': '한 주가 끝나면 실제 기록으로 칭호를 정리해. 지난 수상자들은 여기 있어.',
   '/play': '게임 찾기와 팀 꾸리기는 여기 모아뒀어. 필요한 기능을 골라.',
   '/memories': '함께한 기록을 모아뒀어. 개념글, 시상식, 친구들의 칭호로 이어져.',
+  '/people': '같이 노는 친구들을 모아뒀어. 이름을 눌러 프로필을 열어봐.',
 };
 
 // 앱 틀: 사이드바 + 상단 안내(로딩/오류/동기화) + 현재 화면
@@ -30,7 +30,6 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   const { members, isLoading: lolLoading, error, dismissError, refreshAll } = useLol();
   // 로딩 배너와 동기화 버튼은 롤 데이터용이라 롤 화면에서만 보인다
   const pathname = usePathname();
-  const [membersVisible, setMembersVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 화면이 열릴 때 한 번 센다(누가 열었는지는 저장하지 않는다). 실패해도 화면에는 영향이 없다.
   const lastTracked = useRef<string | null>(null);
@@ -39,6 +38,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
     lastTracked.current = pathname;
     fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: pathname }), keepalive: true }).catch(() => {});
   }, [pathname]);
+  const lobby = pathname === '/';
   const onLol = pathname.startsWith('/lol');
   const isLoading = onLol && lolLoading;
   const syncAction = onLol && !lolLoading ? (
@@ -51,17 +51,15 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   ) : null;
 
   return (
-    <ChatProvider userName={userName}><div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
+    <ChatProvider userName={userName}><div className="app-frame" style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
-      <ServerRail />
-      <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} onOpenSettings={() => setSettingsOpen(true)} />
-      <div className="app-column">
-      <TopBar onOpenSettings={() => setSettingsOpen(true)} />
-      <ChannelHeader isAdmin={isAdmin} membersVisible={membersVisible} onToggleMembers={() => setMembersVisible(visible => !visible)} />
+      <div className={`app-column${lobby ? ' is-lobby' : ''}`}>
+      {!lobby && <TopBar onOpenSettings={() => setSettingsOpen(true)} isAdmin={isAdmin} userName={userName} />}
       <div className="app-body" style={styles.body}>
-      {!['home', 'chat'].includes(sectionOf(pathname)) && <Sidebar isAdmin={isAdmin} />}
+      {!['home', 'chat'].includes(sectionOf(pathname)) && <Sidebar isAdmin={isAdmin} summary={summarizeRoster(members)} />}
 
-      <main id="main-content" tabIndex={-1} style={styles.mainPane}>
+      <main id="main-content" tabIndex={-1} style={lobby ? { ...styles.mainPane, overflowY: 'auto' } : styles.mainPane}>
+        {lobby && <TopBar lobby onOpenSettings={() => setSettingsOpen(true)} isAdmin={isAdmin} userName={userName} />}
         {isLoading && (
           <div role="status" style={styles.loadingBanner}>
             <span className="pulse-indicator" style={{ marginRight: '8px' }} />

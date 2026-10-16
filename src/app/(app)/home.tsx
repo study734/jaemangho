@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HomeCard } from '@/components/HomeCard';
+import { Lobby } from '@/components/Lobby';
 import { DiscordServerWidget } from '@/components/DiscordServerWidget';
 import { JaesuniMessage } from '@/components/JaesuniMessage';
 import { ServiceMark, UiIcon, VisualImage } from '@/components/VisualImage';
@@ -160,12 +161,28 @@ export function HomeMembers({ people }: { people: Person[] }) {
   );
 }
 
-export function Home({ name, discovery, community, recent, week, members }: { name: string; discovery: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode; members: ReactNode }) {
+// 로비 오른쪽 위: 실제 로그인 기록의 최근 접속 3명. 현재 온라인을 뜻하지 않는다.
+export function LobbyParty({ people }: { people: Person[] }) {
+  if (people.length === 0) return null;
   return (
+    <aside className="lobby-party" aria-label="최근 접속">
+      <p className="lobby-tape">최근 접속</p>
+      <ul>{people.slice(0, 3).map((p) => (
+        <li key={p.id}><Link href={`/people/${p.id}`}>
+          <VisualImage src={p.image} fallback={p.name.slice(0, 1)} width={32} height={32} className="lobby-party-avatar" />
+          <span>{p.name}<small>{timeAgo(p.at)}</small></span>
+        </Link></li>
+      ))}</ul>
+    </aside>
+  );
+}
+
+export function Home({ name, discovery, party, community, recent, week, members }: { name: string; discovery: ReactNode; party: ReactNode; community: ReactNode; recent: ReactNode; week: ReactNode; members: ReactNode }) {
+  return (
+    <div className="home-scroll">
+    <Lobby discovery={discovery} party={party} />
     <div className="home-page">
       <div className="home-channel-feed">
-        <div className="channel-welcome"><span className="channel-welcome-icon" aria-hidden="true">#</span><h2>우리의 아지트에 온 걸 환영해!</h2><p>친구들의 발견과 함께한 기록이 모이는 홈 채널이에요.</p></div>
-        {discovery}
         <JaesuniMessage className="home-tools-message" line="같이 할 게임 찾기는 여기 있어. 멤버를 고르면 공통 게임에서 골라줄게.">
         <section className="home-action-stack" aria-label="게임 찾기와 바로 놀기">
         <section className="home-play" aria-labelledby="play-title">
@@ -202,6 +219,7 @@ export function Home({ name, discovery, community, recent, week, members }: { na
         {recent}
         {members}
       </aside>
+    </div>
     </div>
   );
 }
