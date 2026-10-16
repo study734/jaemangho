@@ -20,4 +20,6 @@ export const E2E_ENV = {
   // Next.js는 .env.local도 읽는다. 빈 값으로 덮어 공용 봇·운영 알림을 테스트에서 사용하지 않는다.
   DISCORD_BOT_TOKEN: '',
   OPS_ALERT_WEBHOOK_URL: '',
+  NVIDIA_API_KEY: '',
+  STEAM_API_KEY: '00000000000000000000000000000000', // 형식만 맞는 합성 키: CI에는 .env.local이 없어 비면 개인화 추천이 503이 된다. 외부 호출은 DB 캐시가 막는다.
 };

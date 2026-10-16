@@ -10,3 +10,4 @@ export { LolProvider, useLol } from './state/LolProvider';
 export { rosterApi } from './api/roster';
 export { summarizeRoster } from './domain/summary';
 export type { Member } from './types';
+export { duoSynergy } from './domain/synergy';

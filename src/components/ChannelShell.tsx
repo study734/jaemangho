@@ -31,6 +31,7 @@ export function ChannelSidebar({ summary, isAdmin, userName, onOpenSettings }: {
             <span className="channel-hash" aria-hidden="true">#</span><span>{s.label}</span>
           </Link>
         ))}
+        <Link href="/chat" aria-label="재순이와 대화" className="channel-link channel-chat-link" aria-current={pathname === '/chat' ? 'page' : undefined}><img src="/images/jaesuni-home.webp" width={24} height={24} alt="" onError={event => { event.currentTarget.style.display = 'none'; }} /><span>재순이와 대화</span><small>AI</small></Link>
       </nav>
       {categories.map(category => (
         <details key={category.id} className="channel-category" open>
@@ -61,7 +62,7 @@ export function ChannelHeader({ isAdmin, membersVisible, onToggleMembers }: { is
   const sections = sectionsFor(isAdmin);
   const items = sections.flatMap((s) => s.items).filter((i) => isActive(i.href, pathname)).sort((a, b) => b.href.length - a.href.length);
   const title = items[0]?.label ?? sections.find((s) => s.id === sectionOf(pathname))!.label;
-  const description = sectionOf(pathname) === 'home' ? '취향은 제각각, 모이는 곳은 하나.' : sections.find(s => s.id === sectionOf(pathname))!.label;
+  const description = pathname === '/chat' ? '나만 보는 AI 대화' : sectionOf(pathname) === 'home' ? '취향은 제각각, 모이는 곳은 하나.' : sections.find(s => s.id === sectionOf(pathname))!.label;
   return (
     <header className="channel-header">
       <div className="channel-title">{title}</div>

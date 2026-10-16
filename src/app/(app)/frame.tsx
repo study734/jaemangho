@@ -2,6 +2,8 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { ChatProvider } from '@/features/ai';
+import { LolAi } from './ai';
 import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
@@ -13,6 +15,7 @@ import { SettingsDialog } from '@/components/SettingsDialog';
 
 const CHANNEL_LINES: Record<string, string> = {
   '/steam': '같이 할 게임은 여기서 찾으면 돼. 멤버를 고르면 보유 게임 비교와 추천을 보여줄게.',
+  '/steam/recommend': '내 취향과 플레이 기록, 오늘 모인 인원에 맞춰 게임을 찾아줄게. 추천마다 근거와 인원 정보를 붙여뒀어.',
   '/lol': '친구들의 랭크와 최근 전적을 모아뒀어. 소환사를 누르면 자세히 볼 수 있어.',
   '/lol/squad': '같이 볼 소환사들을 등록하는 곳이야. Riot ID로 검색해서 추가할 수 있어.',
   '/lol/synergy': '함께한 경기 기록으로 듀오 성적을 비교해줄게.',
@@ -49,7 +52,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   ) : null;
 
   return (
-    <div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
+    <ChatProvider userName={userName}><div className={`app-frame${membersVisible ? '' : ' members-panel-hidden'}`} style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <ServerRail />
       <ChannelSidebar summary={summarizeRoster(members)} isAdmin={isAdmin} userName={userName} onOpenSettings={() => setSettingsOpen(true)} />
@@ -57,7 +60,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       <TopBar onOpenSettings={() => setSettingsOpen(true)} />
       <ChannelHeader isAdmin={isAdmin} membersVisible={membersVisible} onToggleMembers={() => setMembersVisible(visible => !visible)} />
       <div className="app-body" style={styles.body}>
-      {sectionOf(pathname) !== 'home' && <Sidebar isAdmin={isAdmin} />}
+      {!['home', 'chat'].includes(sectionOf(pathname)) && <Sidebar isAdmin={isAdmin} />}
 
       <main id="main-content" tabIndex={-1} style={styles.mainPane}>
         {isLoading && (
@@ -84,6 +87,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
             <JaesuniMessage line={CHANNEL_LINES[pathname]}>
               {syncAction}
               <div className="jaesuni-tool-content">{children}</div>
+              {['/lol', '/lol/synergy', '/lol/mastery'].includes(pathname) && <LolAi view={pathname === '/lol/synergy' ? 'synergy' : pathname === '/lol/mastery' ? 'mastery' : 'overview'} />}
             </JaesuniMessage>
           </div>
         ) : <>{syncAction}{children}</>}
@@ -92,7 +96,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       <MobileNavigation />
       </div>
       {settingsOpen && <SettingsDialog userName={userName} isAdmin={isAdmin} onClose={() => setSettingsOpen(false)}><Settings embedded /></SettingsDialog>}
-    </div>
+    </div></ChatProvider>
   );
 }
 

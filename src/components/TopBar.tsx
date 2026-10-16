@@ -23,6 +23,7 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
           </Link>
         ))}
       </nav>
+      <Link href="/chat" className="btn btn-ghost app-chat-link" aria-label="재순이와 대화" aria-current={pathname === "/chat" ? "page" : undefined}><UiIcon name="star" /><span>재순이</span></Link>
       <button type="button" aria-label="설정" aria-haspopup="dialog" className="btn btn-ghost app-settings" onClick={onOpenSettings}><UiIcon name="gear" /><span>설정</span></button>
       <button className="btn btn-ghost app-logout" onClick={() => authClient.signOut({ fetchOptions: { onSuccess: () => router.push('/login') } })}>로그아웃</button>
     </header>

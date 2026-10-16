@@ -106,3 +106,11 @@ describe('Steam 추천 서비스', () => {
     vi.mocked(getRecentGames).mockResolvedValue({ ok: true, games: [] });
     expect(await recommendGames(ids, 'recent')).toMatchObject({ games: [], totalCandidates: 0 });
   });
+
+it('만료 후 다음 스토어 조회 묶음을 시작하지 않는다', async () => {
+  const controller = new AbortController();
+  vi.mocked(getLibrary).mockResolvedValue({ ok: true, games: Array.from({ length: 30 }, (_, i) => ({ appId: i + 1, name: `g${i}`, minutes: 0 })) });
+  vi.mocked(getPlaySupport).mockImplementation(async () => { controller.abort(); return 'single'; });
+  await expect(recommendGames(ids, 'balanced', 'all', controller.signal)).rejects.toThrow();
+  expect(getPlaySupport).toHaveBeenCalledTimes(8);
+});

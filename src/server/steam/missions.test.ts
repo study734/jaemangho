@@ -45,3 +45,11 @@ it('과제 쿼리는 2~20명과 양수 appId만 허용한다', () => {
   expect(missionsQuerySchema.safeParse({ ids: ids.join(','), appId: 1 }).success).toBe(true);
   for (const appId of [0, -1, 1.5, 4294967296, 'oops']) expect(missionsQuerySchema.safeParse({ ids: ids.join(','), appId }).success).toBe(false);
 });
+
+it('만료 후 다음 멤버의 진행도 조회를 시작하지 않는다', async () => {
+  const controller = new AbortController();
+  vi.mocked(getAchievementProgress).mockImplementation(async () => { controller.abort(); return { ok: true, achievements: [] }; });
+  const all = Array.from({ length: 10 }, (_, i) => String(76561190000000000n + BigInt(i)));
+  await expect(findMissions(all, 1, controller.signal)).rejects.toThrow();
+  expect(getAchievementProgress).toHaveBeenCalledTimes(1);
+});

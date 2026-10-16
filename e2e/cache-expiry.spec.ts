@@ -76,10 +76,11 @@ test('홈 집계는 60초 TTL을 유지하고 캐시 나이에 따라 재사용�
   // 서버가 읽는 캐시 파일의 나이만 바꾼다. 실제 TTL·내용·갱신 로직은 유지한다.
   // 파일의 60초 TTL도 확인하므로 TTL 단축·연장이나 캐시 제거를 놓치지 않는다.
   await setHomeCacheAge(55);
-  await page.reload();
+  // Read all six entries in one navigation. A second reload after UI checks
+  // can cross the remaining five seconds and correctly observe expired data.
+  expect(await snapshot()).toEqual({ chat: 0, awards: '12 새벽 메시지', highlights: 0, moments: 0 });
   await expect(oldMessage).toBeVisible();
   await expect(newMessage).toHaveCount(0);
-  expect(await snapshot()).toEqual({ chat: 0, awards: '12 새벽 메시지', highlights: 0, moments: 0 });
   // 만료 직후의 첫 응답은 이전 값이어도 되지만, 백그라운드 갱신 후에는 새 값이 나와야 한다.
   await setHomeCacheAge(65);
   await expect.poll(snapshot, { timeout: 10_000, intervals: [100, 250, 500] }).toEqual({ chat: 1, awards: '24 새벽 메시지', highlights: 1, moments: 1 });
