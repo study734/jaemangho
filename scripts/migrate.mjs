@@ -8,13 +8,14 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
+import { postgresUrl } from '../src/server/postgres-url.mjs';
 
 const DEFAULT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 const LOCK_KEY = 727274;
 const FILE_PATTERN = /^\d{4}_[\w-]+\.sql$/;
 
 export async function migrate({ url, dir = DEFAULT_DIR, log = () => {} }) {
-  const client = new pg.Client({ connectionString: url });
+  const client = new pg.Client({ connectionString: postgresUrl(url) });
   await client.connect();
   try {
     // 동시에 처음 실행돼도 안전하도록 기록 테이블 생성도 락 안에서 한다

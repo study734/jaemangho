@@ -23,7 +23,7 @@ describe('bounded Jaesuni agent', () => {
     expect(messages[1]).toMatchObject({ role: 'user' });
     expect(messages[1].content).toContain('협동 게임 선호');
     expect(JSON.stringify(messages)).not.toContain('actor');
-    expect(d.release).toHaveBeenCalledExactlyOnceWith('request');
+    expect(d.release).toHaveBeenCalledExactlyOnceWith('request', expect.any(AbortSignal));
   });
   it('executes only one allowed tool then answers without offering more tools', async () => {
     const d = deps(); d.generate.mockResolvedValueOnce(call).mockResolvedValueOnce(message);
@@ -77,7 +77,17 @@ describe('bounded Jaesuni agent', () => {
     d.acquire.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve('request'), 20)));
     await expect(createAgent(d, 5)(input, 'actor')).rejects.toMatchObject({ status: 504 });
     expect(d.charge).not.toHaveBeenCalled(); expect(d.generate).not.toHaveBeenCalled();
-    expect(d.release).toHaveBeenCalledExactlyOnceWith('request');
+    await vi.waitFor(() => expect(d.release).toHaveBeenCalledExactlyOnceWith('request', expect.any(AbortSignal)));
+  });
+  it.each(['acquire', 'release', 'pause'] as const)('returns a timeout even when %s never settles', async stage => {
+    const d = deps();
+    d[stage].mockImplementation(() => new Promise(() => {}));
+    if (stage === 'pause') d.generate.mockRejectedValue(new AiError('upstream', 429, 'quota', 429));
+    const result = await Promise.race([
+      createAgent(d, 15)(input, 'actor').catch(error => error),
+      new Promise(resolve => setTimeout(() => resolve('still waiting'), 100)),
+    ]);
+    expect(result).toMatchObject({ code: 'timeout', phase: stage });
   });
   it('reports which step used up the budget in the failure log', async () => {
     const d = deps(); d.generate.mockImplementation(() => new Promise(() => {}));

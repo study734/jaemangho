@@ -24,8 +24,11 @@ export function failureDetails(error: unknown, depth = 0): Record<string, unknow
 }
 
 // operation is a fixed code label, never a request URL or user-provided value.
-export function reportFailure(operation: string, error: unknown) {
+export function reportFailure(operation: string, error: unknown, database?: {
+  phase: 'connect' | 'query'; elapsedMs: number;
+  pool: { total: number; idle: number; waiting: number };
+}) {
   const requestId = randomUUID();
-  console.error('[failure]', { requestId, operation, ...failureDetails(error) });
+  console.error('[failure]', { requestId, operation, ...failureDetails(error), ...database });
   return requestId;
 }

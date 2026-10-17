@@ -60,6 +60,19 @@ describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세�
     expect(await login(null)).toBeNull();
   });
 
+  it.each(['jaemangho.vercel.app', 'jaemangho.shop', 'www.jaemangho.shop', 'localhost:3200'])('허용한 서비스 주소 %s에서 세션을 조회한다', async host => {
+    const protocol = host.startsWith('localhost') ? 'http' : 'https';
+    const response = await m.auth.handler(new Request(`${protocol}://${host}/api/auth/get-session`));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toBeNull();
+  });
+
+  it('무관한 도메인과 다른 Vercel 프로젝트를 인증 기준 주소로 사용하지 않는다', async () => {
+    for (const host of ['unrelated.invalid', 'another-project.vercel.app']) {
+      await expect(m.auth.handler(new Request(`https://${host}/api/auth/get-session`))).rejects.toThrow('not in the allowed hosts');
+    }
+  });
+
   it('첫 로그인: 사용자와 디스코드 계정이 만들어지고 접속 기록이 남는다', async () => {
     discord({ member: true, permissions: '0' });
     const id = (await login(null))!;
