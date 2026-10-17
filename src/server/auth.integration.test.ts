@@ -40,6 +40,8 @@ describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세�
   const row = async (id: string) => (await m.pool.query(`select * from "user" where id = $1`, [id])).rows[0];
 
   beforeAll(async () => {
+    vi.stubEnv('VERCEL_URL', 'jaemangho-test-deployment-wotae-s-projects.vercel.app');
+    vi.stubEnv('VERCEL_BRANCH_URL', 'jaemangho-git-main-wotae-s-projects.vercel.app');
     const pool = await openTestDb();
     m = { auth: (await import('./auth')).auth, pool };
   });
@@ -60,7 +62,8 @@ describe.skipIf(!testDbUrl)('디스코드 로그인 흐름 (getUserInfo -> 세�
     expect(await login(null)).toBeNull();
   });
 
-  it.each(['jaemangho.vercel.app', 'jaemangho.shop', 'www.jaemangho.shop', 'localhost:3200'])('허용한 서비스 주소 %s에서 세션을 조회한다', async host => {
+  it.each(['jaemangho.vercel.app', 'jaemangho.shop', 'www.jaemangho.shop', 'localhost:3200',
+    'jaemangho-test-deployment-wotae-s-projects.vercel.app', 'jaemangho-git-main-wotae-s-projects.vercel.app'])('허용한 서비스 주소 %s에서 세션을 조회한다', async host => {
     const protocol = host.startsWith('localhost') ? 'http' : 'https';
     const response = await m.auth.handler(new Request(`${protocol}://${host}/api/auth/get-session`));
     expect(response.status).toBe(200);

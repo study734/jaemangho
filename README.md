@@ -195,7 +195,7 @@ npm run db:migrate   # 아직 적용되지 않은 파일을 번호순으로 적�
 
 DB 요청 실패는 `[failure]`의 `database.connect`(연결·풀 대기)와 `database.query`(체크아웃한 연결의 쿼리 포함)로 추적합니다. 오류 ID·원본 SQLSTATE/네트워크 코드·`phase`·`elapsedMs`·풀의 전체/유휴/대기 수만 남기며 SQL·인자·연결 문자열·원본 오류 메시지는 기록하지 않습니다. Better Auth의 `Could not validate the database schema`만으로 마이그레이션 누락을 단정하지 말고 같은 시각의 DB 오류 코드를 확인합니다. 풀 연결 대기는 5초로 제한하고, 실패 뒤 다음 요청은 새로 연결할 수 있습니다. 구현과 회귀 검증은 `src/server/pool*`에 있습니다.
 
-앱 풀과 마이그레이션은 기존 pg 8에서 인증서를 완전히 검증하던 `sslmode=prefer/require/verify-ca`를 `verify-full`로 명시해 향후 버전에서도 같은 검증 수준을 유지합니다(`src/server/postgres-url.mjs`). `uselibpqcompat=true`, SSL 비활성화·그 밖의 명시 설정은 바꾸지 않습니다. 연결 문자열 환경변수 자체는 수정하지 않습니다. 인증 기준 주소는 기존 `BETTER_AUTH_URL`이 있으면 사용하고, 없으면 `jaemangho.vercel.app`, `jaemangho.shop`, `www.jaemangho.shop`에서 요청별로 결정합니다. 개발에서는 localhost/127.0.0.1의 포트도 허용하며, 운영 도메인을 추가할 때는 `src/server/auth.ts`의 허용 목록과 Discord 콜백 등록을 함께 확인합니다.
+앱 풀과 마이그레이션은 기존 pg 8에서 인증서를 완전히 검증하던 `sslmode=prefer/require/verify-ca`를 `verify-full`로 명시해 향후 버전에서도 같은 검증 수준을 유지합니다(`src/server/postgres-url.mjs`). `uselibpqcompat=true`, SSL 비활성화·그 밖의 명시 설정은 바꾸지 않습니다. 연결 문자열 환경변수 자체는 수정하지 않습니다. 인증 기준 주소는 기존 `BETTER_AUTH_URL`이 있으면 사용하고, 없으면 `jaemangho.vercel.app`, `jaemangho.shop`, `www.jaemangho.shop`에서 요청별로 결정합니다. Vercel이 기본 제공하는 `VERCEL_URL`·`VERCEL_BRANCH_URL`의 정확한 현재 배포·브랜치 주소와 프로젝트의 고정 별칭도 허용합니다. 임의의 `*.vercel.app`은 허용하지 않습니다. 개발에서는 localhost/127.0.0.1의 포트도 허용하며, 운영 도메인을 추가할 때는 `src/server/auth-base-url.ts`의 허용 목록과 Discord 콜백 등록을 함께 확인합니다. 별도 환경변수 등록은 필요하지 않습니다.
 - 예전 버전이 만들던 `users` 테이블(디스코드 ID 기반 접속 기록)은 `0002_drop_legacy_users.sql`에서 삭제됩니다. 되돌릴 수 없으므로(복원은 Neon 시점 복구뿐) 같은 이름의 현재 테이블 `"user"`(단수형)와 혼동하지 마세요.
 
 ## 로컬 개발
