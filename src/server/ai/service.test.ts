@@ -53,7 +53,7 @@ describe('analysis request coordination', () => {
     note = '경쟁';
     await analyze('one', input);
     expect(generate).toHaveBeenCalledTimes(2);
-    expect(generate).toHaveBeenLastCalledWith(input, 'one', '경쟁');
+    expect(generate).toHaveBeenLastCalledWith(input, 'one', '경쟁', expect.any(AbortSignal));
   });
   it('bounds global in-flight work without introducing a queue', async () => {
     const generate = vi.fn(() => new Promise<typeof result>(() => {}));
@@ -67,5 +67,15 @@ describe('analysis request coordination', () => {
     const selected = { ...input, selection: { steam: ['s_' + 'a'.repeat(24)], lol: null } };
     await analyze('one', selected); await analyze('one', selected);
     expect(generate).toHaveBeenCalledTimes(2);
+  });
+  it('bounds preference reads before starting model or quota work', async () => {
+    const generate = vi.fn(async () => result);
+    const analyze = createAnalysisService(generate, Date.now, () => new Promise(() => {}), 15);
+    const outcome = await Promise.race([
+      analyze('one', input).catch(error => error),
+      new Promise(resolve => setTimeout(() => resolve('still waiting'), 100)),
+    ]);
+    expect(outcome).toMatchObject({ code: 'timeout', phase: 'preference' });
+    expect(generate).not.toHaveBeenCalled();
   });
 });

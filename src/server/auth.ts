@@ -21,6 +21,12 @@ export const auth = betterAuth({
   database: pool,
   secret,
   appName: '재망호',
+  // Keep cookies/callbacks on the service host the user opened. An explicit
+  // existing development URL still wins; never trust arbitrary *.vercel.app.
+  baseURL: process.env.BETTER_AUTH_URL || {
+    allowedHosts: ['jaemangho.vercel.app', 'jaemangho.shop', 'www.jaemangho.shop',
+      ...(process.env.NODE_ENV !== 'production' ? ['localhost:*', '127.0.0.1:*'] : [])],
+  },
 
   // 세션은 DB에 저장된다(차단하면 바로 끊을 수 있음). 쿠키 캐시는 끈다: 차단이 즉시 반영돼야 한다.
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },

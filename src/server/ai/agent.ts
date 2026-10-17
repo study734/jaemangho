@@ -3,18 +3,10 @@ import type { AnalysisInput, AiContext } from './context';
 import { acquireRequest, chargeModelCall, pauseProvider, releaseRequest } from './store';
 import { parseTool, readTool, toolDefinitions, toolLabels } from './tools';
 import { reportFailure } from '../diagnostics';
+import { withinDeadline } from './deadline';
 
 export interface AgentAnswer { answer: string; model: string; truncated: boolean; toolsUsed?: string[];
   evidence?: { context: AiContext; capturedAt: string } }
-
-function bounded<T>(work: Promise<T>, signal: AbortSignal, where: () => { phase: string; elapsedMs: number }): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const abort = () => reject(Object.assign(new AiError('timeout', 504, '조회·답변 시간이 길어졌어요. 범위를 줄여 다시 요청해 주세요.'), where()));
-    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
-    if (signal.aborted) abort();
-    else signal.addEventListener('abort', abort, { once: true });
-  });
-}
 
 // One decision, at most one read tool and one final answer. No autonomous loop,
 // writes, scheduler, provider fallback or automatic retry.
@@ -22,18 +14,35 @@ export function createAgent(deps = {
   generate: requestModel, execute: readTool, acquire: acquireRequest, charge: chargeModelCall,
   release: releaseRequest, pause: pauseProvider,
 }, budgetMs = 25_000) {
-  return async (input: AnalysisInput, userId: string, preference = ''): Promise<AgentAnswer> => {
-    const signal = AbortSignal.timeout(budgetMs);
+  return async (input: AnalysisInput, userId: string, preference = '', parentSignal?: AbortSignal): Promise<AgentAnswer> => {
+    const timeout = AbortSignal.timeout(budgetMs);
+    const signal = parentSignal ? AbortSignal.any([timeout, parentSignal]) : timeout;
     const startedAt = Date.now();
     let phase = 'acquire'; // last started step; reported when the budget runs out
-    const requestId = await deps.acquire(userId);
     async function work(): Promise<AgentAnswer> {
+      signal.throwIfAborted();
+      const requestId = await deps.acquire(userId, signal);
+      try { return await answer(requestId); }
+      catch (error) {
+        if (error instanceof AiError && error.code === 'upstream' && error.status === 429) {
+          phase = 'pause';
+          await deps.pause(signal);
+        }
+        throw error;
+      } finally {
+        phase = 'release';
+        // A fresh, short cleanup budget also covers late admission. Slots expire
+        // in the DB after 30s if release cannot complete.
+        await deps.release(requestId, AbortSignal.timeout(1_000)).catch(error => reportFailure('ai.release', error));
+      }
+    }
+    async function answer(requestId: string): Promise<AgentAnswer> {
       signal.throwIfAborted();
       const previousSelection = input.history.filter(message => message.role === 'user').at(-1)?.selection ?? { steam: [], lol: null };
       const changed = JSON.stringify(previousSelection) !== JSON.stringify(input.selection);
       const messages = messagesFor(input, preference, { steam: new Set(input.selection.steam).size, lol: !!input.selection.lol, changed });
       phase = 'charge';
-      await deps.charge(requestId);
+      await deps.charge(requestId, signal);
       signal.throwIfAborted();
       phase = 'model';
       const first = await deps.generate(messages, { tools: toolDefinitions, signal, onStage: stage => { phase = stage; } });
@@ -54,7 +63,7 @@ export function createAgent(deps = {
       signal.throwIfAborted();
       messages.push({ role: 'assistant', ...first.message }, { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
       phase = 'charge';
-      await deps.charge(requestId);
+      await deps.charge(requestId, signal);
       signal.throwIfAborted();
       phase = 'model';
       // No tools are offered in the final call, so execution cannot recurse.
@@ -66,11 +75,7 @@ export function createAgent(deps = {
         ...('context' in result && result.context ? { evidence: { context: result.context, capturedAt: new Date().toISOString() } } : {}),
       };
     }
-    try { return await bounded(work(), signal, () => ({ phase, elapsedMs: Date.now() - startedAt })); }
-    catch (error) {
-      if (error instanceof AiError && error.code === 'upstream' && error.status === 429) await deps.pause();
-      throw error;
-    } finally { await deps.release(requestId).catch(error => reportFailure('ai.release', error)); }
+    return withinDeadline(work(), signal, () => ({ phase, elapsedMs: Date.now() - startedAt }));
   };
 }
 
