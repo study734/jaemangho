@@ -11,11 +11,9 @@ const good = {
 };
 
 describe('envProblems', () => {
-  it('NVIDIA_API_KEY는 선택이며 예제 자리표시자를 거부한다', () => {
-    expect(envProblems({ ...good, NVIDIA_API_KEY: '' })).toEqual([]);
-    expect(envProblems({ ...good, NVIDIA_API_KEY: 'nvapi-test-only' })).toEqual([]);
-    for (const value of ['NVIDIA_API_KEY', '$NVIDIA_API_KEY', '   ']) {
-      expect(envProblems({ ...good, NVIDIA_API_KEY: value })).toEqual([expect.stringMatching(/^NVIDIA_API_KEY:/)]);
+  it('중단한 NVIDIA 설정은 더 이상 검사하거나 활성화하지 않는다', () => {
+    for (const value of ['', 'nvapi-test-only', 'NVIDIA_API_KEY', '$NVIDIA_API_KEY', '   ']) {
+      expect(envProblems({ ...good, NVIDIA_API_KEY: value })).toEqual([]);
     }
   });
   it('올바른 설정이면 문제가 없다', () => expect(envProblems(good)).toEqual([]));

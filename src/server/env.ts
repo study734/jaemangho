@@ -6,7 +6,6 @@ import { z } from 'zod';
 const snowflake = z.string().regex(/^\d{17,20}$/, '숫자 ID(17~20자리)여야 합니다');
 
 const schema = z.object({
-  NVIDIA_API_KEY: z.string().trim().min(1, '비어 있습니다').refine(value => !['NVIDIA_API_KEY', '$NVIDIA_API_KEY'].includes(value), '실제 API 키를 넣어 주세요').or(z.literal('')).optional(),
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, 'postgres:// 로 시작하는 연결 문자열이어야 합니다').optional(),
   POSTGRES_URL: z.string().regex(/^postgres(ql)?:\/\//, 'postgres:// 로 시작하는 연결 문자열이어야 합니다').optional(),
   SESSION_SECRET: z.string().min(32, '32자 이상이어야 합니다'),

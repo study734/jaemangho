@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-10-17', area: 'web', title: 'AI 대화 서비스 중단', items: [
+    '재순이 대화는 중단 안내로 바뀌었어요. 질문 전송·자료 첨부·대화용 취향 저장은 더 이상 제공하지 않아요.',
+    'Steam 게임 찾기와 롤 전적, 기존 추천 기능은 계속 이용할 수 있어요.',
+  ] },
   { date: '2026-10-17', area: 'discord', title: '출처 찾기', items: [
     '메시지를 우클릭 → 앱 → "출처 찾기"로 애니 장면 짤의 작품명·화수·장면 시각을 찾아줘요.',
   ] },

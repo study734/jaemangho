@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { TITLES } from '@/lib/titles';
 import { type AwardRow, listAwards } from '@/server/chat/awards';
 import { chatNotice } from '@/server/chat/notice';
-import { AiInsight } from '../../ai';
 
 const weekLabel = (start: string) => {
   const d = new Date(`${start}T00:00:00+09:00`);
@@ -52,8 +51,6 @@ export default async function AwardsPage() {
           </section>
         ))
       )}
-      <AiInsight context={{ topic: 'activity', period: 'awards', unavailable: false, highlights: [], moments: [],
-        awards: awards.filter(a => a.week === weeks[0]).slice(0, 40).map(a => ({ week: a.week, title: TITLES[a.title].label, value: a.value, unit: TITLES[a.title].unit })) }} />
     </div>
   );
 }
