@@ -5,7 +5,6 @@ import { chatNotice } from '@/server/chat/notice';
 import { HIGHLIGHT_TOP, listHighlights } from '@/server/chat/highlights';
 import { getFunniestMessages, getHotMoments } from '@/server/chat/moments';
 import { reportFailure } from '@/server/diagnostics';
-import { AiInsight } from '../ai';
 
 const cachedHotMoments = unstable_cache(() => getHotMoments(), ['community-hot-moments'], { revalidate: 60 });
 const cachedFunniestMessages = unstable_cache(() => getFunniestMessages(), ['community-funniest-messages'], { revalidate: 60 });
@@ -83,9 +82,6 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
           </ul>
         </section>
       )}
-      <AiInsight context={{ topic: 'activity', period: 'displayed-records', unavailable: momentResult.unavailable || funnyResult.unavailable, awards: [],
-        highlights: items.slice(0, 20).map(h => ({ reactions: h.reactions, replies: h.replies, at: h.at })),
-        moments: moments.slice(0, 20).map(m => ({ messages: m.messages, people: m.people, at: m.at })) }} />
     </div>
   );
 }

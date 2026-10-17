@@ -2,8 +2,6 @@
 
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { ChatProvider } from '@/features/ai';
-import { LolAi } from './ai';
 import { Settings, summarizeRoster, useLol } from '@/features/lol';
 import { Sidebar } from '@/components/Sidebar';
 import { sectionOf } from '@/components/nav';
@@ -52,7 +50,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
   ) : null;
 
   return (
-    <ChatProvider userName={userName}><div className="app-frame" style={styles.appContainer}>
+    <div className="app-frame" style={styles.appContainer}>
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       <div className={`app-column${lobby ? ' is-lobby' : ''}`}>
       {!lobby && <TopBar onOpenSettings={() => setSettingsOpen(true)} isAdmin={isAdmin} userName={userName} />}
@@ -85,7 +83,6 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
             <JaesuniMessage line={CHANNEL_LINES[pathname]}>
               {syncAction}
               <div className="jaesuni-tool-content">{children}</div>
-              {['/lol', '/lol/synergy', '/lol/mastery'].includes(pathname) && <LolAi view={pathname === '/lol/synergy' ? 'synergy' : pathname === '/lol/mastery' ? 'mastery' : 'overview'} />}
             </JaesuniMessage>
           </div>
         ) : <>{syncAction}{children}</>}
@@ -94,7 +91,7 @@ export function Frame({ isAdmin, userName, children }: { isAdmin: boolean; userN
       <MobileNavigation />
       </div>
       {settingsOpen && <SettingsDialog userName={userName} isAdmin={isAdmin} onClose={() => setSettingsOpen(false)}><Settings embedded /></SettingsDialog>}
-    </div></ChatProvider>
+    </div>
   );
 }
 

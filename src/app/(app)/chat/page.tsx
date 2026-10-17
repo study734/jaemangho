@@ -1,7 +1,4 @@
 import { ChatRoom } from '@/features/ai';
-import { aiKeyConfigured } from '@/server/ai/client';
+import { AI_DISABLED_MESSAGE } from '@/server/ai-status';
 
-// 키 유무는 요청 때 읽는다(배포 때 굳히지 않는다).
-export const dynamic = 'force-dynamic';
-
-export default function ChatPage() { return <ChatRoom unavailable={!aiKeyConfigured()} />; }
+export default function ChatPage() { return <ChatRoom message={AI_DISABLED_MESSAGE} />; }
