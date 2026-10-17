@@ -6,6 +6,7 @@ import { after } from 'next/server';
 import { fetchGuildMember } from './discord';
 import { type RawConnection, fetchConnections, linkConnections } from './discord-connections';
 import { pool } from './pool';
+import { authBaseURL } from './auth-base-url';
 
 // 로그인 중인 사용자의 권한. getUserInfo(디스코드 토큰을 가진 유일한 지점)에서 계산해 두었다가
 // 세션이 만들어진 직후 훅에서 user 행에 반영한다. 한 번의 콜백 요청 안에서만 쓰이는 값이라 금방 비운다.
@@ -23,10 +24,7 @@ export const auth = betterAuth({
   appName: '재망호',
   // Keep cookies/callbacks on the service host the user opened. An explicit
   // existing development URL still wins; never trust arbitrary *.vercel.app.
-  baseURL: process.env.BETTER_AUTH_URL || {
-    allowedHosts: ['jaemangho.vercel.app', 'jaemangho.shop', 'www.jaemangho.shop',
-      ...(process.env.NODE_ENV !== 'production' ? ['localhost:*', '127.0.0.1:*'] : [])],
-  },
+  baseURL: authBaseURL(),
 
   // 세션은 DB에 저장된다(차단하면 바로 끊을 수 있음). 쿠키 캐시는 끈다: 차단이 즉시 반영돼야 한다.
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
