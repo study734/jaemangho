@@ -130,6 +130,9 @@ test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리�
   const user = await createUser('home_long_name', name);
   await loginAs(context, user);
   await db.query(`update "user" set image = '/images/games/413150.jpg' where id = $1`, [user.id]);
+  // 카드 본문은 등장할 때 200ms 동안 오른쪽 14px에서 밀려 들어온다(globals.css의 discovery-slide).
+  // 그 사이에 재면 scrollWidth가 최대 14px 커지므로, 배치만 보는 이 검사는 움직임을 끈 상태에서 잰다.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?discovery=play%3Asteam');
   // 스트리밍의 숨겨진 임시 HTML 대신 실제 표시된 홈만 검사한다.
   const home = page.locator('.home-page:visible');
@@ -143,12 +146,12 @@ test('긴 이름과 이미지 실패에도 홈 글자·표지·검색이 잘리�
     for (const selector of ['.home-card-heading', '.community-graphic-heading']) {
       expect(await home.locator(selector).evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
     }
-    expect(await page.locator('.lobby-card').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await page.locator('.lobby-card:visible').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     for (const selector of ['.home-play', '.game-cover-grid']) {
       expect(await home.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
     await expect(home.locator('.home-play').getByText(`${name}님, 멤버만 고르면 시작할 수 있어요.`)).toBeVisible();
-    await page.locator('.lobby-card').scrollIntoViewIfNeeded();
+    await page.locator('.lobby-card:visible').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `output/playwright/home-long-name-${width}.png` });
     const avatar = home.locator('.member-avatar img').first();
     await avatar.scrollIntoViewIfNeeded();
@@ -284,11 +287,13 @@ test('캐릭터 이미지 실패 시에도 인사와 게임 찾기를 사용할 
   await page.route('**/images/jaesuni-home.webp', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('img', { name: '게임패드를 든 재망호 막내 재순이' })).toHaveCount(0);
-  await expect(page.locator('.discovery-dialogue .lobby-tape')).toHaveText('재순이');
-  await expect(page.locator('.discovery-dialogue p').last()).toBeVisible();
-  await expect(page.locator('.home-tools-message .visual-fallback')).toHaveText('재');
-  const stage = await page.locator('.lobby').boundingBox();
-  const title = await page.locator('.discovery-dialogue').boundingBox();
+  // 스트리밍 중에는 숨겨진 임시 HTML에 같은 대사 상자가 하나 더 있을 수 있어 실제 표시된 것만 고른다.
+  const dialogue = page.locator('.discovery-dialogue:visible');
+  await expect(dialogue.locator('.lobby-tape')).toHaveText('재순이');
+  await expect(dialogue.locator('p').last()).toBeVisible();
+  await expect(page.locator('.home-tools-message:visible .visual-fallback')).toHaveText('재');
+  const stage = await page.locator('.lobby:visible').boundingBox();
+  const title = await dialogue.boundingBox();
   expect(title!.y).toBeGreaterThanOrEqual(stage!.y);
   expect(title!.y + title!.height).toBeLessThanOrEqual(stage!.y + stage!.height);
   await page.getByRole('link', { name: '같이 할 게임 찾기', exact: true }).click();
