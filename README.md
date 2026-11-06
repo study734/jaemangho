@@ -35,6 +35,8 @@ Next.js(App Router) + React 19 + TypeScript(strict), 로그인은 [Better Auth](
         ▼
 Neon Postgres (로그인 테이블 user/session/account/verification, 소환사 목록, Riot 캐시/통계/오류)
 ```
+- 서버 함수는 Neon 저장소와 같은 `iad1`에서 실행합니다(`vercel.json`의 `regions`). 페이지 하나가 DB를 여러 번 왕복하므로 함수를 DB 옆에 두는 Vercel 권장 배치를 따릅니다. DB 리전을 옮기면 이 값도 함께 바꿉니다.
+- DB 연결 풀(`src/server/pool.ts`)은 `attachDatabasePool`로 인스턴스 정지 전에 유휴 연결을 정리하고, 응답 없는 쿼리는 `query_timeout`(30초) 뒤 연결째 버립니다. 운영 로그의 `database.connect` ETIMEDOUT은 연결 대기 초과, `database.query` ETIMEDOUT은 쿼리 응답 초과입니다.
 - 브라우저는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
 - 로그인하지 않았거나 차단된 사용자는 어떤 화면과 API도 쓸 수 없습니다.
 
