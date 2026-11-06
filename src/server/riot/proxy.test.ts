@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { proxyRiot, type RiotRequest, type RiotStore } from './proxy';
+import { proxyRiot, riotPath, type RiotRequest, type RiotStore } from './proxy';
 
 // 메모리 가짜 저장소: 무엇이 저장/기록되었는지 검증한다
 function fakeStore(initial: Record<string, { status: number; body: unknown }> = {}) {
@@ -147,5 +147,25 @@ describe('proxyRiot', () => {
   it('캐시된 응답은 키가 없어도 돌려준다', async () => {
     const { store } = fakeStore({ 'kr/lol/league/v4/entries/by-puuid/abc?': { status: 200, body: [] } });
     expect((await proxyRiot(req(), { apiKey: undefined, store })).cache).toBe('HIT');
+  });
+
+  it('한글·공백 Riot ID는 브라우저가 인코딩해 보내도 한 번만 인코딩해 Riot에 보내고 같은 캐시를 쓴다', async () => {
+    const { store, calls } = fakeStore();
+    const f = fakeFetch(200, { puuid: 'p' });
+    const account = (name: string) => req({ region: 'asia', path: `/riot/account/v1/accounts/by-riot-id/${name}/KR1` });
+    await proxyRiot(account(encodeURIComponent('오채')), { apiKey: 'K', store, fetchFn: f });
+    await proxyRiot(account(encodeURIComponent('Hide on bush')), { apiKey: 'K', store, fetchFn: f });
+    expect(vi.mocked(f).mock.calls.map(c => String(c[0]))).toEqual([
+      'https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/%EC%98%A4%EC%B1%84/KR1',
+      'https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/Hide%20on%20bush/KR1',
+    ]);
+    // 인코딩하지 않은 한글 경로(설정 화면의 키 확인)도 같은 캐시 항목을 쓴다
+    expect((await proxyRiot(account('오채'), { apiKey: 'K', store, fetchFn: f })).cache).toBe('HIT');
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(calls.put).toHaveLength(2);
+  });
+
+  it('잘못된 % 표기는 예외 없이 글자 그대로 인코딩한다', () => {
+    expect(riotPath('/riot/account/v1/accounts/by-riot-id/100%/KR1')).toBe('/riot/account/v1/accounts/by-riot-id/100%25/KR1');
   });
 });
