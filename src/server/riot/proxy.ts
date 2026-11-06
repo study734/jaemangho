@@ -26,6 +26,17 @@ export interface RiotResult {
   requestId?: string;
 }
 
+// 경로 조각마다 정확히 한 번만 인코딩한다. 브라우저는 Riot ID를 encodeURIComponent로 보내고(%EC…),
+// 설정 화면의 키 확인은 인코딩하지 않은 한글을 보낸다. 예전처럼 encodeURI를 다시 씌우면 %가 %25로 바뀌어
+// 한글·공백 닉네임이 Riot에서 404가 된다. 두 형태 모두 같은 주소와 캐시 키로 맞춘다.
+export function riotPath(path: string) {
+  return path.split('/').map(segment => {
+    let raw = segment;
+    try { raw = decodeURIComponent(segment); } catch { /* 잘못된 %는 글자 그대로 인코딩한다 */ }
+    return encodeURIComponent(raw);
+  }).join('/');
+}
+
 const inFlight = new WeakMap<RiotStore, Map<string, Promise<RiotResult>>>();
 
 // 크루원 전원이 같은 응답을 공유하도록 캐시한다 (Riot rate limit을 아끼기 위함).
@@ -36,6 +47,7 @@ export async function proxyRiot(
   deps: { apiKey: string | undefined; store?: RiotStore; fetchFn?: typeof fetch }
 ): Promise<RiotResult> {
   const store = deps.store ?? dbStore;
+  req = { ...req, path: riotPath(req.path) };
   const key = `${req.region}${req.path}?${req.params}`;
   const hit = await store.get(key);
   if (hit) {
@@ -69,7 +81,7 @@ async function requestRiot(
   let requestId: string | undefined;
   try {
     const qs = req.params.toString();
-    const res = await fetchFn(`https://${req.region}.api.riotgames.com${encodeURI(req.path)}${qs ? `?${qs}` : ''}`, {
+    const res = await fetchFn(`https://${req.region}.api.riotgames.com${req.path}${qs ? `?${qs}` : ''}`, {
       headers: { 'X-Riot-Token': deps.apiKey },
       signal: AbortSignal.timeout(10_000),
       cache: 'no-store',
