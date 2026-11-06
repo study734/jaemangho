@@ -52,4 +52,18 @@ describe.skipIf(!testDbUrl)('PostgreSQL boundary diagnostics (isolated DB)', () 
     expect(pool.waitingCount).toBe(0);
     expect((await pool.query('select 1 as value')).rows).toEqual([{ value: 1 }]);
   });
+
+  it('discards a checked-out client whose query hit query_timeout so the next request gets a working connection', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const pool = createPool({ connectionString: testDbUrl!, max: 1, query_timeout: 100 });
+    pools.push(pool);
+    const client = await pool.connect();
+    try { await expect(client.query('select pg_sleep(5)')).rejects.toThrow('Query read timeout'); }
+    finally { client.release(); }
+    expect(log).toHaveBeenCalledWith('[failure]', expect.objectContaining({ operation: 'database.query', code: 'ETIMEDOUT', phase: 'query' }));
+    expect(pool.totalCount).toBe(0);
+    const started = Date.now();
+    expect((await pool.query('select 1 as value')).rows).toEqual([{ value: 1 }]);
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
 });

@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "regions": ["iad1"],
   "ignoreCommand": "[ -n \"$VERCEL_GIT_COMMIT_REF\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]",
   "buildCommand": "node scripts/migrate.mjs && next build",
   "crons": [
