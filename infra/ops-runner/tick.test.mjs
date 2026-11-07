@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { tick } from './tick.mjs';
-import worker, { OperationsRunner } from './worker.mjs';
+import worker, { OperationsRunner, runSummary } from './worker.mjs';
 const webhook = 'https://discord.com/api/webhooks/123456789012345678/token';
 function requests({ failure = false, databaseFailure = false, domainFailure = false, badSecret = false, notificationFailure = false, recoveryFailure = false, redirectAt } = {}) {
   const calls = [];
@@ -116,4 +116,13 @@ it('알림 웹훅 리디렉션은 전달 실패로 남기고 외부로 따라가
   expect(f.calls.some(c => c.url.hostname === 'attacker.example')).toBe(false);
   const notification = f.calls.find(c => c.url.hostname === 'discord.com');
   expect(notification.init.headers.Authorization).toBeUndefined();
+});
+
+it('실행 요약 로그는 허용한 상태 필드만 남기고 비밀값·웹훅 주소를 담지 않는다', async () => {
+  const f = requests({ badSecret: true });
+  const state = await tick({ secret: 'test-secret', webhook, fetchFn: f.fetchFn, now: 1 });
+  const line = JSON.stringify(runSummary({ ...state, secret: 'test-secret', webhook }));
+  expect(JSON.parse(line)).toMatchObject({ event: 'ops-runner.tick', status: state.status, notificationFailed: false });
+  expect(line).not.toContain('test-secret');
+  expect(line).not.toContain('discord.com');
 });

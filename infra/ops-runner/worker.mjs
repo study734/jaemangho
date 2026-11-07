@@ -1,5 +1,12 @@
 import { tick } from './tick.mjs';
 
+// Workers Logs에 남기는 실행 요약. 비밀값·웹훅 주소가 섞이지 않도록 허용한 필드만 고른다.
+export const runSummary = state => ({
+  event: 'ops-runner.tick', status: state.status, since: state.since, notified: state.notified,
+  operations: state.operations?.status, recovery: state.recovery, backups: state.backups?.status,
+  notificationFailed: !!state.notificationFailed,
+});
+
 export class OperationsRunner {
   constructor(ctx, env) { this.ctx = ctx; this.env = env; }
   async fetch() {
@@ -12,6 +19,7 @@ export class OperationsRunner {
     try {
       const state = await tick({ state: await this.ctx.storage.get('state'), secret: this.env.CRON_SECRET, webhook: this.env.OPS_ALERT_WEBHOOK_URL, backupEnabled: this.env.OPS_BACKUP_ENABLED === '1' });
       await this.ctx.storage.put('state', state);
+      (state.status === 'healthy' ? console.log : console.warn)(JSON.stringify(runSummary(state)));
       return Response.json({ status: state.status, notificationFailed: state.notificationFailed });
     } finally { await this.ctx.storage.delete('lease'); }
   }
