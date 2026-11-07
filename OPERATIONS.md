@@ -159,10 +159,10 @@ PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 
 코드 구현과 실제 보호 활성화는 별개다. PR 머지, 실행기 배포, Secrets 등록, 첫 실행 확인까지 마쳐야 운영을 맡길 수 있다. 누락된 설정을 자동으로 만들거나 유료 플랜으로 전환하지 않는다.
 
 1. CI 통과 후 PR을 머지한다. Cloudflare Workers **Free** 계정에서 `infra/ops-runner/wrangler.toml`을 대상으로 Wrangler **4.149.0**으로 배포한다. Worker의 `CRON_SECRET`, `OPS_ALERT_WEBHOOK_URL`은 서비스 Secrets로 입력하며 값을 인수·로그에 쓰지 않는다. 배포와 계정 연결은 운영자가 수행한다.
-2. Worker는 5분마다 헬스 → 기존 채팅 복구 API → 운영 점검 API 순서로 실행한다. 공개 HTTP 트리거는 없고 Durable Object의 SQLite 저장소로 중복 실행 방지와 알림 상태를 보존한다. 앱/DB 장애는 10분 지속 후, 인증 설정 오류는 즉시 개입 필요로 알린다. 알림 전송 실패도 실행 실패로 남겨 다음 주기에 재시도한다. GitHub의 기존 30분 감시와 독립적으로 작동한다.
+2. Worker는 5분마다 헬스 → 기존 채팅 복구 API → 운영 점검 API 순서로 실행한다. 공개 HTTP 트리거는 없고 Durable Object의 SQLite 저장소로 중복 실행 방지와 알림 상태를 보존한다. 앱/DB 장애는 10분 지속 후, 인증 설정 오류는 즉시 개입 필요로 알린다. 알림 전송 실패도 실행 실패로 남겨 다음 주기에 재시도한다. GitHub의 기존 30분 감시와 독립적으로 작동한다. 실행마다 상태 요약 한 줄(`ops-runner.tick`, 비밀값 제외)과 실패 이유를 Workers Logs에 남긴다(`wrangler.toml`의 `[observability]`, 무료 플랜 포함). 대시보드의 Worker → Observability에서 확인한다.
 3. GitHub `VERCEL_TOKEN`을 등록하고 정상 상태에서 **Smoke**를 수동 실행한다. 정상 배포 ID·커밋을 캐시에 등록한 뒤에만 `OPS_AUTO_ROLLBACK=1`로 활성화한다. 토큰이 없으면 기존 smoke 검사만 수행하며 summary에 자동 롤백 미활성 상태를 표시한다. 토큰/메타데이터 권한 확인이 실패하면 자동 조작을 중단한다.
 4. 백업용 직접 DB 주소와 암호화 키를 GitHub Secrets에 등록한다. 권한은 읽기 전용 계정으로 최소화한다. 키는 백업과 독립된 비밀 보관소에도 보관한다. 키 생성은 비밀 관리 도구에서 무작위 32바이트 base64로 수행하고 터미널 출력·대화에 남기지 않는다. `OPS_BACKUP_ENABLED=1` 등록 후 **Production encrypted backup**을 수동 실행하여 첫 성공을 확인한다.
-5. **Stored backup restore verification**도 수동 실행해 보관 파일 다운로드 → 복호화 → 격리 DB 복원 → 최신 마이그레이션 검증까지 확인한다. 두 백업 워크플로 첫 성공 뒤 Worker Variable도 `OPS_BACKUP_ENABLED=1`로 바꿔 재배포한다. Worker는 공개 Actions 메타데이터를 시간당 확인하여 백업 36시간·보관 파일 복원 검증 8일의 공백도 알린다. GitHub API 확인 실패는 별도 상태로 기록하며 새 토큰을 요구하지 않는다. 저장소가 비공개로 전환되면 이 감시는 설정 변경이 필요하다.
+5. **Stored backup restore verification**도 수동 실행해 보관 파일 다운로드 → 복호화 → 격리 DB 복원 → 최신 마이그레이션 검증까지 확인한다. 두 백업 워크플로 첫 성공 뒤 Worker Variable도 `OPS_BACKUP_ENABLED=1`로 바꿔 재배포한다. Worker는 공개 Actions 메타데이터를 시간당 확인하여 백업 36시간·보관 파일 복원 검증 8일의 공백도 알린다. GitHub API 확인 실패는 별도 상태로 기록하며 새 토큰을 요구하지 않는다. 저장소가 비공개로 전환되면 이 감시는 설정 변경이 필요하다. **현재 저장소는 비공개다.** 토큰 없는 GitHub API 조회가 404가 되어 매 실행 `backup_inspection_failed`가 되므로 Worker의 `OPS_BACKUP_ENABLED`는 `0`으로 둔다(2026-11-08 변경, `wrangler.toml` 기본값과 같음). 이름이 같은 GitHub Actions의 백업 활성화 설정은 별개이며 유지한다. 백업·복원 검증의 성공 여부는 해당 워크플로 실행 기록과 실패 알림으로 확인한다.
 
 Worker 정상 실행·Smoke baseline·최근 암호화 백업·보관 파일 복원 성공이 모두 있어야 활성화 완료다.
 

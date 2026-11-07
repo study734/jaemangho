@@ -4,6 +4,10 @@ compatibility_date = "2026-10-11"
 workers_dev = false
 preview_urls = false
 
+# Workers Logs(무료 플랜 포함). 실행마다 runSummary 한 줄과 실패 이유가 대시보드 Observability에 남는다.
+[observability]
+enabled = true
+
 [triggers]
 crons = ["*/5 * * * *"]
 
