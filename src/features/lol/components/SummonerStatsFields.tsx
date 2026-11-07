@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { CSSProperties } from 'react';
 import type { Member } from '../types';
-import { getTierLabelKR } from '../mockData';
+import { getTierLabelKR } from '../domain/tiers';
 
 export type SummonerStats = Pick<Member, 'summonerLevel' | 'leaguePoints' | 'tier' | 'rank' | 'wins' | 'losses'>;
 type Field = { name: keyof SummonerStats; label: string; options?: readonly string[] };

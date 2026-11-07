@@ -2,7 +2,6 @@ import { pool } from '../pool';
 import { STEAM_NOTICE_VERSION, STEAM_STORAGE_COUNTRY } from './steam-policy';
 
 export class SteamNoticeUnavailableError extends Error {}
-export class SteamAccountNotVerifiedError extends Error {}
 
 export async function getSteamActivitySettings(userId: string) {
   const accounts = (await pool.query<{

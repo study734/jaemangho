@@ -2,7 +2,7 @@
 
 import { summarizeRoster } from '../domain/summary';
 import { useLol } from '../state/LolProvider';
-import { getTierLabelKR } from '../mockData';
+import { getTierLabelKR } from '../domain/tiers';
 import { VisualImage } from './VisualImage';
 
 const EMBLEM_TIERS = new Set(['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER']);
