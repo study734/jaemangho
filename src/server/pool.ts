@@ -1,7 +1,7 @@
 import { reportFailure } from './diagnostics';
 import { attachDatabasePool } from '@vercel/functions';
 import { Pool } from 'pg';
-import type { PoolConfig } from 'pg';
+import type { PoolClient, PoolConfig } from 'pg';
 import { observeDatabase } from './pool-observer';
 import { postgresUrl } from './postgres-url.mjs';
 
@@ -29,5 +29,27 @@ export function createPool(options: PoolConfig = {}) {
   // 처리기가 없으면 처리되지 않은 예외로 프로세스가 죽을 수 있다. 끊긴 연결은 풀이 버리고 다음 요청에서 새로 연결하므로 로그만 남긴다.
   p.on('error', (e) => reportFailure('database.idle-connection', e));
   attachDatabasePool(p);
-  return p;
+  return retryConnectOnTimeout(p);
+}
+
+// 새 연결이 시간 초과로 끝나면 한 번만 다시 연결한다(연결 시도에는 부작용이 없다).
+// 운영(2026-11)에서 빈 풀의 새 연결이 두 가지로 실패했다: Neon이 절전에서 깨는 동안 10초를 넘긴 경우,
+// 요청이 끝나 인스턴스가 정지된 사이 멈춰 있던 연결 시도가 재개 직후 시간 초과로 끝나는 경우(Better Auth
+// 스키마 확인처럼 여러 요청이 공유하는 첫 연결이면 다음 요청이 그 실패를 받는다). 두 경우 모두 바로 다시 연결하면
+// 대개 성공한다. 풀이 가득 차 대기열에서 시간 초과된 경우('timeout exceeded when trying to connect')는
+// 부하만 늘리므로 다시 시도하지 않는다. 각 시도의 실패는 observeDatabase가 그대로 기록한다.
+const NEW_CONNECTION_TIMEOUT = 'Connection terminated due to connection timeout';
+type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: boolean | Error) => void) => void;
+
+export function retryConnectOnTimeout<T extends Pick<Pool, 'connect'>>(target: T): T {
+  const connect = target.connect.bind(target) as () => Promise<PoolClient>;
+  target.connect = function (callback?: ConnectCallback) {
+    const result = connect().catch((error: unknown) => {
+      if (!(error instanceof Error) || error.message !== NEW_CONNECTION_TIMEOUT) throw error;
+      return connect();
+    });
+    if (typeof callback !== 'function') return result;
+    result.then(client => callback(undefined, client, client.release.bind(client)), (error: Error) => callback(error, undefined, () => {}));
+  } as Pool['connect'];
+  return target;
 }
