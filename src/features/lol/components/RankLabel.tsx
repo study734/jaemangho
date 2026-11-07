@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { getTierColor, getTierLabelKR } from '../mockData';
+import { getTierColor, getTierLabelKR } from '../domain/tiers';
 // 티어의 색과 최상위 티어의 랭크 생략 규칙을 모든 표시 UI에서 공유한다.
 export function RankLabel({ tier, rank, style, children }: {
   tier: string;

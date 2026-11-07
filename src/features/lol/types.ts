@@ -1,21 +1,3 @@
-export interface SummonerInfo {
-  id: string;
-  puuid: string;
-  name: string;
-  tagLine: string;
-  profileIconId: number;
-  summonerLevel: number;
-}
-
-export interface LeagueEntry {
-  queueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
-  tier: string; // 'IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'
-  rank: string; // 'I', 'II', 'III', 'IV'
-  leaguePoints: number;
-  wins: number;
-  losses: number;
-}
-
 export interface MatchPlayer {
   gameName: string;
   tagLine: string;

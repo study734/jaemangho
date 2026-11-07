@@ -5,7 +5,7 @@ import { VisualImage } from './VisualImage';
 import React, { useState } from 'react';
 import type { Member } from '../types';
 import { formatTimeAgo } from './matchFormatting';
-import { getTierColor } from '../mockData';
+import { getTierColor } from '../domain/tiers';
 
 interface MasteryShowcaseProps {
   members: Member[];

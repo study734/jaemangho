@@ -2,7 +2,7 @@ import type React from 'react';
 import type { Member } from '../types';
 import { RiotImage } from './RiotImage';
 import { RankLabel } from './RankLabel';
-import { getTierOrder, getRankOrder } from '../mockData';
+import { getTierOrder, getRankOrder } from '../domain/tiers';
 export function TierLeaderboard({ members, onSelectMember }: {
   members: Member[];
   onSelectMember: (member: Member) => void;
