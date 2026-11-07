@@ -8,6 +8,7 @@ export { LolAccountBadge } from './components/AccountBadge';
 export { LolHomeSummary } from './components/HomeSummary';
 export { LolProvider, useLol } from './state/LolProvider';
 export { rosterApi } from './api/roster';
+export { createRiotClient } from './api/riot';
 export { summarizeRoster } from './domain/summary';
 export type { Member } from './types';
 export { duoSynergy } from './domain/synergy';
