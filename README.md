@@ -144,13 +144,18 @@ src/
 - `POST /api/discord/interactions`는 선택 환경변수 **`DISCORD_PUBLIC_KEY`**(Discord Developer Portal → General Information → Public Key, 64자리 16진수)로 원문 바이트의 Ed25519 서명을 검증합니다. 서명 없음·위조·5분을 벗어난 타임스탬프는 401, 공개키 미설정은 503입니다. 서명된 PING에 PONG을 반환합니다. 이 키는 봇 토큰이나 Client Secret과 다릅니다.
 - DB·Steam 조회 전에 비공개 지연 응답을 반환하고 Next.js `after`에서 결과를 전달합니다. 처리 예산은 45초, 라우트 최대 실행 시간은 60초입니다. 제한 초과 시 재시도 안내를 보내고 늦게 끝난 결과로 덮어쓰지 않습니다. 기존 공유 Steam 요청은 취소하지 않으며 별도 작업 큐·영구 재전송은 없습니다. Discord 답변 수정은 네트워크·5xx·1초 이내 429 대기와 404의 Unknown Message(10008)·Unknown Webhook(10015)에 한해 최대 3회 시도합니다. 최초 지연 응답이 Discord에 반영되기 전 후속 수정이 도착할 가능성에 대비해 해당 404는 250ms·500ms 후 재시도하며, 지속되는 무효 토큰은 같은 예산 안에서 실패합니다. 실패 로그에는 숫자 오류 코드·HTTP 상태만 남깁니다. 토큰·본문은 기록하지 않습니다.
 
-운영 활성화는 배포·환경변수·Discord 앱 설정 변경에 대한 기존 사전 확인을 거친 뒤 진행합니다. 현재 코드가 추가됐다는 사실만으로 명령이 등록되거나 앱이 활성화되지는 않습니다.
+운영 활성화는 배포·환경변수·Discord 앱 설정 변경에 대한 기존 사전 확인을 거친 뒤 진행합니다. 명령은 운영 배포 때 자동으로 등록되지만(4번), 아래 1~3번의 앱 설정이 없으면 디스코드가 요청을 보내지 않으므로 앱이 활성화되지는 않습니다.
 
 1. 기존 Discord 로그인·수집과 **같은 앱**의 공개키를 `DISCORD_PUBLIC_KEY`에 설정하고 재배포합니다.
 2. 해당 앱의 **Interactions Endpoint URL**을 `https://<도메인>/api/discord/interactions`로 설정합니다. 이 방식은 Gateway로 interactions를 받는 방식과 양립하지 않으므로, 기존 앱에서 다른 명령을 처리 중인지 먼저 확인합니다. REST 채팅 수집에는 영향을 주지 않습니다.
 3. 앱의 서버 설치에 `applications.commands` scope가 포함돼 있는지 확인합니다. `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_BOT_TOKEN`은 같은 앱·서버의 기존 설정을 사용합니다. 상시 실행 봇이나 Message Content Intent는 필요하지 않습니다.
-4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버에 `commands.json`의 명령(`/게임추천`·`/패치노트`·`/기록`·`/멤버`·`/전적`·`/개선`·`/운영`·`출처 찾기`)만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
-5. 디스코드에서 세 범위·기준, 결과 버튼, Steam 동의 없음, 계정 연결 없음, 비공개 목록, `/기록`·`/멤버`·`/전적`의 실제 답변 표시, 관리자 명령이 Administrator가 아닌 멤버에게서 거부되는지를 확인합니다. 새 명령은 운영 DB에 `0024` 마이그레이션이 적용된 배포 뒤에 등록합니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
+4. **명령 등록은 배포가 자동으로 합니다.** `vercel.json`의 `buildCommand`가 운영 빌드 성공 뒤 `node scripts/register-discord-command.mjs --deploy`를 실행해, Vercel 운영 환경의 기존 `DISCORD_CLIENT_ID`·`DISCORD_GUILD_ID`·`DISCORD_BOT_TOKEN`으로 `commands.json`의 명령을 지정 서버에 등록·갱신합니다. 토큰을 따로 입력하는 단계는 없습니다. `commands.json`을 바꾼 PR을 머지하면 그 운영 배포에서 반영됩니다.
+   - 서버에 등록된 명령을 GET 한 번으로 읽어 **바뀐 명령만** 이름 기준으로 POST합니다. 바뀐 게 없으면 POST하지 않으므로 배포가 잦아도 Discord의 명령 생성 한도를 쓰지 않습니다. 정의에 없는 명령은 지우지 않습니다(bulk PUT 미사용).
+   - `VERCEL_ENV=production`에서만 실행합니다. 미리보기·로컬 빌드는 건너뜁니다(`[discord] Skipping …` 로그).
+   - 실패해도 배포를 막지 않습니다. 설정 누락·HTTP 상태·네트워크 오류는 빌드 로그에 `[discord] … Deployment continues`로 상태 코드만 남고, 명령은 이전 정의로 유지됩니다. 원인을 고친 뒤 재배포하면 다시 시도합니다. 401/403은 봇 토큰·앱 설치(`applications.commands`), 429는 잠시 뒤 재배포로 확인합니다.
+   - 등록은 빌드 끝에서, 새 버전이 서비스되기 직전에 일어납니다. 새로 추가한 명령은 배포가 전환되기까지 짧은 동안 이전 버전이 400으로 거부할 수 있습니다.
+   - 수동 실행도 같은 방식입니다: 미리보기 `npm run discord:register -- --dry-run`, 직접 등록 `npm run discord:register -- --apply`(로컬 `.env.local`에 같은 세 값 필요). 비교·실패 동작은 `scripts/register-discord-command.test.ts`로 재현합니다.
+5. 디스코드에서 세 범위·기준, 결과 버튼, Steam 동의 없음, 계정 연결 없음, 비공개 목록, `/기록`·`/멤버`·`/전적`의 실제 답변 표시, 관리자 명령이 Administrator가 아닌 멤버에게서 거부되는지를 확인합니다. 마이그레이션은 같은 빌드의 시작에서, 명령 등록은 빌드 성공 뒤에 실행되므로 순서는 자동으로 지켜집니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
 
 구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `commands.json`(명령 배열)에 있습니다. 테스트: `npm test -- src/server/discord-interactions src/server/lol/stats.test.ts scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결·파티 저장 검증(`access.integration.test.ts`, `party.integration.test.ts`)은 `TEST_DATABASE_URL`이 필요합니다. 등록 정의의 모든 명령·옵션이 서명 요청 스키마를 통과하는지도 `handler.test.ts`가 확인합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.
 
