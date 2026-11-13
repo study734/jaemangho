@@ -26,15 +26,30 @@ export function changedCommands(defined, registered) {
   return defined.filter(command => current.get(command.name) !== JSON.stringify(normalizeCommand(command)));
 }
 
-async function request(fetchFn, url, init) {
-  try { return await fetchFn(url, { ...init, signal: AbortSignal.timeout(10_000) }); }
-  catch { throw new Error('Discord command registration failed: network or timeout. Safe to retry.'); }
+// 여러 명령을 연달아 등록하면 Discord의 경로별 짧은 요청 제한(429)에 걸린다(#124 첫 배포에서 실제로 발생).
+// 응답이 알려 주는 대기 시간(retry_after, 초)이 짧으면 그만큼 기다렸다가 같은 요청을 다시 보낸다(요청당 최대 3번).
+// 긴 대기(하루 생성 한도 등)는 기다리지 않고 실패로 돌려 배포를 붙잡지 않는다.
+const MAX_WAIT_MS = 5_000;
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function request(fetchFn, url, init, sleep = wait) {
+  for (let attempt = 1; ; attempt++) {
+    let response;
+    try { response = await fetchFn(url, { ...init, signal: AbortSignal.timeout(10_000) }); }
+    catch { throw new Error('Discord command registration failed: network or timeout. Safe to retry.'); }
+    if (response.status !== 429 || attempt === 3) return response;
+    const body = await response.clone().json().catch(() => null);
+    // 대기 시간을 알려 줄 때만 기다린다(값이 없으면 Number(null)이 0이 되어 바로 재시도하는 것을 막는다).
+    const hint = body?.retry_after ?? response.headers.get('retry-after');
+    const seconds = hint === null || hint === undefined || hint === '' ? NaN : Number(hint);
+    if (!Number.isFinite(seconds) || seconds < 0 || seconds * 1000 > MAX_WAIT_MS) return response;
+    await sleep(Math.ceil(seconds * 1000) + 100);
+  }
 }
 const failure = (status) => new Error(`Discord command registration failed: HTTP ${status}. Check app/server permissions; for 429, wait before retrying.`);
 
 // 달라진 명령만 POST(이름 기준 upsert)한다. bulk PUT은 기존 앱의 다른 명령까지 지우므로 쓰지 않는다.
 // 바뀐 것이 없으면 GET 한 번으로 끝나 배포마다 실행해도 Discord의 명령 생성 한도를 쓰지 않는다.
-async function apply(commands, { env, fetchFn, log }) {
+async function apply(commands, { env, fetchFn, log, sleep }) {
   const app = env.DISCORD_CLIENT_ID;
   const guild = env.DISCORD_GUILD_ID;
   const token = env.DISCORD_BOT_TOKEN;
@@ -43,14 +58,21 @@ async function apply(commands, { env, fetchFn, log }) {
   }
   const url = `${API}/applications/${app}/guilds/${guild}/commands`;
   const headers = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
-  const listed = await request(fetchFn, url, { method: 'GET', headers });
+  const listed = await request(fetchFn, url, { method: 'GET', headers }, sleep);
   if (!listed.ok) throw failure(listed.status);
   const registered = await listed.json().catch(() => null);
   if (!Array.isArray(registered)) throw new Error('Discord command registration failed: unexpected command list response.');
   const changed = changedCommands(commands, registered);
+  const done = [];
   for (const command of changed) {
-    const response = await request(fetchFn, url, { method: 'POST', headers, body: JSON.stringify(command) });
-    if (!response.ok) throw failure(response.status);
+    const response = await request(fetchFn, url, { method: 'POST', headers, body: JSON.stringify(command) }, sleep);
+    if (!response.ok) {
+      const error = failure(response.status);
+      // 어디까지 등록됐는지 남겨 다음 배포(또는 --apply)가 무엇을 이어 받을지 알 수 있게 한다.
+      error.message += done.length ? ` Registered before failing: ${done.join(', ')}.` : '';
+      throw error;
+    }
+    done.push(command.name);
   }
   log(changed.length
     ? `Registered ${changed.map(c => c.name).join(', ')} in the configured server; ${commands.length - changed.length} unchanged. Other commands were preserved.`
@@ -59,18 +81,18 @@ async function apply(commands, { env, fetchFn, log }) {
 
 // --deploy: Vercel 운영 빌드(vercel.json buildCommand)에서 실행한다. 운영 배포에만 등록하고,
 // 실패해도 배포를 막지 않는다(앱은 정상이고 명령만 이전 상태로 남는다). 원인은 상태 코드로만 남긴다.
-export async function registerCommand({ args = [], env = process.env, fetchFn = fetch, log = console.log, warn = console.warn } = {}) {
+export async function registerCommand({ args = [], env = process.env, fetchFn = fetch, log = console.log, warn = console.warn, sleep = wait } = {}) {
   if (args.length > 1 || args.some(arg => !MODES.includes(arg))) throw new Error('Use --dry-run, --apply or --deploy, without additional arguments.');
   if (args.includes('--help')) { log('npm run discord:register -- --dry-run | --apply   (Vercel production build: --deploy)'); return; }
   const commands = JSON.parse(await readFile(commandsUrl, 'utf8'));
   if (args.includes('--deploy')) {
     if (env.VERCEL_ENV !== 'production') { log(`[discord] Skipping command registration outside production (VERCEL_ENV=${env.VERCEL_ENV ?? 'unset'}).`); return; }
-    try { await apply(commands, { env, fetchFn, log: message => log(`[discord] ${message}`) }); }
+    try { await apply(commands, { env, fetchFn, sleep, log: message => log(`[discord] ${message}`) }); }
     catch (error) { warn(`[discord] ${error.message} Deployment continues; commands keep their previous definitions.`); }
     return;
   }
   if (!args.includes('--apply')) { log(JSON.stringify(commands, null, 2)); return; }
-  await apply(commands, { env, fetchFn, log });
+  await apply(commands, { env, fetchFn, log, sleep });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

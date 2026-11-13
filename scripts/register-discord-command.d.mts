@@ -7,4 +7,5 @@ export function registerCommand(options?: {
   fetchFn?: typeof fetch;
   log?: (message: string) => void;
   warn?: (message: string) => void;
+  sleep?: (ms: number) => Promise<void>;
 }): Promise<void>;
