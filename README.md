@@ -286,6 +286,15 @@ rtk proxy python3 scripts/dev-env.py sync --replace
 
 검증: `rtk proxy python3 scripts/dev_env_test.py`. 실제 임시 Git 저장소/worktree 생성, 공백 경로, 권한, 기존 파일·hook 보존, Claude stdin 대상, 실패 시 원본 보존·비밀값 비출력과 Development 전용 조회를 확인합니다. 동작 기준: [Git post-checkout 문서](https://git-scm.com/docs/githooks#_post_checkout), [Claude Code hooks 문서](https://code.claude.com/docs/en/hooks#sessionstart).
 
+### 클라우드 세션(Claude Code on the web)의 개발 준비
+
+클라우드 세션에는 위의 로컬 공용 원본이 없으므로 [`scripts/cloud-dev.sh`](scripts/cloud-dev.sh)가 컨테이너 안에서 준비합니다. 로컬 컴퓨터(`CLAUDE_CODE_REMOTE`가 `true`가 아님)에서는 아무것도 하지 않습니다.
+
+- `setup`: 클라우드 환경 `jaemangho`의 setup script가 새 컨테이너마다 실행합니다. 컨테이너의 PostgreSQL로 `127.0.0.1:54329`에 개발 DB `jaemangho`와 테스트 DB `jaemangho_test`를 만들고(`trust` 인증, 컨테이너 밖에서 접속 불가), `npm ci`와 개발 DB 마이그레이션을 수행합니다. 마이그레이션은 `.env.local`의 주소가 아니라 이 로컬 개발 DB에만 적용합니다.
+- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로, DB 테스트·개발 서버 전에 실행합니다. 이미 켜져 있으면 바로 끝납니다.
+- 두 모드 모두 `.env.local`이 없을 때만 로컬 DB 주소·무작위 `SESSION_SECRET`·`DEV_LOGIN=1`로 만듭니다(권한 600). 기존 파일과 DB는 덮어쓰지 않으며 값을 출력하지 않습니다. 외부 연동 키(Discord·Riot·Steam)는 비어 있으므로 해당 기능은 미준비 상태입니다.
+- 환경 변수 `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:54329/jaemangho_test`는 클라우드 환경 설정에 있어 `npm test`·`npm run test:e2e`가 그대로 DB 통합 테스트를 실행합니다.
+
 `.env.local` 예시 (로그인 없이 개발하려면 `DEV_LOGIN=1`):
 ```
 DATABASE_URL=...        # 운영 DB를 건드리지 않게 별도 DB를 쓰세요 (아래 Docker 예시 또는 Neon 개발 브랜치)
