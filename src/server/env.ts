@@ -22,6 +22,8 @@ const schema = z.object({
   CRON_SECRET: z.string().min(16, '16자 이상이어야 합니다').or(z.literal('')).optional(),
   // 선택: Steam 기능을 쓸 때만 필요하다. 설정했다면 형식을 점검한다.
   STEAM_API_KEY: z.string().regex(/^[0-9A-Fa-f]{32}$/, '32자리 16진수 Steam 키여야 합니다').or(z.literal('')).optional(),
+  // 선택: 비공개 저장소의 Actions 실행 기록을 관리자 화면에서 읽는 fine-grained 토큰(Actions 읽기 전용).
+  GITHUB_ACTIONS_READ_TOKEN: z.string().regex(/^github_pat_\w{20,}$/, 'github_pat_ 로 시작하는 fine-grained 토큰이어야 합니다').or(z.literal('')).optional(),
   // 운영 알림 전용 Discord webhook. URL에 포함된 토큰을 표시하거나 로그로 남기지 않는다.
   OPS_ALERT_WEBHOOK_URL: z.string().regex(/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d{17,20}\/[\w-]+$/, 'Discord webhook 주소여야 합니다').or(z.literal('')).optional(),
 });
