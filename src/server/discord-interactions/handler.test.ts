@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminUser, commandUser, linkedPlayers } from './access';
 import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
-import { loadParty, saveParty } from './party';
+import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
 import { compareGames } from '../steam/games';
@@ -14,7 +14,7 @@ import { friendPicker, interactionSchema, privateMessage, type Interaction } fro
 
 vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
 vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
-vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn() }));
+vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: vi.fn(), setPartyPreference: vi.fn() }));
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
@@ -160,7 +160,7 @@ describe('game recommendation flow', () => {
     const games = Array.from({ length: 12 }, (_, i) => ({ ...result.games[0], appId: i + 1, name: '*'.repeat(150), missingIds: [steamIds[1]], reasons: ['r'.repeat(150), 'r'.repeat(150)] }));
     vi.mocked(recommendGames).mockResolvedValue({ ...result, games });
     await completeInteraction(parsed(component('any')));
-    expect(lastMessage().content).toContain('보유 목록에 없음');
+    expect(lastMessage().content).toContain(`없음: <@${friend}>`);
     expect(lastMessage().content.length).toBeLessThanOrEqual(2000);
     expect(lastMessage().content).not.toContain('/app/6/');
   });
@@ -428,5 +428,62 @@ describe('/모집 (public lobby)', () => {
     vi.mocked(hasSteamConsent).mockResolvedValue(false);
     await completeInteraction(lobbyButton('recommend'));
     expect(lastMessage().content).toContain('/steam');
+  });
+});
+
+describe('readability and variety of recommendations', () => {
+  const partyId = '100000000000000009';
+  const party = { id: partyId, ownerId: owner, discordIds: [owner, friend], scope: 'all' as const, preference: 'balanced' as const };
+  const games = Array.from({ length: 12 }, (_, i) => ({ ...result.games[0], appId: 100 + i, name: `Game ${i + 1}` }));
+  const press = (customId: string, values?: string[]) => parsed({ ...command(), id: '100000000000000012', type: 3,
+    data: values ? { component_type: 3, custom_id: customId, values } : { component_type: 2, custom_id: customId } });
+  beforeEach(() => { vi.mocked(loadParty).mockResolvedValue(party); vi.mocked(recommendGames).mockResolvedValue({ ...result, games }); });
+
+  it('suppresses Steam link previews and shows 5 of 12 with a page counter', async () => {
+    await completeInteraction(parsed(component()));
+    const message = lastMessage();
+    expect(message.content).toContain('[Game 1](<https://store.steampowered.com/app/100/>)');
+    expect(message.content).not.toMatch(/\]\(https?:/);
+    expect(message.content).toContain('1~5 / 12'); expect(message.content).not.toContain('Game 6');
+    expect(message.components[0].components[0]).toMatchObject({ label: '🔄 다른 추천', custom_id: `party:100000000000000009:more:5` });
+    expect(message.components[1].components[0].options.find((o: { default: boolean }) => o.default).value).toBe('balanced');
+  });
+  it('pages in place (no new message) and wraps around', async () => {
+    expect(await (await receiveInteraction(request({ ...command(), type: 3, data: { component_type: 2, custom_id: `party:${partyId}:more:5` } }), vi.fn(), env)).json()).toEqual({ type: 6 });
+    await completeInteraction(press(`party:${partyId}:more:5`));
+    expect(fetchFn.mock.calls.at(-1)![1].method).toBe('PATCH');
+    expect(lastMessage().content).toContain('6~10 / 12'); expect(lastMessage().content).toContain('Game 6');
+    await completeInteraction(press(`party:${partyId}:more:10`));
+    expect(lastMessage().content).toContain('11~12 / 12');
+    expect(lastMessage().components[0].components[0].custom_id).toBe(`party:${partyId}:more:0`);
+  });
+  it('changes the criterion in place and remembers it for the party', async () => {
+    await completeInteraction(press(`party:${partyId}:pref`, ['recent']));
+    expect(setPartyPreference).toHaveBeenCalledWith(partyId, owner, 'recent');
+    expect(recommendGames).toHaveBeenLastCalledWith(steamIds, 'recent', 'all');
+    expect(fetchFn.mock.calls.at(-1)![1].method).toBe('PATCH');
+    expect(lastMessage().content).toContain('요즘 크루픽');
+    expect(interactionSchema.safeParse({ ...command(), type: 3, data: { component_type: 3, custom_id: `party:${partyId}:pref`, values: ['bogus'] } }).success).toBe(false);
+  });
+  it('offers "지난번 멤버로" on the picker and reuses those friends with the newly chosen scope/criterion', async () => {
+    vi.mocked(lastParty).mockResolvedValue(party);
+    await completeInteraction(parsed({ ...command(), data: { name: '게임추천', type: 1, options: [{ name: '범위', type: 3, value: 'any' }, { name: '기준', type: 3, value: 'fresh' }] } }));
+    expect(lastParty).toHaveBeenCalledWith(owner);
+    const again = lastMessage().components[1].components[0];
+    expect(again).toMatchObject({ label: '🔁 지난번 멤버로 (2명)', custom_id: `party:${partyId}:again:any:fresh` });
+    await completeInteraction(press(again.custom_id));
+    expect(saveParty).toHaveBeenLastCalledWith({ ...party, id: '100000000000000012', scope: 'any', preference: 'fresh' });
+    expect(recommendGames).toHaveBeenLastCalledWith(steamIds, 'fresh', 'any');
+    vi.mocked(lastParty).mockResolvedValue(null);
+    await completeInteraction(parsed(command()));
+    expect(lastMessage().components).toHaveLength(1);
+  });
+  it('shows an error ID (not the error text) when a command fails unexpectedly', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(recommendGames).mockRejectedValue(new Error('secret-upstream-detail'));
+    await completeInteraction(parsed(component()));
+    expect(lastMessage().content).toMatch(/오류 ID: [0-9a-f-]{36}/);
+    expect(JSON.stringify(log.mock.calls)).toContain('api/discord.interaction');
+    expect(JSON.stringify([log.mock.calls, lastMessage()])).not.toContain('secret-upstream-detail');
   });
 });

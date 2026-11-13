@@ -34,14 +34,22 @@ const escape = (name: string) => name.replace(/[\r\n]/g, ' ').slice(0, 80).repla
 const kstDay = (date: string, plusDays = 0) => new Date(Date.parse(`${date}T00:00:00+09:00`) + plusDays * 86_400_000)
   .toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' });
 
-export function awardPostContent(week: string, rows: { title: string; authorName: string; value: number }[]): string | null {
-  const lines = rows.filter(row => isTitleKey(row.title) && !PUBLIC_EXCLUDED.has(row.title)).map(row => {
+// 칭호 한 줄 + 근거 한 줄(작은 글씨). 디스코드 게시와 /기록이 같은 모양을 쓴다.
+export function awardLines(rows: { title: string; authorName: string; value: number }[], { publicPost = false } = {}): string[] {
+  return rows.filter(row => isTitleKey(row.title) && !(publicPost && PUBLIC_EXCLUDED.has(row.title))).flatMap(row => {
     const title = TITLES[row.title as keyof typeof TITLES];
-    return `**${title.label}** ${escape(row.authorName)}${title.unit ? ` · ${title.unit} ${row.value.toLocaleString('ko-KR')}` : ''}`;
+    const stat = title.unit ? `${title.unit} ${row.value.toLocaleString('ko-KR')}개 · ` : '';
+    return [`${title.emoji} ${title.label} — **${escape(row.authorName)}**`, `-# ${stat}${title.blurb}`];
   });
+}
+
+export const weekRange = (week: string) => `${kstDay(week)}(월) ~ ${kstDay(week, 6)}(일)`;
+
+export function awardPostContent(week: string, rows: { title: string; authorName: string; value: number }[]): string | null {
+  const lines = awardLines(rows, { publicPost: true });
   if (!lines.length) return null;
-  return [`🏆 **재망호 주간 시상식** · ${kstDay(week)}~${kstDay(week, 6)}`, ...lines,
-    `-# 글 내용은 읽지 않고 반응·답글·메시지 수만 셌어요. 지난 시상식: <${SITE}/community/awards>`].join('\n');
+  return ['## 🏆 재망호 주간 시상식', `**${weekRange(week)}**`, '', ...lines, '',
+    `-# 글 내용은 읽지 않고 반응·답글·메시지 수만 셌어요 · [지난 시상식](<${SITE}/community/awards>)`].join('\n');
 }
 
 export async function postWeeklyAwards({ token, fetchFn = fetch, now = new Date() }: { token: string | undefined; fetchFn?: typeof fetch; now?: Date }): Promise<AwardPostResult> {

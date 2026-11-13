@@ -51,3 +51,11 @@ describe('/전적', () => {
     expect(summonerStats).toHaveBeenCalledWith('N3', 'KR1');
   });
 });
+
+describe('/전적 roster order', () => {
+  it('puts the requester’s own accounts first and marks them', async () => {
+    vi.mocked(listRoster).mockResolvedValue([{ id: 'm1', gameName: 'Other', tagLine: 'KR1', ownerId: 'u2' }, { id: 'm2', gameName: 'Mine', tagLine: 'KR1', ownerId: 'u1' }]);
+    const menu = (await lolCommand(owner, undefined, Date.now(), 'u1')).components![0] as { components: { options: { value: string; description?: string }[] }[] };
+    expect(menu.components[0].options).toEqual([{ label: 'Mine#KR1', value: 'm2', description: '내 계정' }, { label: 'Other#KR1', value: 'm1' }]);
+  });
+});

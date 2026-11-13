@@ -68,7 +68,7 @@ async function improvements(): Promise<Message> {
   const lines = report.items.slice(0, 8).map((item, index) =>
     `${index + 1}. **[${KIND_LABEL[item.kind]}] ${label(item.target)}** — ${item.reasons.map(reason => label(reason, 200)).join(' / ')}${item.next ? `\n   다음: ${item.next}` : ''}`);
   return privateMessage(fit([head, ...lines, ...(report.usageEnough ? [] : ['열람이 적어 사용량 판단(살펴보기·키우기·정리 검토)은 하지 않았어요.']),
-    `전체: ${SITE}/admin`].join('\n\n')));
+    `-# [관리자 화면에서 전체 보기](<${SITE}/admin>)`].join('\n\n')));
 }
 
 async function status(): Promise<Message> {
@@ -82,7 +82,7 @@ async function status(): Promise<Message> {
     `채팅 동기화: ${data.chatConfigured ? `마지막 성공 ${when(data.lastSuccess)}${latest ? ` · 최근 실행 ${latest.status}` : ''}` : '설정 없음'}`,
     `Steam 캐시 ${data.steam.cache.fresh}/${data.steam.cache.rows}개 유효${today ? ` · ${today.day} 적중 ${today.hits} · 미스 ${today.misses} · 오류 ${today.errors}` : ''}`,
     `DB 사용량 모드: ${data.usage?.mode ?? '확인 불가'}${data.usage?.stale ? ' (오래된 표본)' : ''} · 알림 웹훅 ${data.notificationsConfigured ? '설정됨' : '없음'}`,
-    `자세히: ${SITE}/admin`,
+    `-# [관리자 화면에서 자세히](<${SITE}/admin>)`,
   ].join('\n')));
 }
 

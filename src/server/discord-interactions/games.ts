@@ -1,6 +1,6 @@
 import { linkedPlayers } from './access';
-import { loadParty, saveParty, type Party } from './party';
-import { fit, label, mention, privateMessage, SITE, type Message, type PartyAction, type Preference, type Scope } from './protocol';
+import { loadParty, saveParty, setPartyPreference, type Party } from './party';
+import { fit, label, mention, privateMessage, SITE, type Message, type PartyAction, type Preference, type Reply, type Scope } from './protocol';
 import { recommendGames, type RecommendationsResult } from '../steam/recommendations';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -11,7 +11,9 @@ import { findMissions } from '../steam/missions';
 // 계산은 웹과 같은 src/server/steam 서비스를 쓰고, 여기서는 디스코드 메시지로 바꾸기만 한다.
 const scopeNames = { all: '모두 보유', any: '일부 보유 포함', unowned: '전원 미보유' };
 export const preferenceNames = { balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임', recent: '요즘 크루픽 (최근 2주)' };
-const store = (appId: number) => `https://store.steampowered.com/app/${appId}/`;
+// 꺾쇠로 감싸 디스코드의 큰 링크 미리보기를 끈다(게임마다 미리보기가 붙으면 목록을 읽기 어렵다).
+const store = (appId: number) => `<https://store.steampowered.com/app/${appId}/>`;
+const PAGE = 5;
 const won = (value: number) => `₩${value.toLocaleString('ko-KR')}`;
 const hours = (minutes: number) => minutes >= 60 ? `${Math.round(minutes / 60).toLocaleString('ko-KR')}시간` : `${minutes}분`;
 const expired = privateMessage('버튼이 만료됐거나 다른 사람의 결과예요. /게임추천을 다시 실행해 주세요.');
@@ -20,7 +22,7 @@ const changed = privateMessage('선택한 Steam 계정이 변경됐어요. 사�
 // 웹의 Steam 화면과 같은 기준: 요청자 본인의 현재 Steam 기능 동의가 있어야 한다.
 export async function steamConsentMessage(userId: string): Promise<Message | null> {
   return await hasSteamConsent(userId) ? null
-    : privateMessage(`Steam 공통 게임은 사이트에서 이용 동의를 마친 뒤 쓸 수 있어요: ${SITE}/steam`);
+    : privateMessage(`Steam 공통 게임은 [사이트](<${SITE}/steam>)에서 이용 동의를 마친 뒤 쓸 수 있어요.`);
 }
 
 type Players = { ok: true; steamIds: string[]; discordIds: string[] } | { ok: false; message: Message };
@@ -41,42 +43,67 @@ const unreadable = (ids: string[], who: (id: string) => string) =>
   privateMessage(`보유 목록을 확인할 수 없어 멈췄어요: ${ids.map(who).join(', ')}\nSteam 게임 세부 정보 공개 설정을 확인해 주세요.`);
 
 const button = (label: string, custom_id: string) => ({ type: 2, style: 2, label, custom_id });
-export function partyButtons(partyId: string) {
-  return [{ type: 1, components: [
-    button('🎲 하나 뽑기', `party:${partyId}:pick`), button('🛒 세일 중인 협동 게임', `party:${partyId}:deals`),
-    button('🏆 같이 도전', `party:${partyId}:missions`), button('📚 모두 가진 게임', `party:${partyId}:common`),
-  ] }];
+// 추천 결과 아래 버튼: 다른 추천(같은 메시지에서 다음 5개), 뽑기·세일·같이 도전·모두 가진 게임, 기준 바꾸기.
+export function partyButtons(partyId: string, { total = 0, offset = 0, scope = 'all', preference = 'balanced' }: { total?: number; offset?: number; scope?: Scope; preference?: Preference } = {}) {
+  const next = offset + PAGE < total ? offset + PAGE : 0;
+  return [
+    { type: 1, components: [
+      ...(total > PAGE ? [{ ...button('🔄 다른 추천', `party:${partyId}:more:${next}`), style: 1 }] : []),
+      button('🎲 하나 뽑기', `party:${partyId}:pick`), button('🛒 세일', `party:${partyId}:deals`),
+      button('🏆 같이 도전', `party:${partyId}:missions`), button('📚 모두 가진 게임', `party:${partyId}:common`),
+    ] },
+    // 전원 미보유는 Steam 인기·신규 순서라 기준이 없다.
+    ...(scope === 'unowned' ? [] : [{ type: 1, components: [{ type: 3, custom_id: `party:${partyId}:pref`, placeholder: '추천 기준 바꾸기',
+      options: (Object.keys(preferenceNames) as Preference[]).map(value => ({ label: preferenceNames[value], value, default: value === preference })) }] }]),
+  ];
 }
 
-export function recommendationMessage(result: RecommendationsResult, ids: string[], discordIds: string[], scope: Scope, preference: Preference = 'balanced'): Message {
+export function recommendationMessage(result: RecommendationsResult, ids: string[], discordIds: string[], scope: Scope, preference: Preference = 'balanced', offset = 0): Message {
   const who = toDiscord({ steamIds: ids, discordIds });
   if (result.excluded.length) return unreadable(result.excluded, who);
   const criteria = scope === 'unowned' ? 'Steam 인기·신규 후보' : preferenceNames[preference];
-  if (!result.games.length) return privateMessage(`추천 범위: ${scopeNames[scope]} · 기준: ${criteria}\n확인한 후보에서 함께할 게임을 찾지 못했어요.${result.unverified ? '\n스토어 지원 정보를 확인하지 못한 후보도 있어요. 잠시 후 다시 시도해 주세요.' : ''}`);
-  const lines = result.games.slice(0, 5).map((game, index) => {
-    const missing = scope === 'any' && game.missingIds.length ? `\n   보유 목록에 없음: ${game.missingIds.map(who).join(', ')}` : '';
-    return `${index + 1}. [${label(game.name)}](${store(game.appId)}) — ${game.support === 'coop' ? '협동 지원' : '멀티플레이 지원'}\n   ${game.reasons.slice(0, 2).map(reason => label(reason)).join(' · ')}${missing}`;
+  if (!result.games.length) return privateMessage(`추천 범위: ${scopeNames[scope]} · 기준: ${criteria}\n확인한 후보에서 함께할 게임을 찾지 못했어요.${result.unverified ? '\n스토어 지원 정보를 확인하지 못한 후보도 있어요. 잠시 후 다시 시도해 주세요.' : ''}${scope === 'unowned' ? '' : '\n아래에서 기준을 바꿔 보세요.'}`);
+  const start = offset < result.games.length ? offset : 0;
+  const page = result.games.slice(start, start + PAGE);
+  const lines = page.flatMap((game, index) => {
+    const missing = scope === 'any' && game.missingIds.length ? ` · 없음: ${game.missingIds.map(who).join(', ')}` : '';
+    return [`**${start + index + 1}. [${label(game.name)}](${store(game.appId)})** · ${game.support === 'coop' ? '협동' : '멀티플레이'}`,
+      `-# ${game.reasons.slice(0, 2).map(reason => label(reason)).join(' · ')}${missing}`];
   });
-  return privateMessage(fit([`${discordIds.map(mention).join(', ')}의 게임 추천 · ${scopeNames[scope]} · ${criteria}`, ...lines,
-    `상위 후보 ${result.checked}개를 확인한 결과예요. 최대 인원은 스토어에서 확인해 주세요.`,
-    ...(scope === 'unowned' ? ['Steam 인기·신규 목록 기준이며, 보유 목록에 없다는 뜻이에요. 무료 게임은 구매 없이 할 수 있어요.'] : []),
-  ].join('\n\n')));
+  const range = result.games.length > PAGE ? ` · ${start + 1}~${start + page.length} / ${result.games.length}` : '';
+  return privateMessage(fit([
+    `### 🎮 게임 추천 · ${scopeNames[scope]} · ${criteria}`,
+    `-# ${discordIds.map(mention).join(', ')}${range}`,
+    ...lines,
+    `-# 상위 후보 ${result.checked}개를 확인했어요. 최대 인원은 스토어에서 확인해 주세요.${scope === 'unowned' ? ' 보유 목록에 없다는 뜻이며 무료 게임은 구매 없이 할 수 있어요.' : ''}`,
+  ].join('\n')));
 }
 
 // 친구를 고르면 파티를 저장하고 추천한다. 결과 아래 버튼은 같은 파티로 다시 고르지 않고 이어서 쓴다.
-export async function gameRecommendations(party: Party): Promise<Message> {
+export async function gameRecommendations(party: Party, offset = 0): Promise<Message> {
   const players = await resolvePlayers(party.discordIds);
   if (!players.ok) return players.message;
   await saveParty(party);
   const result = await recommendGames(players.steamIds, party.preference, party.scope);
   if ('unknownIds' in result) return changed;
-  const message = recommendationMessage(result, players.steamIds, party.discordIds, party.scope, party.preference);
-  return result.excluded.length ? message : { ...message, components: partyButtons(party.id) };
+  const message = recommendationMessage(result, players.steamIds, party.discordIds, party.scope, party.preference, offset);
+  if (result.excluded.length) return message;
+  return { ...message, components: partyButtons(party.id, { total: result.games.length, offset: offset < result.games.length ? offset : 0, scope: party.scope, preference: party.preference }) };
 }
 
-export async function partyAction(partyId: string, ownerId: string, action: PartyAction | 'mission', arg?: string): Promise<Message> {
+// more·pref는 보고 있던 추천 메시지를 그 자리에서 고친다({ edit }). 나머지는 새 비공개 메시지로 답한다.
+export async function partyAction(partyId: string, ownerId: string, action: PartyAction, arg?: string, newId?: string): Promise<Reply> {
   const party = await loadParty(partyId, ownerId);
   if (!party) return expired;
+  if (action === 'again') {
+    const [scope, preference] = (arg ?? '').split(':') as [Scope, Preference];
+    return gameRecommendations({ ...party, id: newId!, scope, preference });
+  }
+  if (action === 'more') return { edit: await gameRecommendations(party, Number(arg)) };
+  if (action === 'pref') {
+    await setPartyPreference(party.id, ownerId, arg as Preference);
+    return { edit: await gameRecommendations({ ...party, preference: arg as Preference }) };
+  }
   const players = await resolvePlayers(party.discordIds);
   if (!players.ok) return players.message;
   const who = toDiscord(players);

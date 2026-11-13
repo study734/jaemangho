@@ -21,3 +21,17 @@ export async function loadParty(id: string, ownerId: string): Promise<Party | nu
     from discord_parties where id = ${id} and owner_discord_id = ${ownerId} and created_at > now() - ${TTL}::interval`;
   return (row as unknown as Party | undefined) ?? null;
 }
+
+// 기준 바꾸기: 같은 친구 묶음에서 기준만 바꾼다(다른 추천·뽑기도 바뀐 기준을 따른다).
+export async function setPartyPreference(id: string, ownerId: string, preference: Preference) {
+  const sql = await db();
+  await sql`update discord_parties set preference = ${preference} where id = ${id} and owner_discord_id = ${ownerId}`;
+}
+
+// 지난번 친구 묶음(하루 안). /게임추천의 친구 선택창에 "지난번 멤버로" 버튼을 붙이는 데 쓴다.
+export async function lastParty(ownerId: string): Promise<Party | null> {
+  const sql = await db();
+  const [row] = await sql`select id, owner_discord_id as "ownerId", discord_ids as "discordIds", scope, preference
+    from discord_parties where owner_discord_id = ${ownerId} and created_at > now() - ${TTL}::interval order by created_at desc limit 1`;
+  return (row as unknown as Party | undefined) ?? null;
+}

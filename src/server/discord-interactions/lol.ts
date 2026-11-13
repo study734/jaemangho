@@ -7,17 +7,20 @@ import { fit, label, ownedFresh, privateMessage, SITE, type ComponentInteraction
 const TIERS: Record<string, string> = { CHALLENGER: '챌린저', GRANDMASTER: '그랜드마스터', MASTER: '마스터', DIAMOND: '다이아몬드',
   EMERALD: '에메랄드', PLATINUM: '플래티넘', GOLD: '골드', SILVER: '실버', BRONZE: '브론즈', IRON: '아이언' };
 
-export async function lolCommand(owner: string, riotId: string | undefined, now = Date.now()): Promise<Message> {
+// userId: 요청자의 사이트 사용자 id. 본인 계정을 목록 맨 앞에 두어 가장 흔한 '내 전적'을 바로 고르게 한다.
+export async function lolCommand(owner: string, riotId: string | undefined, now = Date.now(), userId?: string): Promise<Message> {
   if (riotId) {
     const match = riotId.match(/^(.+?)\s*#\s*([^#]+)$/);
     if (!match) return privateMessage('닉네임은 `이름#태그` 형식으로 입력해 주세요. 비워 두면 등록된 소환사 목록에서 고를 수 있어요.');
     return lolStats(match[1].trim(), match[2].trim());
   }
-  const roster = await listRoster();
-  if (!roster.length) return privateMessage(`등록된 소환사가 없어요. 사이트에서 추가하거나 \`/전적 닉네임:이름#태그\`로 바로 찾아 주세요: ${SITE}/lol/squad`);
-  return privateMessage(`전적을 볼 소환사를 골라 주세요.${roster.length > 25 ? ` 등록된 ${roster.length}명 중 최근 등록한 25명만 보여요. 다른 소환사는 닉네임으로 찾아 주세요.` : ''}`,
+  const all = await listRoster();
+  const roster = [...all.filter(entry => userId && entry.ownerId === userId), ...all.filter(entry => !userId || entry.ownerId !== userId)];
+  if (!roster.length) return privateMessage(`등록된 소환사가 없어요. [사이트](<${SITE}/lol/squad>)에서 추가하거나 \`/전적 닉네임:이름#태그\`로 바로 찾아 주세요.`);
+  return privateMessage(`전적을 볼 소환사를 골라 주세요.${roster.length > 25 ? ` 등록된 ${roster.length}명 중 내 계정과 최근 등록한 순서로 25명만 보여요. 다른 소환사는 닉네임으로 찾아 주세요.` : ''}`,
     [{ type: 1, components: [{ type: 3, custom_id: `lol:v1:${owner}:${Math.floor(now / 1000)}`, placeholder: '소환사 선택', min_values: 1, max_values: 1,
-      options: roster.slice(0, 25).map(entry => ({ label: `${entry.gameName}#${entry.tagLine}`.slice(0, 100), value: entry.id })) }] }]);
+      options: roster.slice(0, 25).map(entry => ({ label: `${entry.gameName}#${entry.tagLine}`.slice(0, 100), value: entry.id,
+        ...(userId && entry.ownerId === userId ? { description: '내 계정' } : {}) })) }] }]);
 }
 
 export async function lolSelection(interaction: ComponentInteraction, now = Date.now()): Promise<Message> {
@@ -44,7 +47,7 @@ export function statsMessage(stats: SummonerStats): Message {
     rankLine('솔로랭크', stats.solo), rankLine('자유랭크', stats.flex),
     stats.failures.includes('matches') ? '최근 경기를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'
       : recent.length ? `최근 경기\n${recent.join('\n')}` : '최근 경기 기록이 없어요.',
-    `숙련도·듀오 시너지는 사이트에서 볼 수 있어요: ${SITE}/lol`,
+    `-# 숙련도·듀오 시너지는 [사이트](<${SITE}/lol>)에서 볼 수 있어요.`,
   ].join('\n')));
 }
 

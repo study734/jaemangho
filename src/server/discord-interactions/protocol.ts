@@ -65,7 +65,7 @@ const commandData = z.discriminatedUnion('name', [
 ]);
 
 // 메시지 구성요소. custom_id 형식이 곧 상태다(최대 100자). 파티 버튼은 DB의 파티 id만 담는다.
-export const PARTY_ACTIONS = ['pick', 'deals', 'missions', 'common'] as const;
+export const PARTY_ACTIONS = ['pick', 'deals', 'missions', 'common', 'more', 'again', 'mission', 'pref'] as const;
 export type PartyAction = typeof PARTY_ACTIONS[number];
 const componentData = z.union([
   // 친구 선택: v1(배포 전 열린 선택창)은 기준 없이 balanced로 처리한다.
@@ -74,9 +74,11 @@ const componentData = z.union([
     custom_id: z.string().regex(/^steamrec:(v1:\d{17,20}:(all|any|unowned)|v2:\d{17,20}:(all|any|unowned):(balanced|familiar|fresh|recent)):\d{10}$/),
     values: z.array(snowflake).min(2).max(20).refine(ids => new Set(ids).size === ids.length),
   }),
-  z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^party:\d{17,20}:(pick(:\d{1,10})?|deals|missions|common)$/) }),
+  // more:<시작 위치>는 같은 메시지에서 다음 추천을, again:<범위>:<기준>은 지난번 친구 묶음으로 새 추천을 연다.
+  z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^party:\d{17,20}:(pick(:\d{1,10})?|deals|missions|common|more:\d{1,2}|again:(all|any|unowned):(balanced|familiar|fresh|recent))$/) }),
   z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^lobby:\d{17,20}:(join|leave|close|recommend)$/) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:mission$/), values: z.tuple([z.string().regex(/^\d{1,10}$/)]) }),
+  z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:pref$/), values: z.tuple([preferenceSchema]) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^lol:v1:\d{17,20}:\d{10}$/), values: z.tuple([z.string().regex(/^[\w-]{1,32}$/)]) }),
 ]);
 
@@ -89,6 +91,8 @@ export type Interaction = Exclude<z.infer<typeof interactionSchema>, { type: 1 }
 export type CommandInteraction = Extract<Interaction, { type: 2 }>;
 export type ComponentInteraction = Extract<Interaction, { type: 3 }>;
 export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[] } };
+// 명령 결과: 보통은 본인에게만 보이는 메시지. public은 채널에 공개로 올리고, edit은 버튼이 달린 메시지를 그 자리에서 고친다.
+export type Reply = Message | { public: Message } | { edit: Message } | null;
 export const privateMessage = (content: string, components: unknown[] = []): Message => ({ content, components, allowed_mentions: { parse: [] } });
 
 // 3초 안에 보내는 첫 응답의 종류. 대부분은 본인에게만 보이는 지연 응답(private)이다.
@@ -96,7 +100,8 @@ export const privateMessage = (content: string, components: unknown[] = []): Mes
 export type Ack = 'private' | 'public' | 'update';
 export function ackFor(interaction: Interaction): Ack {
   if (interaction.type === 2) return interaction.data.name === '모집' ? 'public' : 'private';
-  return /^lobby:\d+:(join|leave|close)$/.test(interaction.data.custom_id) ? 'update' : 'private';
+  // 다른 추천·기준 바꾸기는 새 메시지를 만들지 않고 보고 있던 추천 메시지를 고친다.
+  return /^(lobby:\d+:(join|leave|close)|party:\d+:(more:\d+|pref))$/.test(interaction.data.custom_id) ? 'update' : 'private';
 }
 export const ACK_BODY: Record<Ack, object> = { private: { type: 5, data: { flags: 64 } }, public: { type: 5 }, update: { type: 6 } };
 
@@ -134,13 +139,16 @@ export function selection(interaction: ComponentInteraction, now = Date.now()) {
   return { ids: interaction.data.values, scope: scopeSchema.parse(selectedScope), preference: preferenceSchema.parse(preference) };
 }
 
-export function friendPicker(owner: string, selectedScope: Scope, preference: Preference = 'balanced', now = Date.now()): Message {
+// last: 하루 안에 고른 친구 묶음이 있으면 "지난번 멤버로" 버튼을 붙여 다시 고르지 않게 한다(이번에 고른 범위·기준 적용).
+export function friendPicker(owner: string, selectedScope: Scope, preference: Preference = 'balanced', now = Date.now(),
+  last?: { id: string; discordIds: string[] } | null): Message {
   return {
     content: '함께할 친구 2~20명을 선택해 주세요. 본인도 함께하면 직접 선택해 주세요. 선택하면 바로 추천합니다.',
     allowed_mentions: { parse: [] },
     components: [{ type: 1, components: [{ type: 5,
       custom_id: `steamrec:v2:${owner}:${selectedScope}:${preference}:${Math.floor(now / 1000)}`,
       placeholder: '함께할 친구 선택 (본인도 직접 선택)', min_values: 2, max_values: 20,
-    }] }],
+    }] }, ...(last ? [{ type: 1, components: [{ type: 2, style: 1, label: `🔁 지난번 멤버로 (${last.discordIds.length}명)`,
+      custom_id: `party:${last.id}:again:${selectedScope}:${preference}` }] }] : [])],
   };
 }

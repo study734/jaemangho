@@ -3,6 +3,12 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-13', area: 'discord', title: '추천을 더 다양하게, 메시지는 더 읽기 쉽게', items: [
+    '게임추천 결과에 "다른 추천" 버튼과 추천 기준 바꾸기가 생겼어요. 같은 메시지에서 다음 게임을 넘겨 볼 수 있어요.',
+    '/게임추천에서 "지난번 멤버로" 버튼을 누르면 친구를 다시 고르지 않아도 돼요.',
+    '시상식과 추천 메시지가 읽기 쉽게 바뀌었고, 스토어 링크의 큰 미리보기가 더 이상 붙지 않아요.',
+    '/전적 목록에서 내 계정이 맨 위에 보여요.',
+  ] },
   { date: '2026-11-13', area: 'discord', title: '주간 시상식 자동 게시', items: [
     '매주 월요일 새벽, 지난주 시상식 결과가 정해진 채널에 자동으로 올라와요. 눈팅러는 공개 게시에서 빠져요.',
   ] },

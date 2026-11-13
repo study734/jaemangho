@@ -36,8 +36,9 @@ describe.skipIf(!testDbUrl)('weekly award auto-post (isolated DB)', () => {
     expect(init).toMatchObject({ method: 'POST', headers: { Authorization: 'Bot bot' } });
     const body = JSON.parse(String(init!.body));
     expect(body.allowed_mentions).toEqual({ parse: [] });
-    expect(body.content).toContain('11월 2일~11월 8일');
-    expect(body.content).toContain('**수다 갤러** \\*Loud\\* · 메시지 1,234');
+    expect(body.content).toContain('## 🏆 재망호 주간 시상식\n**11월 2일(월) ~ 11월 8일(일)**');
+    expect(body.content).toContain('🗣️ 수다 갤러 — **\\*Loud\\***\n-# 메시지 1,234개 · 가장 말을 많이 한 사람');
+    expect(body.content).not.toMatch(/\]\(https?:/); // 링크 미리보기 없음
     expect(body.content).not.toContain('Quiet'); expect(body.content).not.toContain('눈팅러');
     expect(await post.postWeeklyAwards({ token: 'bot', fetchFn, now })).toEqual({ status: 'already_posted' });
     expect(fetchFn).toHaveBeenCalledTimes(1);
