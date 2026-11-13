@@ -3,9 +3,6 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
-  { date: '2026-11-13', area: 'discord', title: '/지금', items: [
-    '/지금으로 지금 접속한 인원, 음성 채널에 있는 사람, 하고 있는 게임별 인원을 한 번에 봐요.',
-  ] },
   { date: '2026-11-13', area: 'discord', title: '추천에서 바로 모집, 멤버 프로필 강화', items: [
     '게임추천 결과에서 "이 게임으로 모집하기"를 고르면 그 게임으로 채널에 모집 글이 바로 올라가요.',
     '/멤버에서 롤 랭크와 Steam에서 가장 많이 한 게임도 볼 수 있어요.',
