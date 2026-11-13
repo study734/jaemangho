@@ -79,3 +79,11 @@ export async function summonerStats(gameName: string, tagLine: string, get: Riot
     recent, inGame: active, failures: [...failures].sort(),
   };
 }
+
+// 프로필용 가벼운 조회: 계정 + 랭크만(호출 2번, /전적·웹과 캐시 공유). 없는 Riot ID는 null, 키·한도 문제는 예외.
+export async function summonerRank(gameName: string, tagLine: string, get: RiotGet = defaultRiotGet): Promise<{ solo: RankSummary | null; flex: RankSummary | null } | null> {
+  const found = await account(get, gameName, tagLine);
+  if (!found) return null;
+  const league = await read<Json[]>(get, 'kr', `/lol/league/v4/entries/by-puuid/${found.puuid}`);
+  return { solo: rank(league, 'RANKED_SOLO_5x5'), flex: rank(league, 'RANKED_FLEX_SR') };
+}

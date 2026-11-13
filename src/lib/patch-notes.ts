@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-13', area: 'discord', title: '추천에서 바로 모집, 멤버 프로필 강화', items: [
+    '게임추천 결과에서 "이 게임으로 모집하기"를 고르면 그 게임으로 채널에 모집 글이 바로 올라가요.',
+    '/멤버에서 롤 랭크와 Steam에서 가장 많이 한 게임도 볼 수 있어요.',
+  ] },
   { date: '2026-11-13', area: 'discord', title: '추천을 더 다양하게, 메시지는 더 읽기 쉽게', items: [
     '게임추천 결과에 "다른 추천" 버튼과 추천 기준 바꾸기가 생겼어요. 같은 메시지에서 다음 게임을 넘겨 볼 수 있어요.',
     '/게임추천에서 "지난번 멤버로" 버튼을 누르면 친구를 다시 고르지 않아도 돼요.',

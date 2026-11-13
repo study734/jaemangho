@@ -487,3 +487,33 @@ describe('readability and variety of recommendations', () => {
     expect(JSON.stringify([log.mock.calls, lastMessage()])).not.toContain('secret-upstream-detail');
   });
 });
+
+describe('recruit from a recommendation', () => {
+  const partyId = '100000000000000009';
+  const party = { id: partyId, ownerId: owner, discordIds: [owner, friend, '100000000000000005'], scope: 'all' as const, preference: 'balanced' as const };
+  const recruit = (value: string) => parsed({ ...command(), id: '100000000000000013', type: 3, data: { component_type: 3, custom_id: `party:${partyId}:recruit`, values: [value] } });
+  beforeEach(() => { vi.mocked(loadParty).mockResolvedValue(party); });
+
+  it('lists the shown games in a recruit menu', async () => {
+    await completeInteraction(parsed(component()));
+    const menu = lastMessage().components.at(-1).components[0];
+    expect(menu).toMatchObject({ type: 3, custom_id: `party:100000000000000009:recruit` });
+    expect(menu.options).toEqual([{ label: 'Game [safe]', value: 'Game [safe]' }]);
+  });
+  it('acknowledges publicly and opens a lobby for the chosen game sized to the party', async () => {
+    expect(await (await receiveInteraction(request({ ...command(), type: 3, data: { component_type: 3, custom_id: `party:${partyId}:recruit`, values: ['Lethal'] } }), vi.fn(), env)).json()).toEqual({ type: 5 });
+    vi.mocked(createLobby).mockImplementation(async lobby => ({ ...lobby, memberIds: [lobby.ownerId], closed: false, version: 1 }));
+    await completeInteraction(recruit('Lethal'));
+    expect(createLobby).toHaveBeenCalledWith({ id: '100000000000000013', ownerId: owner, game: 'Lethal', playTime: null, max: 3 });
+    expect(fetchFn.mock.calls.at(-1)![1].method).toBe('PATCH');
+    expect(lastMessage().flags).toBeUndefined();
+    expect(lastMessage().content).toContain('게임: Lethal · 인원: 1/3명');
+  });
+  it('never posts publicly for an expired or foreign party', async () => {
+    vi.mocked(loadParty).mockResolvedValue(null);
+    await completeInteraction(recruit('Lethal'));
+    expect(createLobby).not.toHaveBeenCalled();
+    expect(fetchFn.mock.calls.map(call => call[1].method)).toEqual(['DELETE', 'POST']);
+    expect(lastMessage()).toMatchObject({ flags: 64 });
+  });
+});

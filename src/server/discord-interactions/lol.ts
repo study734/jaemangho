@@ -32,6 +32,7 @@ export async function lolSelection(interaction: ComponentInteraction, now = Date
   return lolStats(entry.gameName, entry.tagLine);
 }
 
+export const tierLabel = (rank: RankSummary) => `${TIERS[rank.tier] ?? rank.tier}${['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(rank.tier) ? '' : ` ${rank.rank}`} ${rank.leaguePoints}LP`;
 const rankLine = (name: string, rank: RankSummary | null) => {
   if (!rank) return `${name}: 배치 전`;
   const games = rank.wins + rank.losses;
