@@ -1,11 +1,23 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { canUseCommand, linkedPlayers } from './access';
+import { adminUser, commandUser, linkedPlayers } from './access';
+import { adminTask } from './admin';
+import { loadParty, saveParty } from './party';
+import { hasSteamConsent } from '../steam/consent';
+import { getDeals } from '../steam/deals';
+import { compareGames } from '../steam/games';
+import { findMissions } from '../steam/missions';
 import { recommendGames, type RecommendationsResult } from '../steam/recommendations';
 import { completeInteraction, editReply, receiveInteraction } from './handler';
 import { friendPicker, interactionSchema, privateMessage, type Interaction } from './protocol';
 
-vi.mock('./access', () => ({ canUseCommand: vi.fn(), linkedPlayers: vi.fn() }));
+vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
+vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
+vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn() }));
+vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
+vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
+vi.mock('../steam/games', () => ({ compareGames: vi.fn() }));
+vi.mock('../steam/missions', () => ({ findMissions: vi.fn() }));
 vi.mock('../steam/recommendations', () => ({ recommendGames: vi.fn() }));
 const keys = generateKeyPairSync('ed25519');
 const publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
@@ -29,7 +41,8 @@ const result: RecommendationsResult = { games: [{ appId: 730, name: 'Game [safe]
 let fetchFn: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks();
-  vi.mocked(canUseCommand).mockResolvedValue(true);
+  vi.mocked(commandUser).mockResolvedValue('user_owner');
+  vi.mocked(hasSteamConsent).mockResolvedValue(true);
   vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: friend, steamId: steamIds[1] }]);
   vi.mocked(recommendGames).mockResolvedValue(result);
   fetchFn = vi.fn().mockResolvedValue(new Response('{}'));
@@ -45,7 +58,7 @@ describe('signed Discord request', () => {
     expect((await receiveInteraction(forged, defer, env)).status).toBe(401);
     expect((await receiveInteraction(request({ type: 1 }, String(Math.floor(Date.now() / 1000) - 301)), defer, env)).status).toBe(401);
     expect((await receiveInteraction(request({ type: 1 }), defer, {})).status).toBe(503);
-    expect(canUseCommand).not.toHaveBeenCalled(); expect(defer).not.toHaveBeenCalled();
+    expect(commandUser).not.toHaveBeenCalled(); expect(defer).not.toHaveBeenCalled();
   });
   it('rejects a changed body, malformed signed JSON, and oversized requests', async () => {
     const signed = request({ type: 1 });
@@ -60,9 +73,9 @@ describe('signed Discord request', () => {
     const response = await receiveInteraction(request(command()), work => deferred.push(work), env);
     expect(await response.json()).toEqual({ type: 5, data: { flags: 64 } });
     expect(performance.now() - start).toBeLessThan(1000);
-    expect(canUseCommand).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
+    expect(commandUser).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
     await deferred[0]();
-    expect(canUseCommand).toHaveBeenCalledWith(owner);
+    expect(commandUser).toHaveBeenCalledWith(owner);
     expect(lastMessage().components[0].components[0]).toMatchObject({ type: 5, min_values: 2, max_values: 20 });
   });
   it('rejects different apps/servers, DMs, unknown commands and invalid selections before scheduling', async () => {
@@ -76,7 +89,7 @@ describe('signed Discord request', () => {
       { ...component(), data: { ...component().data, values: Array(21).fill(owner) } }]) {
       expect((await receiveInteraction(request(value), defer, env)).status).toBe(400);
     }
-    expect(defer).not.toHaveBeenCalled(); expect(canUseCommand).not.toHaveBeenCalled();
+    expect(defer).not.toHaveBeenCalled(); expect(commandUser).not.toHaveBeenCalled();
   });
 });
 
@@ -84,7 +97,7 @@ describe('message command 출처 찾기', () => {
   const sourceCommand = (attachments: unknown[]) => parsed({ ...command(), data: { name: '출처 찾기', type: 3, target_id: friend,
     resolved: { messages: { [friend]: { attachments } } } } });
   it('is gated by the same account check and never starts a lookup for a denied requester', async () => {
-    vi.mocked(canUseCommand).mockResolvedValue(false);
+    vi.mocked(commandUser).mockResolvedValue(null);
     await completeInteraction(sourceCommand([{ url: 'https://cdn.discordapp.com/a.png', content_type: 'image/png' }]));
     expect(lastMessage().content).toContain('차단');
     expect(fetchFn.mock.calls.every(call => !String(call[0]).includes('trace.moe'))).toBe(true);
@@ -100,7 +113,7 @@ describe('message command 출처 찾기', () => {
 
 describe('game recommendation flow', () => {
   it('checks bans on every command/click and never starts Steam for a denied requester', async () => {
-    vi.mocked(canUseCommand).mockResolvedValue(false);
+    vi.mocked(commandUser).mockResolvedValue(null);
     for (const value of [command(), component()]) await completeInteraction(parsed(value));
     expect(lastMessage().content).toContain('차단');
     expect(linkedPlayers).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
@@ -151,16 +164,17 @@ describe('game recommendation flow', () => {
   });
   it('answers slow work at 45 seconds and does not later send a stale success', async () => {
     vi.useFakeTimers();
-    let release!: (allowed: boolean) => void;
-    vi.mocked(canUseCommand).mockReturnValue(new Promise(resolve => { release = resolve; }));
+    let release!: (userId: string | null) => void;
+    vi.mocked(commandUser).mockReturnValue(new Promise(resolve => { release = resolve; }));
     const pending = completeInteraction(parsed(command()));
     await vi.advanceTimersByTimeAsync(45_000); await pending;
     expect(lastMessage().content).toContain('조회 시간이 길어');
-    release(true); await vi.advanceTimersByTimeAsync(1000);
+    release('user_owner'); await vi.advanceTimersByTimeAsync(1000);
     expect(fetchFn).toHaveBeenCalledTimes(1); vi.useRealTimers();
   });
   it('returns a usable picker without storing state or needing a fixed roster list', () => {
-    expect(JSON.stringify(friendPicker(owner, 'any'))).toContain(`steamrec:v1:${owner}:any:`);
+    expect(JSON.stringify(friendPicker(owner, 'any'))).toContain(`steamrec:v2:${owner}:any:balanced:`);
+    expect(JSON.stringify(friendPicker(owner, 'all', 'recent'))).toContain(`steamrec:v2:${owner}:all:recent:`);
   });
 });
 
@@ -207,12 +221,150 @@ describe('Discord delivery failure and recovery', () => {
 
 describe('slash command 패치노트', () => {
   it('shows only the Discord notes through the same account check', async () => {
-    vi.mocked(canUseCommand).mockResolvedValue(true);
+    vi.mocked(commandUser).mockResolvedValue('user_owner');
+  vi.mocked(hasSteamConsent).mockResolvedValue(true);
     await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
     expect(lastMessage().content).toContain('출처 찾기');
     expect(lastMessage().content).not.toContain('디스코드 위젯');
-    vi.mocked(canUseCommand).mockResolvedValue(false);
+    vi.mocked(commandUser).mockResolvedValue(null);
     await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
     expect(lastMessage().content).toContain('차단');
+  });
+});
+
+describe('Steam consent and party follow-ups', () => {
+  const partyId = '100000000000000009';
+  const party = { id: partyId, ownerId: owner, discordIds: [owner, friend], scope: 'all' as const, preference: 'recent' as const };
+  const button = (customId: string) => parsed({ ...command(), id: '100000000000000010', type: 3, data: { component_type: 2, custom_id: customId } });
+  const select = (customId: string, value: string) => parsed({ ...command(), id: '100000000000000010', type: 3, data: { component_type: 3, custom_id: customId, values: [value] } });
+  beforeEach(() => { vi.mocked(loadParty).mockResolvedValue(party); });
+
+  it('requires the requester’s current Steam consent like the web, before any picker or Steam lookup', async () => {
+    vi.mocked(hasSteamConsent).mockResolvedValue(false);
+    for (const value of [parsed(command()), parsed(component()), button(`party:${partyId}:deals`)]) {
+      await completeInteraction(value);
+      expect(lastMessage().content).toContain('/steam');
+      expect(lastMessage().components).toEqual([]);
+    }
+    expect(hasSteamConsent).toHaveBeenCalledWith('user_owner');
+    expect(linkedPlayers).not.toHaveBeenCalled(); expect(saveParty).not.toHaveBeenCalled(); expect(getDeals).not.toHaveBeenCalled();
+  });
+  it('carries the 기준 option through the picker, stores the party and attaches follow-up buttons', async () => {
+    await completeInteraction(parsed({ ...command(), data: { name: '게임추천', type: 1, options: [{ name: '범위', type: 3, value: 'any' }, { name: '기준', type: 3, value: 'recent' }] } }));
+    const customId = lastMessage().components[0].components[0].custom_id;
+    expect(customId).toMatch(new RegExp(`^steamrec:v2:${owner}:any:recent:\\d{10}$`));
+    await completeInteraction(parsed({ ...component(), data: { component_type: 5, custom_id: customId, values: [owner, friend] } }));
+    expect(saveParty).toHaveBeenCalledWith({ id: '100000000000000009', ownerId: owner, discordIds: [owner, friend], scope: 'any', preference: 'recent' });
+    expect(recommendGames).toHaveBeenCalledWith(steamIds, 'recent', 'any');
+    expect(lastMessage().content).toContain('요즘 크루픽');
+    expect(lastMessage().components[0].components.map((c: { custom_id: string }) => c.custom_id))
+      .toEqual(['pick', 'deals', 'missions', 'common'].map(action => `party:100000000000000009:${action}`));
+  });
+  it('stores no party and shows no buttons when the selected accounts cannot be used', async () => {
+    vi.mocked(linkedPlayers).mockResolvedValue([]);
+    await completeInteraction(parsed(component()));
+    expect(saveParty).not.toHaveBeenCalled(); expect(lastMessage().components).toEqual([]);
+    vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: friend, steamId: steamIds[1] }]);
+    vi.mocked(recommendGames).mockResolvedValue({ ...result, games: [], excluded: [steamIds[1]] });
+    await completeInteraction(parsed(component()));
+    expect(lastMessage().content).toContain(`<@${friend}>`); expect(lastMessage().components).toEqual([]);
+  });
+  it('rejects expired or foreign parties without Steam lookups', async () => {
+    vi.mocked(loadParty).mockResolvedValue(null);
+    await completeInteraction(button(`party:${partyId}:common`));
+    expect(loadParty).toHaveBeenCalledWith(partyId, owner);
+    expect(lastMessage().content).toContain('만료'); expect(compareGames).not.toHaveBeenCalled();
+  });
+  it('picks uniformly from the party’s recommendations, skipping the previous pick', async () => {
+    const games = [1, 2, 3].map(appId => ({ ...result.games[0], appId, name: `Game ${appId}` }));
+    vi.mocked(recommendGames).mockResolvedValue({ ...result, games });
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    await completeInteraction(button(`party:${partyId}:pick:1`));
+    expect(recommendGames).toHaveBeenCalledWith(steamIds, 'recent', 'all');
+    expect(lastMessage().content).toContain('/app/2/');
+    expect(lastMessage().components[0].components[0].custom_id).toBe(`party:${partyId}:pick:2`);
+  });
+  it('lists sale deals with prices and who still needs the game', async () => {
+    vi.mocked(getDeals).mockResolvedValue({ deals: [{ appId: 10, name: 'Coop', price: { final: 9900, initial: 33000, discountPercent: 70 }, missingIds: [steamIds[1]] },
+      { appId: 11, name: 'Free', price: null, missingIds: [steamIds[0]] }], excluded: [], alreadyOwned: 2, pricesUnavailable: false });
+    await completeInteraction(button(`party:${partyId}:deals`));
+    expect(getDeals).toHaveBeenCalledWith(steamIds);
+    expect(lastMessage().content).toContain('**-70%** ₩9,900 (정가 ₩33,000)');
+    expect(lastMessage().content).toContain(`없는 사람: <@${friend}>`);
+    expect(lastMessage().content).toContain('2개는 뺐어요');
+  });
+  it('lists common games by shared playtime and offers them for 같이 도전 (max 25)', async () => {
+    const games = Array.from({ length: 30 }, (_, i) => ({ appId: i + 1, name: `G${i + 1}`, owners: 2, totalMinutes: i * 60 }));
+    vi.mocked(compareGames).mockResolvedValue({ games, excluded: [] });
+    await completeInteraction(button(`party:${partyId}:common`));
+    expect(compareGames).toHaveBeenCalledWith(steamIds, 'common');
+    expect(lastMessage().content).toMatch(/모두 가진 게임 30개[\s\S]*1\. \[G30\]/);
+    await completeInteraction(button(`party:${partyId}:missions`));
+    const menu = lastMessage().components[0].components[0];
+    expect(menu).toMatchObject({ type: 3, custom_id: `party:${partyId}:mission` });
+    expect(menu.options).toHaveLength(25); expect(menu.options[0]).toMatchObject({ value: '30', label: 'G30' });
+    vi.mocked(compareGames).mockResolvedValue({ games: [], excluded: [steamIds[0]] });
+    await completeInteraction(button(`party:${partyId}:missions`));
+    expect(lastMessage().content).toContain(`<@${owner}>`); expect(lastMessage().components).toEqual([]);
+  });
+  it('compares achievements for the chosen game and distinguishes failure states', async () => {
+    vi.mocked(findMissions).mockResolvedValue({ state: 'ok', totalPublic: 10, completedTogether: 3, unknownAchievements: 0, unavailableIds: [], missingIds: [],
+      missions: [{ id: 'a', title: 'First', description: null, kind: 'team-first', unlockedIds: [], lockedIds: steamIds },
+        { id: 'b', title: 'Catch', description: 'desc', kind: 'catch-up', unlockedIds: [steamIds[0]], lockedIds: [steamIds[1]] }] });
+    await completeInteraction(select(`party:${partyId}:mission`, '730'));
+    expect(findMissions).toHaveBeenCalledWith(steamIds, 730);
+    expect(lastMessage().content).toContain('**First** — 팀 첫 도전');
+    expect(lastMessage().content).toContain(`따라잡기 · 아직: <@${friend}>`);
+    vi.mocked(findMissions).mockResolvedValue({ state: 'unavailable', totalPublic: 0, completedTogether: 0, unknownAchievements: 0, unavailableIds: [steamIds[1]], missingIds: [], missions: [] });
+    await completeInteraction(select(`party:${partyId}:mission`, '730'));
+    expect(lastMessage().content).toContain(`진행도를 확인할 수 없어요: <@${friend}>`);
+  });
+});
+
+describe('command definitions', () => {
+  it('every registered command and option parses with the signed-request schema', async () => {
+    const { default: commands } = await import('./commands.json');
+    const sample = { 게임추천: { options: [{ name: '범위', type: 3, value: 'all' }, { name: '기준', type: 3, value: 'fresh' }] },
+      패치노트: {}, 기록: { options: [{ name: '순간', type: 1 }] }, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
+      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] }, 개선: {},
+      운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
+      '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
+    for (const definition of commands) {
+      expect(interactionSchema.safeParse({ ...command(), data: { name: definition.name, type: definition.type, ...sample[definition.name] } }).success).toBe(true);
+    }
+    expect(Object.keys(sample)).toEqual(commands.map(c => c.name));
+    expect(interactionSchema.safeParse({ ...command(), type: 3, data: { component_type: 2, custom_id: 'party:1:pick' } }).success).toBe(false);
+    expect(interactionSchema.safeParse({ ...command(), data: { name: '기록', type: 1, options: [{ name: '다른것', type: 1 }] } }).success).toBe(false);
+  });
+});
+
+describe('admin commands', () => {
+  const admin = (data: object, permissions?: string) => parsed({ ...command(), member: { user: { id: owner }, ...(permissions ? { permissions } : {}) }, data });
+  it('runs only when adminUser accepts the signed permissions, and never starts the task otherwise', async () => {
+    vi.mocked(adminUser).mockResolvedValue(null);
+    await completeInteraction(admin({ name: '개선', type: 1 }, '0'));
+    expect(adminUser).toHaveBeenCalledWith(owner, '0');
+    expect(lastMessage().content).toContain('관리자만');
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '동기화', type: 1 }] }));
+    expect(adminUser).toHaveBeenLastCalledWith(owner, undefined);
+    expect(adminTask).not.toHaveBeenCalled();
+  });
+  it('maps subcommands to tasks with the verified actor', async () => {
+    const actor = { id: 'user_owner', name: 'Owner' };
+    vi.mocked(adminUser).mockResolvedValue(actor);
+    vi.mocked(adminTask).mockResolvedValue(privateMessage('done'));
+    await completeInteraction(admin({ name: '개선', type: 1 }, '8'));
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '상태', type: 1 }] }, '8'));
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'steam' }] }] }, '8'));
+    expect(vi.mocked(adminTask).mock.calls).toEqual([['개선', actor], ['상태', actor], ['steam', actor]]);
+    expect(lastMessage().content).toBe('done');
+  });
+  it('rejects malformed permission fields and unknown subcommands before scheduling', async () => {
+    const defer = vi.fn();
+    for (const value of [{ ...command(), member: { user: { id: owner }, permissions: 'all' }, data: { name: '개선', type: 1 } },
+      { ...command(), data: { name: '운영', type: 1, options: [{ name: '차단', type: 1 }] } }]) {
+      expect((await receiveInteraction(request(value), defer, env)).status).toBe(400);
+    }
+    expect(defer).not.toHaveBeenCalled();
   });
 });

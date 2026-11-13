@@ -23,6 +23,30 @@
             "value": "unowned"
           }
         ]
+      },
+      {
+        "name": "기준",
+        "description": "기본값은 경험이 비슷한 게임입니다(전원 미보유에서는 무시)",
+        "type": 3,
+        "required": false,
+        "choices": [
+          {
+            "name": "경험이 비슷한 게임",
+            "value": "balanced"
+          },
+          {
+            "name": "익숙한 게임",
+            "value": "familiar"
+          },
+          {
+            "name": "새로 해 볼 게임",
+            "value": "fresh"
+          },
+          {
+            "name": "요즘 크루픽 (최근 2주)",
+            "value": "recent"
+          }
+        ]
       }
     ]
   },
@@ -30,6 +54,108 @@
     "name": "패치노트",
     "description": "재망호 디스코드에 추가된 기능을 봅니다",
     "type": 1
+  },
+  {
+    "name": "기록",
+    "description": "디스코드 채팅에서 모인 재망호 기록을 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "시상식",
+        "description": "지난주 주간 시상식 칭호",
+        "type": 1
+      },
+      {
+        "name": "개념글",
+        "description": "반응·답글을 많이 받은 최근 개념글",
+        "type": 1
+      },
+      {
+        "name": "순간",
+        "description": "최근 8일 중 대화가 뜨거웠던 순간",
+        "type": 1
+      }
+    ]
+  },
+  {
+    "name": "멤버",
+    "description": "멤버의 연결 계정과 칭호를 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "대상",
+        "description": "비워 두면 본인",
+        "type": 6,
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "전적",
+    "description": "롤 소환사의 랭크와 최근 경기를 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "닉네임",
+        "description": "이름#태그 (비워 두면 등록된 소환사 목록에서 선택)",
+        "type": 3,
+        "required": false,
+        "min_length": 3,
+        "max_length": 60
+      }
+    ]
+  },
+  {
+    "name": "개선",
+    "description": "(관리자) 무엇을 먼저 고치거나 키울지 봅니다",
+    "type": 1,
+    "default_member_permissions": "8"
+  },
+  {
+    "name": "운영",
+    "description": "(관리자) 운영 상태와 작업",
+    "type": 1,
+    "default_member_permissions": "8",
+    "options": [
+      {
+        "name": "상태",
+        "description": "경고·채팅 동기화·캐시 상태",
+        "type": 1
+      },
+      {
+        "name": "점검",
+        "description": "운영 점검을 지금 실행",
+        "type": 1
+      },
+      {
+        "name": "동기화",
+        "description": "채팅 동기화를 지금 실행(30초 안에 끊고 다음 실행이 이어 받음)",
+        "type": 1
+      },
+      {
+        "name": "캐시",
+        "description": "캐시 비우기",
+        "type": 1,
+        "options": [
+          {
+            "name": "종류",
+            "description": "비울 캐시",
+            "type": 3,
+            "required": true,
+            "choices": [
+              {
+                "name": "Steam",
+                "value": "steam"
+              },
+              {
+                "name": "Riot",
+                "value": "riot"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
     "name": "출처 찾기",
