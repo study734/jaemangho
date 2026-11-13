@@ -12,7 +12,7 @@ export interface OperationsLogEntry {
 }
 
 function alertDetail(key: string, data: OperationsData, now: number) {
-  if (key.startsWith('usage.')) return '영향: 예약 채팅 수집·복구가 감속 또는 중단될 수 있습니다. Free usage protection 실행·Neon 실제 사용량을 확인하세요. 조회 실패·12시간 지난 샘플은 정상으로 판단하지 않으며 백업·장애 감시는 유지합니다.';
+  if (key.startsWith('usage.')) return '영향: 예약 채팅 수집·복구가 감속 또는 중단될 수 있습니다. Free usage protection 실행·Neon 실제 사용량을 확인하세요. 조회 실패·24시간 지난 샘플은 정상으로 판단하지 않으며 백업·장애 감시는 유지합니다.';
   if (key.startsWith('chat.')) {
     const latest = data.jobs[0];
     return `영향: 채팅 기반 기록과 집계가 최신이 아닐 수 있습니다. ${latest ? `${chatDiagnosis(latest).reason}. ${chatDiagnosis(latest).action} ${recoveryDiagnosis(latest, now)}` : '연동 탭에서 실행 기록과 봇 설정을 확인하세요.'}`;

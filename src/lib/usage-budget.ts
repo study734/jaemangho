@@ -1,4 +1,7 @@
-export const USAGE_MAX_AGE = 12 * 3_600_000;
+// 사용량 샘플이 이보다 오래되면 '확인 불가'로 보고 예약 수집을 감속한다.
+// 수집은 GitHub 예약(6시간)인데 실제 실행 간격이 최대 14.5시간까지 벌어져(2026-11-10·11-12)
+// 12시간 기준에서는 사용량이 정상이어도 감속·복구 알림이 반복됐다. 예산은 월 단위라 하루 늦은 감지는 감수한다.
+export const USAGE_MAX_AGE = 24 * 3_600_000;
 export const NEON_BUDGET = { computeSeconds: 100 * 3600, transferBytes: 5_000_000_000 };
 export interface UsageSample { at: string; periodStart: string; computeSeconds: number; transferBytes: number }
 export interface UsageBudget {
