@@ -49,5 +49,5 @@ export interface ViewReport {
 export const AUDIT_LABELS: Record<string, string> = {
   'user.block': '사용자 차단', 'user.unblock': '차단 해제', 'member.delete': '소환사 삭제',
   'cache.riot.purge': 'Riot 캐시 비우기', 'cache.steam.purge': 'Steam 캐시 비우기',
-  'chat.sync': '채팅 동기화 재실행', 'monitor.check': '운영 상태 점검', 'snapshot.export': '운영 현황 내보내기',
+  'chat.sync': '채팅 동기화 재실행', 'awards.channel.set': '시상식 게시 채널 지정', 'awards.channel.clear': '시상식 게시 끄기', 'awards.post': '시상식 게시', 'monitor.check': '운영 상태 점검', 'snapshot.export': '운영 현황 내보내기',
 };

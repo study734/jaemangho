@@ -86,7 +86,7 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     if (!actor) return ADMIN_DENIED;
     const sub = data.name === '운영' ? data.options[0] : undefined;
     const task: AdminTask = !sub ? '개선' : sub.name === '캐시' ? sub.options[0].value : sub.name;
-    return adminTask(task, actor);
+    return adminTask(task, actor, sub?.name === '시상식채널' ? sub.options?.[0]?.value : undefined);
   }
   if (data.name === '모집') {
     const lobby = await createLobby({ id: interaction.id, ownerId: owner, game: option<string>(data.options, '게임') ?? null,

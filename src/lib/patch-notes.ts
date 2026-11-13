@@ -3,6 +3,9 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-13', area: 'discord', title: '주간 시상식 자동 게시', items: [
+    '매주 월요일 새벽, 지난주 시상식 결과가 정해진 채널에 자동으로 올라와요. 눈팅러는 공개 게시에서 빠져요.',
+  ] },
   { date: '2026-11-13', area: 'discord', title: '같이 할 사람 모집', items: [
     '/모집으로 채널에 같이 할 사람을 모아요. 게임·시간·인원을 적을 수 있고, 참여·나가기 버튼으로 바로 들어오고 나갈 수 있어요.',
     '모인 사람끼리 게임추천 버튼을 누르면 친구를 다시 고르지 않고 함께할 Steam 게임을 추천받아요.',

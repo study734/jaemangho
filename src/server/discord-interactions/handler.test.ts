@@ -361,7 +361,10 @@ describe('admin commands', () => {
     await completeInteraction(admin({ name: '개선', type: 1 }, '8'));
     await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '상태', type: 1 }] }, '8'));
     await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'steam' }] }] }, '8'));
-    expect(vi.mocked(adminTask).mock.calls).toEqual([['개선', actor], ['상태', actor], ['steam', actor]]);
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '시상식채널', type: 1, options: [{ name: '채널', type: 7, value: '100000000000000777' }] }] }, '8'));
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '시상식게시', type: 1 }] }, '8'));
+    expect(vi.mocked(adminTask).mock.calls).toEqual([['개선', actor, undefined], ['상태', actor, undefined], ['steam', actor, undefined],
+      ['시상식채널', actor, '100000000000000777'], ['시상식게시', actor, undefined]]);
     expect(lastMessage().content).toBe('done');
   });
   it('rejects malformed permission fields and unknown subcommands before scheduling', async () => {

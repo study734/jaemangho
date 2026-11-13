@@ -54,7 +54,8 @@ const commandData = z.discriminatedUnion('name', [
   z.object({ name: z.literal('개선'), type: z.literal(1) }),
   z.object({
     name: z.literal('운영'), type: z.literal(1),
-    options: z.tuple([z.discriminatedUnion('name', [subcommand('상태'), subcommand('점검'), subcommand('동기화'),
+    options: z.tuple([z.discriminatedUnion('name', [subcommand('상태'), subcommand('점검'), subcommand('동기화'), subcommand('시상식게시'),
+      z.object({ name: z.literal('시상식채널'), type: z.literal(1), options: z.array(z.object({ name: z.literal('채널'), type: z.literal(7), value: snowflake })).max(1).optional() }),
       z.object({ name: z.literal('캐시'), type: z.literal(1), options: z.tuple([stringOption('종류', z.enum(['steam', 'riot']))]) })])]),
   }),
   z.object({
