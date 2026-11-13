@@ -1,4 +1,5 @@
-import { commandUser } from './access';
+import { adminUser, commandUser } from './access';
+import { ADMIN_DENIED, adminTask, type AdminTask } from './admin';
 import { gameRecommendations, partyAction, steamConsentMessage } from './games';
 import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
@@ -66,6 +67,13 @@ const option = <T>(options: { name: string; value?: unknown }[] | undefined, nam
 async function runCommand(interaction: CommandInteraction, userId: string): Promise<Message> {
   const { data } = interaction;
   const owner = interaction.member.user.id;
+  if (data.name === '개선' || data.name === '운영') {
+    const actor = await adminUser(owner, interaction.member.permissions);
+    if (!actor) return ADMIN_DENIED;
+    const sub = data.name === '운영' ? data.options[0] : undefined;
+    const task: AdminTask = !sub ? '개선' : sub.name === '캐시' ? sub.options[0].value : sub.name;
+    return adminTask(task, actor);
+  }
   switch (data.name) {
     case '패치노트': return privateMessage(discordPatchNotesText());
     case '출처 찾기': return findSource(data);

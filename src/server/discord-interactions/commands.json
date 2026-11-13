@@ -106,6 +106,58 @@
     ]
   },
   {
+    "name": "개선",
+    "description": "(관리자) 무엇을 먼저 고치거나 키울지 봅니다",
+    "type": 1,
+    "default_member_permissions": "8"
+  },
+  {
+    "name": "운영",
+    "description": "(관리자) 운영 상태와 작업",
+    "type": 1,
+    "default_member_permissions": "8",
+    "options": [
+      {
+        "name": "상태",
+        "description": "경고·채팅 동기화·캐시 상태",
+        "type": 1
+      },
+      {
+        "name": "점검",
+        "description": "운영 점검을 지금 실행",
+        "type": 1
+      },
+      {
+        "name": "동기화",
+        "description": "채팅 동기화를 지금 실행(30초 안에 끊고 다음 실행이 이어 받음)",
+        "type": 1
+      },
+      {
+        "name": "캐시",
+        "description": "캐시 비우기",
+        "type": 1,
+        "options": [
+          {
+            "name": "종류",
+            "description": "비울 캐시",
+            "type": 3,
+            "required": true,
+            "choices": [
+              {
+                "name": "Steam",
+                "value": "steam"
+              },
+              {
+                "name": "Riot",
+                "value": "riot"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     "name": "출처 찾기",
     "type": 3
   }

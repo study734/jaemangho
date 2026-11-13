@@ -16,7 +16,8 @@ const envelope = {
   application_id: snowflake,
   token: z.string().regex(/^[\w.-]{1,256}$/),
   guild_id: snowflake,
-  member: z.object({ user: z.object({ id: snowflake }) }),
+  // permissions: 이 채널에서의 현재 권한 비트필드(Discord가 서명). 관리자 명령 실행 조건에 쓴다.
+  member: z.object({ user: z.object({ id: snowflake }), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
 };
 const stringOption = <N extends string, V extends z.ZodTypeAny>(name: N, value: V) => z.object({ name: z.literal(name), type: z.literal(3), value });
 const subcommand = <N extends string>(name: N) => z.object({ name: z.literal(name), type: z.literal(1) });
@@ -40,6 +41,13 @@ const commandData = z.discriminatedUnion('name', [
   z.object({
     name: z.literal('전적'), type: z.literal(1),
     options: z.array(stringOption('닉네임', z.string().trim().min(3).max(60))).max(1).optional(),
+  }),
+  // 관리자 전용(실행 조건은 access.ts의 adminUser)
+  z.object({ name: z.literal('개선'), type: z.literal(1) }),
+  z.object({
+    name: z.literal('운영'), type: z.literal(1),
+    options: z.tuple([z.discriminatedUnion('name', [subcommand('상태'), subcommand('점검'), subcommand('동기화'),
+      z.object({ name: z.literal('캐시'), type: z.literal(1), options: z.tuple([stringOption('종류', z.enum(['steam', 'riot']))]) })])]),
   }),
   z.object({
     name: z.literal('출처 찾기'), type: z.literal(3), target_id: snowflake,

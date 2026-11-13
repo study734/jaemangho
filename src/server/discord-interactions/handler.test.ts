@@ -1,6 +1,7 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { commandUser, linkedPlayers } from './access';
+import { adminUser, commandUser, linkedPlayers } from './access';
+import { adminTask } from './admin';
 import { loadParty, saveParty } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -10,7 +11,8 @@ import { recommendGames, type RecommendationsResult } from '../steam/recommendat
 import { completeInteraction, editReply, receiveInteraction } from './handler';
 import { friendPicker, interactionSchema, privateMessage, type Interaction } from './protocol';
 
-vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn() }));
+vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
+vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
@@ -324,7 +326,8 @@ describe('command definitions', () => {
     const { default: commands } = await import('./commands.json');
     const sample = { 게임추천: { options: [{ name: '범위', type: 3, value: 'all' }, { name: '기준', type: 3, value: 'fresh' }] },
       패치노트: {}, 기록: { options: [{ name: '순간', type: 1 }] }, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
-      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] },
+      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] }, 개선: {},
+      운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
       '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
     for (const definition of commands) {
       expect(interactionSchema.safeParse({ ...command(), data: { name: definition.name, type: definition.type, ...sample[definition.name] } }).success).toBe(true);
@@ -332,5 +335,36 @@ describe('command definitions', () => {
     expect(Object.keys(sample)).toEqual(commands.map(c => c.name));
     expect(interactionSchema.safeParse({ ...command(), type: 3, data: { component_type: 2, custom_id: 'party:1:pick' } }).success).toBe(false);
     expect(interactionSchema.safeParse({ ...command(), data: { name: '기록', type: 1, options: [{ name: '다른것', type: 1 }] } }).success).toBe(false);
+  });
+});
+
+describe('admin commands', () => {
+  const admin = (data: object, permissions?: string) => parsed({ ...command(), member: { user: { id: owner }, ...(permissions ? { permissions } : {}) }, data });
+  it('runs only when adminUser accepts the signed permissions, and never starts the task otherwise', async () => {
+    vi.mocked(adminUser).mockResolvedValue(null);
+    await completeInteraction(admin({ name: '개선', type: 1 }, '0'));
+    expect(adminUser).toHaveBeenCalledWith(owner, '0');
+    expect(lastMessage().content).toContain('관리자만');
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '동기화', type: 1 }] }));
+    expect(adminUser).toHaveBeenLastCalledWith(owner, undefined);
+    expect(adminTask).not.toHaveBeenCalled();
+  });
+  it('maps subcommands to tasks with the verified actor', async () => {
+    const actor = { id: 'user_owner', name: 'Owner' };
+    vi.mocked(adminUser).mockResolvedValue(actor);
+    vi.mocked(adminTask).mockResolvedValue(privateMessage('done'));
+    await completeInteraction(admin({ name: '개선', type: 1 }, '8'));
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '상태', type: 1 }] }, '8'));
+    await completeInteraction(admin({ name: '운영', type: 1, options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'steam' }] }] }, '8'));
+    expect(vi.mocked(adminTask).mock.calls).toEqual([['개선', actor], ['상태', actor], ['steam', actor]]);
+    expect(lastMessage().content).toBe('done');
+  });
+  it('rejects malformed permission fields and unknown subcommands before scheduling', async () => {
+    const defer = vi.fn();
+    for (const value of [{ ...command(), member: { user: { id: owner }, permissions: 'all' }, data: { name: '개선', type: 1 } },
+      { ...command(), data: { name: '운영', type: 1, options: [{ name: '차단', type: 1 }] } }]) {
+      expect((await receiveInteraction(request(value), defer, env)).status).toBe(400);
+    }
+    expect(defer).not.toHaveBeenCalled();
   });
 });

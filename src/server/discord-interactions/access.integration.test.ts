@@ -26,6 +26,16 @@ describe.skipIf(!testDbUrl)('Discord command account mapping (isolated DB)', () 
     expect(await access.commandUser('100000000000000099')).toBeNull();
     expect(await access.linkedPlayers(discordIds)).toEqual(discordIds.map((discordId, i) => ({ discordId, steamId: steamIds[i] })));
   });
+  it('accepts admin commands only with both the site admin role and the signed Administrator bit', async () => {
+    expect(await access.adminUser(discordIds[0], '8')).toBeNull();
+    await pool.query('update "user" set role = $1 where id = $2', ['admin', 'dci_test_0']);
+    expect(await access.adminUser(discordIds[0], '8')).toEqual({ id: 'dci_test_0', name: 'Friend 0' });
+    expect(await access.adminUser(discordIds[0], '0')).toBeNull();
+    expect(await access.adminUser(discordIds[0], undefined)).toBeNull();
+    await pool.query('update "user" set banned = true where id = $1', ['dci_test_0']);
+    expect(await access.adminUser(discordIds[0], '8')).toBeNull();
+    await pool.query('update "user" set banned = false, role = $1 where id = $2', ['user', 'dci_test_0']);
+  });
   it('honors new bans immediately on commands and selections', async () => {
     await pool.query('update "user" set banned = true where id = $1', ['dci_test_1']);
     expect(await access.commandUser(discordIds[1])).toBeNull();

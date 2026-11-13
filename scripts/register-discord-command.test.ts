@@ -7,7 +7,7 @@ describe('Discord command registration', () => {
     const fetchFn = vi.fn(); const log = vi.fn();
     await registerCommand({ fetchFn, log, env: {} });
     const commands = JSON.parse(log.mock.calls[0][0]);
-    expect(commands.map((command: { name: string }) => command.name)).toEqual(['게임추천', '패치노트', '기록', '멤버', '전적', '출처 찾기']);
+    expect(commands.map((command: { name: string }) => command.name)).toEqual(['게임추천', '패치노트', '기록', '멤버', '전적', '개선', '운영', '출처 찾기']);
     expect(commands[0].options[0].choices.map((choice: { value: string }) => choice.value)).toEqual(['all', 'any', 'unowned']);
     expect(fetchFn).not.toHaveBeenCalled();
   });
@@ -15,7 +15,7 @@ describe('Discord command registration', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('{}')); const log = vi.fn();
     await registerCommand({ args: ['--apply'], env, fetchFn, log });
     expect(fetchFn.mock.calls[0][0]).toMatch(/\/applications\/100000000000000001\/guilds\/100000000000000002\/commands$/);
-    expect(fetchFn).toHaveBeenCalledTimes(6);
+    expect(fetchFn).toHaveBeenCalledTimes(8);
     expect(fetchFn.mock.calls[0][1]).toMatchObject({ method: 'POST', headers: { Authorization: 'Bot fixture-bot-token' } });
     expect(log.mock.calls.flat().join(' ')).not.toContain(env.DISCORD_BOT_TOKEN);
   });

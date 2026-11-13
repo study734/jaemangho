@@ -17,3 +17,18 @@ export async function linkedPlayers(discordIds: string[]): Promise<LinkedPlayer[
     where a."providerId" = 'discord' and a."accountId" = any(${discordIds}) and not coalesce(u.banned, false)
     order by a."accountId", s.steam_id` as unknown as LinkedPlayer[];
 }
+
+// 관리자 명령: Discord가 서명해 보낸 현재 권한(member.permissions)에 Administrator 비트가 있고,
+// 사이트의 기존 관리자 판정(로그인할 때 서버 소유자·Administrator로 갱신되는 role)도 admin이어야 한다.
+// 명령이 메뉴에 보이는지(default_member_permissions)는 서버 설정으로 바뀔 수 있으므로 실행 조건으로 쓰지 않는다.
+const ADMINISTRATOR = 1n << 3n;
+export const hasAdministrator = (permissions: string | undefined) =>
+  !!permissions && /^\d{1,20}$/.test(permissions) && (BigInt(permissions) & ADMINISTRATOR) === ADMINISTRATOR;
+
+export async function adminUser(discordId: string, permissions: string | undefined): Promise<{ id: string; name: string } | null> {
+  if (!hasAdministrator(permissions)) return null;
+  const sql = await db();
+  const rows = await sql`select u.id, u.name from account a join "user" u on u.id = a."userId"
+    where a."providerId" = 'discord' and a."accountId" = ${discordId} and u.role = 'admin' and not coalesce(u.banned, false)`;
+  return rows.length === 1 ? { id: rows[0].id as string, name: rows[0].name as string } : null;
+}
