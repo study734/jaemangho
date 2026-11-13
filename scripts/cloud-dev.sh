@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
-# 클라우드 개발 세션(Claude Code on the web)의 개발 준비. 로컬 컴퓨터에서는 아무것도 하지 않는다.
-#   start : 로컬 Postgres(개발 DB jaemangho, 테스트 DB jaemangho_test)를 켜고 없으면 .env.local을 만든다. SessionStart hook용(수 초).
-#   setup : start + 의존성 설치(npm ci) + 개발 DB 마이그레이션. 클라우드 환경의 setup script용.
-# 값은 출력하지 않는다. 이미 있는 .env.local·DB는 덮어쓰지 않는다.
+# 개발 준비의 단일 진입점: `npm run dev:prepare`(= start). 어디서 실행하든 같은 명령이다.
+#   로컬 컴퓨터: 공용 개발 설정(README의 공통 개발 환경변수 관리)이 설치돼 있으면 그 사본을 .env.local로 준비한다.
+#   클라우드 세션(CLAUDE_CODE_REMOTE=true): 컨테이너 안의 Postgres(개발 DB jaemangho, 테스트 DB jaemangho_test)를 켜고
+#     없으면 .env.local을 만든다(수 초). setup 모드는 여기에 npm ci와 개발 DB 마이그레이션을 더한다(클라우드 환경 setup script용).
+# 값은 출력하지 않는다. 이미 있는 .env.local·DB는 덮어쓰지 않는다. 외부 키가 없어도 DEV_LOGIN으로 개발할 수 있다.
 set -euo pipefail
 mode="${1:-start}"
 case "$mode" in start|setup) ;; *) echo "usage: scripts/cloud-dev.sh start|setup" >&2; exit 2 ;; esac
-[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
-
 root="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  [ "$mode" = start ] || exit 0
+  [ -e "$root/.env.local" ] && { echo "[dev-prepare] .env.local이 이미 있습니다."; exit 0; }
+  tool="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py"
+  if [ -f "$tool" ]; then exec python3 "$tool" sync; fi
+  echo "[dev-prepare] 공용 개발 설정이 없습니다. .env.example을 .env.local로 복사해 DATABASE_URL·SESSION_SECRET을 넣고 DEV_LOGIN=1로 시작하세요(README 로컬 개발 절)." >&2
+  exit 0
+fi
 port=54329
 dir=/var/tmp/jaemangho-pg
 bin="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"

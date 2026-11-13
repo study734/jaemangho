@@ -241,6 +241,8 @@ npm run dev                   # http://localhost:3000
 ```
 ### Codex·Claude Code 공통 개발 환경변수 관리
 
+**개발 준비는 어디서든 `npm run dev:prepare` 하나입니다.** 로컬에서는 아래 공용 사본을 `.env.local`로 복사하고(`sync`), 클라우드 세션에서는 컨테이너 안의 개발·테스트 DB와 `.env.local`을 만듭니다(아래 클라우드 세션 절). 이미 `.env.local`이 있으면 아무것도 바꾸지 않습니다. 외부 키가 없어도 앱은 `DEV_LOGIN=1`로 동작하고, 개발 서버는 환경변수 점검 경고를 출력하지 않습니다(운영 시작 때만). 키가 필요한 기능만 꺼진 상태가 됩니다. 아래 등록·설치·갱신 절차는 실제 Discord·Riot·Steam 연동을 로컬에서 쓰려 할 때만 필요합니다.
+
 | 위치 | 역할 |
 |---|---|
 | [`.env.example`](.env.example) | Git에 보관하는 키 이름·형식·용도. 실제 비밀값은 넣지 않음 |
@@ -288,10 +290,10 @@ rtk proxy python3 scripts/dev-env.py sync --replace
 
 ### 클라우드 세션(Claude Code on the web)의 개발 준비
 
-클라우드 세션에는 위의 로컬 공용 원본이 없으므로 [`scripts/cloud-dev.sh`](scripts/cloud-dev.sh)가 컨테이너 안에서 준비합니다. 로컬 컴퓨터(`CLAUDE_CODE_REMOTE`가 `true`가 아님)에서는 아무것도 하지 않습니다.
+클라우드 세션에는 위의 로컬 공용 원본이 없으므로 `npm run dev:prepare`([`scripts/cloud-dev.sh`](scripts/cloud-dev.sh) `start`)가 컨테이너 안에서 준비합니다. 로컬 컴퓨터(`CLAUDE_CODE_REMOTE`가 `true`가 아님)에서는 공용 사본 `sync`만 하고, `setup` 모드는 아무것도 하지 않습니다.
 
 - `setup`: 클라우드 환경 `jaemangho`의 setup script가 새 컨테이너마다 실행합니다. 컨테이너의 PostgreSQL로 `127.0.0.1:54329`에 개발 DB `jaemangho`와 테스트 DB `jaemangho_test`를 만들고(`trust` 인증, 컨테이너 밖에서 접속 불가), `npm ci`와 개발 DB 마이그레이션을 수행합니다. 마이그레이션은 `.env.local`의 주소가 아니라 이 로컬 개발 DB에만 적용합니다.
-- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로, DB 테스트·개발 서버 전에 실행합니다. 이미 켜져 있으면 바로 끝납니다.
+- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로, DB 테스트·개발 서버 전에 `npm run dev:prepare`를 실행합니다. 이미 켜져 있으면 바로 끝납니다.
 - 두 모드 모두 `.env.local`이 없을 때만 로컬 DB 주소·무작위 `SESSION_SECRET`·`DEV_LOGIN=1`로 만듭니다(권한 600). 기존 파일과 DB는 덮어쓰지 않으며 값을 출력하지 않습니다. 외부 연동 키(Discord·Riot·Steam)는 비어 있으므로 해당 기능은 미준비 상태입니다.
 - 환경 변수 `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:54329/jaemangho_test`는 클라우드 환경 설정에 있어 `npm test`·`npm run test:e2e`가 그대로 DB 통합 테스트를 실행합니다.
 
