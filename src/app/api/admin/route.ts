@@ -3,6 +3,7 @@ import {
   blockInputSchema, getStatus, listSummonersWithCreators, listUsers, purgeRiotCache, setBlocked,
 } from '@/server/admin';
 import { parseBody, serverError } from '@/server/http';
+import { improvementReport } from '@/server/improvements';
 import { requireAdmin } from '@/server/viewer';
 import { audited } from '@/server/operations/audit';
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
       case 'status': return Response.json(await getStatus());
       case 'users': return Response.json(await listUsers());
       case 'members': return Response.json(await listSummonersWithCreators());
+      case 'improvements': return Response.json(await improvementReport(), { headers: { 'Cache-Control': 'no-store' } });
       default: return unknown();
     }
   } catch (e) {

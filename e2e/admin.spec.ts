@@ -74,3 +74,20 @@ test('관리자가 등록 소환사를 삭제하면 목록에서 사라진다', 
   expect((await db.query(`select count(*)::int as n from members where id = 'e2e_m2'`)).rows[0].n).toBe(0);
   expect((await db.query(`select result from ops_audit where actor_id = $1 and action = 'member.delete' and target = 'e2e_m2' order by id desc limit 1`, [admin.id])).rows[0].result).toBe('success');
 });
+
+test('관리자는 개선 탭에서 서버 실패가 쌓인 영역을 우선순위로 본다', async ({ page, context }) => {
+  const admin = await createUser('admin_improve', 'E2E개선관리자', 'admin');
+  await db.query(`delete from app_failures where operation = 'steam.e2e-improve'`);
+  await db.query(`insert into app_failures (day, operation, code, count) values ((now() at time zone 'Asia/Seoul')::date, 'steam.e2e-improve', 'unexpected', 3)`);
+  try {
+    await loginAs(context, admin);
+    await page.goto('/admin');
+    await page.getByRole('tab', { name: '개선' }).click();
+    const list = page.getByRole('list', { name: '개선 우선순위' });
+    const steam = list.locator(':scope > li').filter({ hasText: 'steam.e2e-improve(unexpected) 3회' });
+    await expect(steam).toContainText('고치기');
+    await expect(steam).toContainText('Steam');
+  } finally {
+    await db.query(`delete from app_failures where operation = 'steam.e2e-improve'`);
+  }
+});

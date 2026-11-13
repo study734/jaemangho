@@ -7,6 +7,7 @@ import { adminStyles, Panel, ScrollTable } from './AdminUi';
 import { operationsLog } from '@/lib/operations-log';
 import { AuditPanel, BackupNote, ChatSyncPanel, OpsNotice, OpsStatusPanel, SteamPanel, ViewAnalytics, useOperations } from './OperationsPanel';
 import { AutomationPanel, OperationsOverview } from './OperationsOverview';
+import { ImprovementPanel } from './ImprovementPanel';
 import { AUTOMATION_WORKFLOWS, automationDiagnosis, type AutomationEvidence, type AutomationKind } from '@/lib/automation-status';
 
 interface Status {
@@ -42,9 +43,10 @@ interface Props {
   onDeleteMember: (id: string) => Promise<void>;
 }
 
-type TabId = 'overview' | 'people' | 'integrations' | 'records';
+type TabId = 'overview' | 'improvements' | 'people' | 'integrations' | 'records';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: '개요' },
+  { id: 'improvements', label: '개선' },
   { id: 'people', label: '사용자' },
   { id: 'integrations', label: '연동' },
   { id: 'records', label: '기록' },
@@ -170,6 +172,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
             aria-controls={`admin-panel-${t.id}`}
             tabIndex={tab === t.id ? 0 : -1}
             className={`segmented-tab${tab === t.id ? ' segmented-tab-active' : ''}`}
+            style={styles.tab}
             onClick={() => setTab(t.id)}
             onKeyDown={(e) => onTabKey(e, i)}
           >
@@ -227,6 +230,8 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
             </Panel>
           </>
         )}
+
+        {tab === 'improvements' && <ImprovementPanel />}
 
         {tab === 'people' && (
           <>
@@ -341,6 +346,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
   configuration: { padding: '12px 16px', borderRadius: 8, backgroundColor: 'var(--surface)', borderLeft: '4px solid var(--status-warning)', color: 'var(--status-warning)', fontSize: 14 },
   tabs: { flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', borderBottom: '1px solid var(--hairline)' },
+  // 좁은 화면에서는 탭이 글자 단위로 줄바꿈되지 않고 탭 줄 안에서 가로로 스크롤한다.
+  tab: { flexShrink: 0, whiteSpace: 'nowrap' },
   tabPanel: { flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 },
   count: { color: 'var(--accent-pink)', fontWeight: 700 },
   cards: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' },
