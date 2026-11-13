@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-13', area: 'discord', title: '같이 할 사람 모집', items: [
+    '/모집으로 채널에 같이 할 사람을 모아요. 게임·시간·인원을 적을 수 있고, 참여·나가기 버튼으로 바로 들어오고 나갈 수 있어요.',
+    '모인 사람끼리 게임추천 버튼을 누르면 친구를 다시 고르지 않고 함께할 Steam 게임을 추천받아요.',
+  ] },
   { date: '2026-11-13', area: 'discord', title: '/기록 한 번에 보기', items: [
     '/기록 하나로 지난주 시상식, 최근 개념글, 뜨거웠던 순간을 한 번에 봐요. 따로 고를 필요가 없어요.',
   ] },

@@ -2,6 +2,7 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminUser, commandUser, linkedPlayers } from './access';
 import { adminTask } from './admin';
+import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { loadParty, saveParty } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -14,6 +15,7 @@ import { friendPicker, interactionSchema, privateMessage, type Interaction } fro
 vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
 vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn() }));
+vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
 vi.mock('../steam/games', () => ({ compareGames: vi.fn() }));
@@ -326,7 +328,8 @@ describe('command definitions', () => {
     const { default: commands } = await import('./commands.json');
     const sample = { 게임추천: { options: [{ name: '범위', type: 3, value: 'all' }, { name: '기준', type: 3, value: 'fresh' }] },
       패치노트: {}, 기록: {}, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
-      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] }, 개선: {},
+      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] },
+      모집: { options: [{ name: '게임', type: 3, value: 'Lethal' }, { name: '시간', type: 3, value: '오늘 10시' }, { name: '인원', type: 4, value: 4 }] }, 개선: {},
       운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
       '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
     for (const definition of commands) {
@@ -368,5 +371,59 @@ describe('admin commands', () => {
       expect((await receiveInteraction(request(value), defer, env)).status).toBe(400);
     }
     expect(defer).not.toHaveBeenCalled();
+  });
+});
+
+describe('/모집 (public lobby)', () => {
+  const lobby = { id: '100000000000000009', ownerId: owner, game: 'Lethal', playTime: '오늘 10시', max: 4, memberIds: [owner], closed: false, version: 1 };
+  const lobbyCommand = () => parsed({ ...command(), data: { name: '모집', type: 1, options: [{ name: '게임', type: 3, value: 'Lethal' }, { name: '시간', type: 3, value: '오늘 10시' }, { name: '인원', type: 4, value: 4 }] } });
+  const lobbyButton = (action: string, member = friend) => parsed({ ...command(), id: '100000000000000011', member: { user: { id: member } }, type: 3,
+    data: { component_type: 2, custom_id: `lobby:100000000000000009:${action}` } });
+  const calls = () => fetchFn.mock.calls.map(call => [call[1].method, String(call[0]).replace(/^.*\/webhooks\/\d+\/fixture-token/, '')]);
+  beforeEach(() => { vi.mocked(createLobby).mockResolvedValue(lobby); vi.mocked(loadLobby).mockResolvedValue(lobby); });
+
+  it('acknowledges /모집 publicly, lobby edits as message updates, and lobby recommendations privately', async () => {
+    const ack = async (value: unknown) => (await receiveInteraction(request(value), vi.fn(), env)).json();
+    expect(await ack({ ...command(), data: { name: '모집', type: 1 } })).toEqual({ type: 5 });
+    for (const action of ['join', 'leave', 'close']) expect(await ack({ ...command(), type: 3, data: { component_type: 2, custom_id: `lobby:${lobby.id}:${action}` } })).toEqual({ type: 6 });
+    expect(await ack({ ...command(), type: 3, data: { component_type: 2, custom_id: `lobby:${lobby.id}:recommend` } })).toEqual({ type: 5, data: { flags: 64 } });
+    expect(await ack(command())).toEqual({ type: 5, data: { flags: 64 } });
+  });
+  it('creates the lobby and posts it publicly without pinging anyone', async () => {
+    await completeInteraction(lobbyCommand());
+    expect(createLobby).toHaveBeenCalledWith({ id: '100000000000000009', ownerId: owner, game: 'Lethal', playTime: '오늘 10시', max: 4 });
+    expect(calls()).toEqual([['PATCH', '/messages/@original']]);
+    const message = lastMessage();
+    expect(message.flags).toBeUndefined(); expect(message.allowed_mentions).toEqual({ parse: [] });
+    expect(message.content).toContain('게임: Lethal · 시간: 오늘 10시 · 인원: 1/4명');
+    expect(message.components[0].components.map((c: { custom_id: string }) => c.custom_id.split(':')[2])).toEqual(['join', 'leave', 'recommend', 'close']);
+  });
+  it('never posts a denial publicly: deletes the public placeholder and tells only the requester', async () => {
+    vi.mocked(commandUser).mockResolvedValue(null);
+    await completeInteraction(lobbyCommand());
+    expect(createLobby).not.toHaveBeenCalled();
+    expect(calls()).toEqual([['DELETE', '/messages/@original'], ['POST', '']]);
+    expect(lastMessage()).toMatchObject({ flags: 64 }); expect(lastMessage().content).toContain('로그인');
+  });
+  it('edits the lobby message through the clicker’s token and only adds a private notice when something is refused', async () => {
+    vi.mocked(lobbyAction).mockImplementation(async (_id, _user, _action, edit) => { await edit(privateMessage('edited')); return null; });
+    await completeInteraction(lobbyButton('join'));
+    expect(lobbyAction).toHaveBeenCalledWith(lobby.id, friend, 'join', expect.any(Function));
+    expect(calls()).toEqual([['PATCH', '/messages/@original']]);
+    fetchFn.mockClear();
+    vi.mocked(lobbyAction).mockResolvedValue(privateMessage('인원이 다 찼어요.'));
+    await completeInteraction(lobbyButton('join'));
+    expect(calls()).toEqual([['POST', '']]); expect(lastMessage()).toMatchObject({ flags: 64, content: '인원이 다 찼어요.' });
+  });
+  it('recommends for the lobby members without a friend picker, only for members', async () => {
+    await completeInteraction(lobbyButton('recommend'));
+    expect(lastMessage().content).toContain('참여한 사람만');
+    vi.mocked(loadLobby).mockResolvedValue({ ...lobby, memberIds: [owner, friend] });
+    await completeInteraction(lobbyButton('recommend'));
+    expect(saveParty).toHaveBeenCalledWith({ id: '100000000000000011', ownerId: friend, discordIds: [owner, friend], scope: 'all', preference: 'balanced' });
+    expect(recommendGames).toHaveBeenCalledWith(steamIds, 'balanced', 'all');
+    vi.mocked(hasSteamConsent).mockResolvedValue(false);
+    await completeInteraction(lobbyButton('recommend'));
+    expect(lastMessage().content).toContain('/steam');
   });
 });

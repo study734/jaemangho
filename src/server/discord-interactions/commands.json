@@ -89,6 +89,37 @@
     ]
   },
   {
+    "name": "모집",
+    "description": "같이 게임할 사람을 이 채널에 모집합니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "게임",
+        "description": "할 게임 (비워 두면 정하지 않음)",
+        "type": 3,
+        "required": false,
+        "min_length": 1,
+        "max_length": 100
+      },
+      {
+        "name": "시간",
+        "description": "언제 할지 (예: 오늘 밤 10시)",
+        "type": 3,
+        "required": false,
+        "min_length": 1,
+        "max_length": 60
+      },
+      {
+        "name": "인원",
+        "description": "모집 인원 (본인 포함, 비워 두면 제한 없음)",
+        "type": 4,
+        "required": false,
+        "min_value": 2,
+        "max_value": 20
+      }
+    ]
+  },
+  {
     "name": "개선",
     "description": "(관리자) 무엇을 먼저 고치거나 키울지 봅니다",
     "type": 1,

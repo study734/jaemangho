@@ -43,6 +43,13 @@ const commandData = z.discriminatedUnion('name', [
     name: z.literal('전적'), type: z.literal(1),
     options: z.array(stringOption('닉네임', z.string().trim().min(3).max(60))).max(1).optional(),
   }),
+  z.object({
+    name: z.literal('모집'), type: z.literal(1),
+    options: z.array(z.discriminatedUnion('name', [
+      stringOption('게임', z.string().trim().min(1).max(100)), stringOption('시간', z.string().trim().min(1).max(60)),
+      z.object({ name: z.literal('인원'), type: z.literal(4), value: z.number().int().min(2).max(20) }),
+    ])).max(3).refine(options => new Set(options.map(option => option.name)).size === options.length).optional(),
+  }),
   // 관리자 전용(실행 조건은 access.ts의 adminUser)
   z.object({ name: z.literal('개선'), type: z.literal(1) }),
   z.object({
@@ -67,6 +74,7 @@ const componentData = z.union([
     values: z.array(snowflake).min(2).max(20).refine(ids => new Set(ids).size === ids.length),
   }),
   z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^party:\d{17,20}:(pick(:\d{1,10})?|deals|missions|common)$/) }),
+  z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^lobby:\d{17,20}:(join|leave|close|recommend)$/) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:mission$/), values: z.tuple([z.string().regex(/^\d{1,10}$/)]) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^lol:v1:\d{17,20}:\d{10}$/), values: z.tuple([z.string().regex(/^[\w-]{1,32}$/)]) }),
 ]);
@@ -81,6 +89,15 @@ export type CommandInteraction = Extract<Interaction, { type: 2 }>;
 export type ComponentInteraction = Extract<Interaction, { type: 3 }>;
 export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[] } };
 export const privateMessage = (content: string, components: unknown[] = []): Message => ({ content, components, allowed_mentions: { parse: [] } });
+
+// 3초 안에 보내는 첫 응답의 종류. 대부분은 본인에게만 보이는 지연 응답(private)이다.
+// /모집은 채널에 공개로 올리고(public), 모집 메시지의 참여·나가기·마감은 그 메시지를 고친다(update: 새 메시지 없음).
+export type Ack = 'private' | 'public' | 'update';
+export function ackFor(interaction: Interaction): Ack {
+  if (interaction.type === 2) return interaction.data.name === '모집' ? 'public' : 'private';
+  return /^lobby:\d+:(join|leave|close)$/.test(interaction.data.custom_id) ? 'update' : 'private';
+}
+export const ACK_BODY: Record<Ack, object> = { private: { type: 5, data: { flags: 64 } }, public: { type: 5 }, update: { type: 6 } };
 
 // 디스코드 메시지 한도(2000자)를 넘기지 않는다. 표시 이름의 마크다운·줄바꿈은 글자 그대로 보이게 한다.
 export const MESSAGE_LIMIT = 2000;

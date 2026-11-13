@@ -3,7 +3,7 @@ import { changedCommands, registerCommand } from './register-discord-command.mjs
 import commands from '../src/server/discord-interactions/commands.json';
 
 const env = { DISCORD_CLIENT_ID: '100000000000000001', DISCORD_GUILD_ID: '100000000000000002', DISCORD_BOT_TOKEN: 'fixture-bot-token' };
-const names = ['게임추천', '패치노트', '기록', '멤버', '전적', '개선', '운영', '출처 찾기'];
+const names = ['게임추천', '패치노트', '기록', '멤버', '전적', '모집', '개선', '운영', '출처 찾기'];
 // Discord가 돌려주는 모양: id·version 등이 붙고, false인 required와 정의하지 않은 필드는 생략·null로 온다.
 const asRegistered = (list: typeof commands) => list.map((command, index) => ({
   id: String(900 + index), application_id: env.DISCORD_CLIENT_ID, version: '1', guild_id: env.DISCORD_GUILD_ID,
@@ -42,7 +42,7 @@ describe('Discord command registration', () => {
     const fetchFn = discord(registered); const log = vi.fn();
     await registerCommand({ args: ['--apply'], env, fetchFn, log });
     expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith('All 8 commands are already up to date in the configured server.');
+    expect(log).toHaveBeenCalledWith('All 9 commands are already up to date in the configured server.');
   });
   it('rejects invalid arguments and missing configuration before making changes', async () => {
     const fetchFn = vi.fn();
@@ -73,7 +73,7 @@ describe('deploy-time registration (--deploy)', () => {
     const fetchFn = discord(asRegistered(commands.filter(command => command.name !== '전적'))); const log = vi.fn();
     await registerCommand({ args: ['--deploy'], env: { ...env, VERCEL_ENV: 'production' }, fetchFn, log });
     expect(posted(fetchFn)).toEqual(['전적']);
-    expect(log.mock.calls[0][0]).toMatch(/^\[discord\] Registered 전적 .* 7 unchanged/);
+    expect(log.mock.calls[0][0]).toMatch(/^\[discord\] Registered 전적 .* 8 unchanged/);
   });
   it('never fails the build: missing config, HTTP and network errors only warn with a status', async () => {
     const production = { ...env, VERCEL_ENV: 'production' };
