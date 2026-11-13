@@ -325,7 +325,7 @@ describe('command definitions', () => {
   it('every registered command and option parses with the signed-request schema', async () => {
     const { default: commands } = await import('./commands.json');
     const sample = { 게임추천: { options: [{ name: '범위', type: 3, value: 'all' }, { name: '기준', type: 3, value: 'fresh' }] },
-      패치노트: {}, 기록: { options: [{ name: '순간', type: 1 }] }, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
+      패치노트: {}, 기록: {}, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
       전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] }, 개선: {},
       운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
       '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
@@ -335,6 +335,8 @@ describe('command definitions', () => {
     expect(Object.keys(sample)).toEqual(commands.map(c => c.name));
     expect(interactionSchema.safeParse({ ...command(), type: 3, data: { component_type: 2, custom_id: 'party:1:pick' } }).success).toBe(false);
     expect(interactionSchema.safeParse({ ...command(), data: { name: '기록', type: 1, options: [{ name: '다른것', type: 1 }] } }).success).toBe(false);
+    // 배포 전환 중 이전 정의(하위 명령)로 온 요청도 받아 같은 결과를 준다.
+    expect(interactionSchema.safeParse({ ...command(), data: { name: '기록', type: 1, options: [{ name: '순간', type: 1 }] } }).success).toBe(true);
   });
 });
 

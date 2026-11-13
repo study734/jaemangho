@@ -30,9 +30,10 @@ const commandData = z.discriminatedUnion('name', [
       .max(2).refine(options => new Set(options.map(option => option.name)).size === options.length).optional(),
   }),
   z.object({ name: z.literal('패치노트'), type: z.literal(1) }),
+  // 하위 명령(시상식·개념글·순간)이던 이전 정의는 배포가 바뀌는 동안 올 수 있어 받아 주되 무시한다.
   z.object({
     name: z.literal('기록'), type: z.literal(1),
-    options: z.tuple([z.discriminatedUnion('name', [subcommand('시상식'), subcommand('개념글'), subcommand('순간')])]),
+    options: z.tuple([z.discriminatedUnion('name', [subcommand('시상식'), subcommand('개념글'), subcommand('순간')])]).optional(),
   }),
   z.object({
     name: z.literal('멤버'), type: z.literal(1),

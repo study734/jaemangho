@@ -77,7 +77,7 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
   switch (data.name) {
     case '패치노트': return privateMessage(discordPatchNotesText());
     case '출처 찾기': return findSource(data);
-    case '기록': return records(data.options[0].name);
+    case '기록': return records();
     case '멤버': return memberProfile(option<string>(data.options, '대상') ?? owner);
     case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'));
     case '게임추천': return await steamConsentMessage(userId)
