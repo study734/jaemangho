@@ -14,10 +14,11 @@ describe.skipIf(!testDbUrl)('개선 우선순위 (DB)', () => {
   beforeAll(async () => { pool = await openTestDb(); await cleanup(); });
   afterAll(async () => { await cleanup(); await pool.end(); });
 
-  it('reportFailure가 작업·분류별 횟수를 쌓고 database.* 는 세지 않는다', async () => {
-    const { writeFailureCount, shouldCount } = await import('./failure-stats');
-    await writeFailureCount('steam.taste.GET', 'unexpected');
-    await writeFailureCount('steam.taste.GET', 'unexpected');
+  it('실패 횟수를 작업·분류별로 합쳐 쌓고 database.* 는 세지 않는다', async () => {
+    const { countFailure, settleFailureCounts, writeFailureCounts, shouldCount } = await import('./failure-stats');
+    countFailure('steam.taste.GET', 'unexpected');
+    await settleFailureCounts();
+    expect(await writeFailureCounts([{ operation: 'steam.taste.GET', code: 'unexpected', count: 1 }])).toBe(true); // 기존 행에 더한다
     expect(shouldCount('database.query')).toBe(false);
     const rows = (await pool.query(`select operation, code, count from app_failures`)).rows;
     expect(rows).toEqual([{ operation: 'steam.taste.GET', code: 'unexpected', count: 2 }]);
