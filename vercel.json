@@ -4,7 +4,7 @@
   "fluid": true,
   "regions": ["iad1"],
   "ignoreCommand": "[ -n \"$VERCEL_GIT_COMMIT_REF\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]",
-  "buildCommand": "node scripts/migrate.mjs && next build",
+  "buildCommand": "node scripts/migrate.mjs && next build && node scripts/register-discord-command.mjs --deploy",
   "crons": [
     {
       "path": "/api/cron/ops-watchdog",

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:prepare": "bash scripts/cloud-dev.sh start",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

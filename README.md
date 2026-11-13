@@ -144,13 +144,18 @@ src/
 - `POST /api/discord/interactions`는 선택 환경변수 **`DISCORD_PUBLIC_KEY`**(Discord Developer Portal → General Information → Public Key, 64자리 16진수)로 원문 바이트의 Ed25519 서명을 검증합니다. 서명 없음·위조·5분을 벗어난 타임스탬프는 401, 공개키 미설정은 503입니다. 서명된 PING에 PONG을 반환합니다. 이 키는 봇 토큰이나 Client Secret과 다릅니다.
 - DB·Steam 조회 전에 비공개 지연 응답을 반환하고 Next.js `after`에서 결과를 전달합니다. 처리 예산은 45초, 라우트 최대 실행 시간은 60초입니다. 제한 초과 시 재시도 안내를 보내고 늦게 끝난 결과로 덮어쓰지 않습니다. 기존 공유 Steam 요청은 취소하지 않으며 별도 작업 큐·영구 재전송은 없습니다. Discord 답변 수정은 네트워크·5xx·1초 이내 429 대기와 404의 Unknown Message(10008)·Unknown Webhook(10015)에 한해 최대 3회 시도합니다. 최초 지연 응답이 Discord에 반영되기 전 후속 수정이 도착할 가능성에 대비해 해당 404는 250ms·500ms 후 재시도하며, 지속되는 무효 토큰은 같은 예산 안에서 실패합니다. 실패 로그에는 숫자 오류 코드·HTTP 상태만 남깁니다. 토큰·본문은 기록하지 않습니다.
 
-운영 활성화는 배포·환경변수·Discord 앱 설정 변경에 대한 기존 사전 확인을 거친 뒤 진행합니다. 현재 코드가 추가됐다는 사실만으로 명령이 등록되거나 앱이 활성화되지는 않습니다.
+운영 활성화는 배포·환경변수·Discord 앱 설정 변경에 대한 기존 사전 확인을 거친 뒤 진행합니다. 명령은 운영 배포 때 자동으로 등록되지만(4번), 아래 1~3번의 앱 설정이 없으면 디스코드가 요청을 보내지 않으므로 앱이 활성화되지는 않습니다.
 
 1. 기존 Discord 로그인·수집과 **같은 앱**의 공개키를 `DISCORD_PUBLIC_KEY`에 설정하고 재배포합니다.
 2. 해당 앱의 **Interactions Endpoint URL**을 `https://<도메인>/api/discord/interactions`로 설정합니다. 이 방식은 Gateway로 interactions를 받는 방식과 양립하지 않으므로, 기존 앱에서 다른 명령을 처리 중인지 먼저 확인합니다. REST 채팅 수집에는 영향을 주지 않습니다.
 3. 앱의 서버 설치에 `applications.commands` scope가 포함돼 있는지 확인합니다. `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `DISCORD_BOT_TOKEN`은 같은 앱·서버의 기존 설정을 사용합니다. 상시 실행 봇이나 Message Content Intent는 필요하지 않습니다.
-4. 로컬 미리보기: `npm run discord:register -- --dry-run`. 승인된 실제 등록: `npm run discord:register -- --apply`. 인자를 생략하면 미리보기만 수행합니다. 지정 서버에 `commands.json`의 명령(`/게임추천`·`/패치노트`·`/기록`·`/멤버`·`/전적`·`/개선`·`/운영`·`출처 찾기`)만 POST로 등록·갱신하며 다른 명령은 삭제하지 않습니다. 실패 시 상태 코드·앱/서버 권한을 확인하고, 429는 기다린 뒤 재실행합니다. 등록·갱신은 같은 이름 기준이므로 재실행할 수 있습니다.
-5. 디스코드에서 세 범위·기준, 결과 버튼, Steam 동의 없음, 계정 연결 없음, 비공개 목록, `/기록`·`/멤버`·`/전적`의 실제 답변 표시, 관리자 명령이 Administrator가 아닌 멤버에게서 거부되는지를 확인합니다. 새 명령은 운영 DB에 `0024` 마이그레이션이 적용된 배포 뒤에 등록합니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
+4. **명령 등록은 배포가 자동으로 합니다.** `vercel.json`의 `buildCommand`가 운영 빌드 성공 뒤 `node scripts/register-discord-command.mjs --deploy`를 실행해, Vercel 운영 환경의 기존 `DISCORD_CLIENT_ID`·`DISCORD_GUILD_ID`·`DISCORD_BOT_TOKEN`으로 `commands.json`의 명령을 지정 서버에 등록·갱신합니다. 토큰을 따로 입력하는 단계는 없습니다. `commands.json`을 바꾼 PR을 머지하면 그 운영 배포에서 반영됩니다.
+   - 서버에 등록된 명령을 GET 한 번으로 읽어 **바뀐 명령만** 이름 기준으로 POST합니다. 바뀐 게 없으면 POST하지 않으므로 배포가 잦아도 Discord의 명령 생성 한도를 쓰지 않습니다. 정의에 없는 명령은 지우지 않습니다(bulk PUT 미사용).
+   - `VERCEL_ENV=production`에서만 실행합니다. 미리보기·로컬 빌드는 건너뜁니다(`[discord] Skipping …` 로그).
+   - 실패해도 배포를 막지 않습니다. 설정 누락·HTTP 상태·네트워크 오류는 빌드 로그에 `[discord] … Deployment continues`로 상태 코드만 남고, 명령은 이전 정의로 유지됩니다. 원인을 고친 뒤 재배포하면 다시 시도합니다. 401/403은 봇 토큰·앱 설치(`applications.commands`), 429는 잠시 뒤 재배포로 확인합니다.
+   - 등록은 빌드 끝에서, 새 버전이 서비스되기 직전에 일어납니다. 새로 추가한 명령은 배포가 전환되기까지 짧은 동안 이전 버전이 400으로 거부할 수 있습니다.
+   - 수동 실행도 같은 방식입니다: 미리보기 `npm run discord:register -- --dry-run`, 직접 등록 `npm run discord:register -- --apply`(로컬 `.env.local`에 같은 세 값 필요). 비교·실패 동작은 `scripts/register-discord-command.test.ts`로 재현합니다.
+5. 디스코드에서 세 범위·기준, 결과 버튼, Steam 동의 없음, 계정 연결 없음, 비공개 목록, `/기록`·`/멤버`·`/전적`의 실제 답변 표시, 관리자 명령이 Administrator가 아닌 멤버에게서 거부되는지를 확인합니다. 마이그레이션은 같은 빌드의 시작에서, 명령 등록은 빌드 성공 뒤에 실행되므로 순서는 자동으로 지켜집니다. 운영에서 활성화하기 전까지 실제 Discord UI·콜드 스타트 응답 시간은 로컬 검증으로 대체할 수 없습니다.
 
 구현은 `src/server/discord-interactions/`, 등록 정의는 같은 디렉터리의 `commands.json`(명령 배열)에 있습니다. 테스트: `npm test -- src/server/discord-interactions src/server/lol/stats.test.ts scripts/register-discord-command.test.ts`, 격리 DB의 계정 연결·파티 저장 검증(`access.integration.test.ts`, `party.integration.test.ts`)은 `TEST_DATABASE_URL`이 필요합니다. 등록 정의의 모든 명령·옵션이 서명 요청 스키마를 통과하는지도 `handler.test.ts`가 확인합니다. 서명된 실제 HTTP 요청은 `e2e/discord.spec.ts`로 확인하며, Discord 웹훅·Steam 응답은 단위 테스트의 fixture를 사용합니다. Node가 PATH에 없으면 위 명령 앞부분을 `rtk proxy bash scripts/agent-npm.sh`로 바꿉니다.
 
@@ -236,6 +241,8 @@ npm run dev                   # http://localhost:3000
 ```
 ### Codex·Claude Code 공통 개발 환경변수 관리
 
+**개발 준비는 어디서든 `npm run dev:prepare` 하나입니다.** 로컬에서는 아래 공용 사본을 `.env.local`로 복사하고(`sync`), 클라우드 세션에서는 컨테이너 안의 개발·테스트 DB와 `.env.local`을 만듭니다(아래 클라우드 세션 절). 이미 `.env.local`이 있으면 아무것도 바꾸지 않습니다. 외부 키가 없어도 앱은 `DEV_LOGIN=1`로 동작하고, 개발 서버는 환경변수 점검 경고를 출력하지 않습니다(운영 시작 때만). 키가 필요한 기능만 꺼진 상태가 됩니다. 아래 등록·설치·갱신 절차는 실제 Discord·Riot·Steam 연동을 로컬에서 쓰려 할 때만 필요합니다.
+
 | 위치 | 역할 |
 |---|---|
 | [`.env.example`](.env.example) | Git에 보관하는 키 이름·형식·용도. 실제 비밀값은 넣지 않음 |
@@ -257,7 +264,7 @@ rtk proxy python3 scripts/dev-env.py install
 
 Codex에는 [`.codex/environments/environment.toml`](.codex/environments/environment.toml)의 setup도 연결돼 있습니다. 앱에서 `Jaemangho` 로컬 환경을 선택해 새 worktree를 만들면 공통 복사 명령을 먼저 실행하며 Linux에서는 기존 의존성 설치도 수행합니다. 도구의 `create_worktree`처럼 setup을 선택하거나 Git hook을 실행하지 않는 경로가 있어 Git hook만으로 Codex의 모든 생성 경로를 보장하지 않습니다. setup이 실행되지 않았다면 [에이전트 규칙](AGENTS.md)에 따라 개발 시작 전에 같은 `sync` 명령을 수행합니다. 기존 파일은 모든 경로에서 보존됩니다. [OpenAI 로컬 환경 문서](https://learn.chatgpt.com/docs/environments/local-environment).
 
-Claude Code에는 [`.claude/settings.json`](.claude/settings.json)의 `SessionStart` hook도 연결돼 있습니다. 프로젝트 설정을 포함한 브랜치에서 새 세션을 시작/재개하면 stdin의 `cwd`를 사용해 현재 worktree의 누락된 파일을 준비합니다. 실행기는 Git에서 공용 폴더를 조회하므로 `${CLAUDE_PROJECT_DIR}`가 출발 폴더를 계속 가리키더라도 복사 대상은 실제 worktree입니다. 다른 저장소에는 복사하지 않습니다. `--no-checkout`·hook 비활성화·아직 설치하지 않은 별도 clone에서는 자동 복사를 보장하지 않으며 다음 공통 명령으로 준비합니다. 별도 clone·새 컴퓨터는 최초 등록·설치를 다시 수행합니다.
+Claude Code에는 [`.claude/settings.json`](.claude/settings.json)의 `SessionStart` hook도 연결돼 있습니다. 공용 실행기가 설치되지 않은 곳(클라우드 세션 등)에서는 이 hook이 아무것도 하지 않고 끝나며, 클라우드 세션은 같은 hook의 두 번째 명령이 아래 클라우드 준비를 실행합니다. 프로젝트 설정을 포함한 브랜치에서 새 세션을 시작/재개하면 stdin의 `cwd`를 사용해 현재 worktree의 누락된 파일을 준비합니다. 실행기는 Git에서 공용 폴더를 조회하므로 `${CLAUDE_PROJECT_DIR}`가 출발 폴더를 계속 가리키더라도 복사 대상은 실제 worktree입니다. 다른 저장소에는 복사하지 않습니다. `--no-checkout`·hook 비활성화·아직 설치하지 않은 별도 clone에서는 자동 복사를 보장하지 않으며 다음 공통 명령으로 준비합니다. 별도 clone·새 컴퓨터는 최초 등록·설치를 다시 수행합니다.
 
 ```bash
 rtk proxy python3 scripts/dev-env.py sync
@@ -280,6 +287,15 @@ rtk proxy python3 scripts/dev-env.py sync --replace
 로컬 원본을 직접 수정했다면 같은 `import` 명령에 `--replace`를 추가해 공용 사본을 갱신합니다. 새 worktree는 최신 사본을 사용하고 기존 worktree는 자동 변경되지 않습니다. 원본·대상 심볼릭 링크는 거부합니다. 값은 한 줄 형식만 지원하며 빈 키는 생략해 DB 마이그레이션의 직접 연결 주소 fallback을 방해하지 않습니다. Git hook 업데이트는 `install`을 다시 실행하고, Git hook 제거는 `uninstall`로 수행합니다(이 도구가 설치한 hook만 제거하며 원본·복사본은 보존). 자동 준비를 완전히 끄려면 Codex setup·Claude SessionStart 연결도 제거합니다.
 
 검증: `rtk proxy python3 scripts/dev_env_test.py`. 실제 임시 Git 저장소/worktree 생성, 공백 경로, 권한, 기존 파일·hook 보존, Claude stdin 대상, 실패 시 원본 보존·비밀값 비출력과 Development 전용 조회를 확인합니다. 동작 기준: [Git post-checkout 문서](https://git-scm.com/docs/githooks#_post_checkout), [Claude Code hooks 문서](https://code.claude.com/docs/en/hooks#sessionstart).
+
+### 클라우드 세션(Claude Code on the web)의 개발 준비
+
+클라우드 세션에는 위의 로컬 공용 원본이 없으므로 `npm run dev:prepare`([`scripts/cloud-dev.sh`](scripts/cloud-dev.sh) `start`)가 컨테이너 안에서 준비합니다. 로컬 컴퓨터(`CLAUDE_CODE_REMOTE`가 `true`가 아님)에서는 공용 사본 `sync`만 하고, `setup` 모드는 아무것도 하지 않습니다.
+
+- `setup`: 클라우드 환경 `jaemangho`의 setup script가 새 컨테이너마다 실행합니다. 컨테이너의 PostgreSQL로 `127.0.0.1:54329`에 개발 DB `jaemangho`와 테스트 DB `jaemangho_test`를 만들고(`trust` 인증, 컨테이너 밖에서 접속 불가), `npm ci`와 개발 DB 마이그레이션을 수행합니다. 마이그레이션은 `.env.local`의 주소가 아니라 이 로컬 개발 DB에만 적용합니다.
+- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로 [`.claude/settings.json`](.claude/settings.json)의 SessionStart hook이 클라우드 세션의 시작·재개마다 실행합니다. hook이 실행되지 않은 경우에는 `npm run dev:prepare`로 같은 준비를 합니다. 이미 켜져 있으면 바로 끝납니다.
+- 두 모드 모두 `.env.local`이 없을 때만 로컬 DB 주소·무작위 `SESSION_SECRET`·`DEV_LOGIN=1`로 만듭니다(권한 600). 기존 파일과 DB는 덮어쓰지 않으며 값을 출력하지 않습니다. 외부 연동 키(Discord·Riot·Steam)는 비어 있으므로 해당 기능은 미준비 상태입니다.
+- 환경 변수 `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:54329/jaemangho_test`는 클라우드 환경 설정에 있어 `npm test`·`npm run test:e2e`가 그대로 DB 통합 테스트를 실행합니다.
 
 `.env.local` 예시 (로그인 없이 개발하려면 `DEV_LOGIN=1`):
 ```
