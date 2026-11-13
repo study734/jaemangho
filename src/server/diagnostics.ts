@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { countFailure } from './failure-stats';
 
 // Only diagnostic metadata is logged. Error messages, request bodies and upstream
 // URLs can contain credentials; never serialize the original exception.
@@ -29,6 +30,8 @@ export function reportFailure(operation: string, error: unknown, database?: {
   pool: { total: number; idle: number; waiting: number };
 }) {
   const requestId = randomUUID();
-  console.error('[failure]', { requestId, operation, ...failureDetails(error), ...database });
+  const details = failureDetails(error);
+  console.error('[failure]', { requestId, operation, ...details, ...database });
+  countFailure(operation, details.code as string);
   return requestId;
 }
