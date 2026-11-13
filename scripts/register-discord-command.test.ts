@@ -90,3 +90,44 @@ describe('deploy-time registration (--deploy)', () => {
     }
   });
 });
+
+describe('Discord per-route rate limit (429) during registration', () => {
+  // #124의 첫 운영 배포: 명령 8개를 연달아 POST하다 짧은 429를 받고 등록이 멈췄다.
+  const burst = (limited: { retry_after?: number; header?: string; times?: number }) => {
+    let posts = 0, refusals = 0;
+    return vi.fn<typeof fetch>(async (_url, init) => {
+      if (init?.method === 'GET') return Response.json([]);
+      posts++;
+      if (posts >= 3 && refusals < (limited.times ?? 1)) {
+        refusals++;
+        return new Response(JSON.stringify(limited.retry_after === undefined ? {} : { retry_after: limited.retry_after, global: false }),
+          { status: 429, headers: limited.header ? { 'retry-after': limited.header } : {} });
+      }
+      return new Response('{}');
+    });
+  };
+  it('waits for a short retry_after and finishes registering every command', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined); const log = vi.fn();
+    const fetchFn = burst({ retry_after: 0.5 });
+    await registerCommand({ args: ['--apply'], env, fetchFn, log, sleep });
+    expect(sleep).toHaveBeenCalledWith(600);
+    expect(new Set(posted(fetchFn as never))).toEqual(new Set(names));
+    expect(log.mock.calls[0][0]).toContain(`Registered ${names.join(', ')}`);
+  });
+  it('also honors the Retry-After header', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    await registerCommand({ args: ['--apply'], env, fetchFn: burst({ header: '1' }), log: vi.fn(), sleep });
+    expect(sleep).toHaveBeenCalledWith(1100);
+  });
+  it('does not hold a deploy for long waits or endless limits, and says what was already registered', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    await expect(registerCommand({ args: ['--apply'], env, fetchFn: burst({ retry_after: 30 }), sleep })).rejects.toThrow(`HTTP 429. Check app/server permissions; for 429, wait before retrying. Registered before failing: ${names.slice(0, 2).join(', ')}.`);
+    expect(sleep).not.toHaveBeenCalled();
+    const stubborn = burst({ retry_after: 0.2, times: 99 });
+    await expect(registerCommand({ args: ['--apply'], env, fetchFn: stubborn, sleep })).rejects.toThrow('HTTP 429');
+    expect(sleep).toHaveBeenCalledTimes(2);
+    const warn = vi.fn();
+    await registerCommand({ args: ['--deploy'], env: { ...env, VERCEL_ENV: 'production' }, fetchFn: burst({ retry_after: 30 }), log: vi.fn(), warn, sleep });
+    expect(warn.mock.calls[0][0]).toContain('Deployment continues');
+  });
+});
