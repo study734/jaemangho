@@ -11,8 +11,9 @@ import { findMissions } from '../steam/missions';
 // 계산은 웹과 같은 src/server/steam 서비스를 쓰고, 여기서는 디스코드 메시지로 바꾸기만 한다.
 const scopeNames = { all: '모두 보유', any: '일부 보유 포함', unowned: '전원 미보유' };
 export const preferenceNames = { balanced: '경험이 비슷한 게임', familiar: '익숙한 게임', fresh: '새로 해 볼 게임', recent: '요즘 크루픽 (최근 2주)' };
-// 꺾쇠로 감싸 디스코드의 큰 링크 미리보기를 끈다(게임마다 미리보기가 붙으면 목록을 읽기 어렵다).
-const store = (appId: number) => `<https://store.steampowered.com/app/${appId}/>`;
+const store = (appId: number) => `https://store.steampowered.com/app/${appId}/`;
+// 주소를 꺾쇠로 감싼 마크다운 링크는 디스코드의 큰 링크 미리보기를 끈다(게임마다 붙으면 목록을 읽기 어렵다).
+const link = (text: string, url: string) => `[${text}](<${url}>)`;
 const PAGE = 5;
 const won = (value: number) => `₩${value.toLocaleString('ko-KR')}`;
 const hours = (minutes: number) => minutes >= 60 ? `${Math.round(minutes / 60).toLocaleString('ko-KR')}시간` : `${minutes}분`;
@@ -67,7 +68,7 @@ export function recommendationMessage(result: RecommendationsResult, ids: string
   const page = result.games.slice(start, start + PAGE);
   const lines = page.flatMap((game, index) => {
     const missing = scope === 'any' && game.missingIds.length ? ` · 없음: ${game.missingIds.map(who).join(', ')}` : '';
-    return [`**${start + index + 1}. [${label(game.name)}](${store(game.appId)})** · ${game.support === 'coop' ? '협동' : '멀티플레이'}`,
+    return [`**${start + index + 1}. ${link(label(game.name), store(game.appId))}** · ${game.support === 'coop' ? '협동' : '멀티플레이'}`,
       `-# ${game.reasons.slice(0, 2).map(reason => label(reason)).join(' · ')}${missing}`];
   });
   const range = result.games.length > PAGE ? ` · ${start + 1}~${start + page.length} / ${result.games.length}` : '';
@@ -123,7 +124,7 @@ async function pick(party: Party, ids: string[], previous: number | undefined, r
   if (result.excluded.length || !result.games.length) return recommendationMessage(result, ids, party.discordIds, party.scope, party.preference);
   const pool = result.games.length > 1 ? result.games.filter(game => game.appId !== previous) : result.games;
   const game = pool[Math.floor(random() * pool.length)];
-  return privateMessage(`🎲 오늘은 이 게임 어때요?\n\n**[${label(game.name)}](${store(game.appId)})** — ${game.support === 'coop' ? '협동 지원' : '멀티플레이 지원'}\n${game.reasons.slice(0, 2).map(reason => label(reason)).join(' · ')}\n\n추천 결과 ${result.games.length}개 중에서 골랐어요.`,
+  return privateMessage(`🎲 오늘은 이 게임 어때요?\n\n**${link(label(game.name), store(game.appId))}** — ${game.support === 'coop' ? '협동 지원' : '멀티플레이 지원'}\n${game.reasons.slice(0, 2).map(reason => label(reason)).join(' · ')}\n\n추천 결과 ${result.games.length}개 중에서 골랐어요.`,
     [{ type: 1, components: [button('🎲 다시 뽑기', `party:${party.id}:pick:${game.appId}`)] }]);
 }
 
@@ -139,7 +140,7 @@ async function deals(ids: string[], who: (id: string) => string): Promise<Messag
   const lines = result.deals.slice(0, 8).map((deal, index) => {
     const price = deal.price === null ? '가격 정보 없음(무료·미출시 등)'
       : deal.price.discountPercent > 0 ? `**-${deal.price.discountPercent}%** ${won(deal.price.final)} (정가 ${won(deal.price.initial)})` : won(deal.price.final);
-    return `${index + 1}. [${label(deal.name)}](${store(deal.appId)}) — ${price}\n   없는 사람: ${deal.missingIds.map(who).join(', ')}`;
+    return `${index + 1}. ${link(label(deal.name), store(deal.appId))} — ${price}\n   없는 사람: ${deal.missingIds.map(who).join(', ')}`;
   });
   return privateMessage(fit(['🛒 같이 사면 좋은 협동 게임 (세일 순, 한국 스토어)', ...lines, ...notes].join('\n\n')));
 }
@@ -155,7 +156,7 @@ async function common(ids: string[], who: (id: string) => string): Promise<Messa
   const games = await commonList(ids, who);
   if (!Array.isArray(games)) return games;
   if (!games.length) return privateMessage('선택한 모두가 가진 게임이 없어요.');
-  const lines = games.slice(0, 10).map((game, index) => `${index + 1}. [${label(game.name)}](${store(game.appId)}) — 함께 ${hours(game.totalMinutes)}`);
+  const lines = games.slice(0, 10).map((game, index) => `${index + 1}. ${link(label(game.name), store(game.appId))} — 함께 ${hours(game.totalMinutes)}`);
   return privateMessage(fit([`📚 모두 가진 게임 ${games.length.toLocaleString('ko-KR')}개 (함께 플레이한 시간 순)`, ...lines,
     ...(games.length > 10 ? ['전체 목록과 검색은 사이트에서 볼 수 있어요.'] : [])].join('\n')));
 }
@@ -174,14 +175,14 @@ async function missionPicker(partyId: string, ids: string[], who: (id: string) =
 async function missions(ids: string[], appId: number, who: (id: string) => string): Promise<Message> {
   const result = await findMissions(ids, appId);
   if ('unknownIds' in result) return changed;
-  const link = `[스토어](${store(appId)})`;
-  if (result.state === 'unavailable') return privateMessage(`진행도를 확인할 수 없어요: ${result.unavailableIds.map(who).join(', ') || '일부 과제'}\nSteam 게임 세부 정보 공개 설정을 확인해 주세요. ${link}`);
+  const storeLink = link('스토어', store(appId));
+  if (result.state === 'unavailable') return privateMessage(`진행도를 확인할 수 없어요: ${result.unavailableIds.map(who).join(', ') || '일부 과제'}\nSteam 게임 세부 정보 공개 설정을 확인해 주세요. ${storeLink}`);
   if (result.state === 'not-owned') return privateMessage(`지금은 모두 가진 게임이 아니에요. 없는 사람: ${result.missingIds.map(who).join(', ')}`);
-  if (result.state === 'unsupported') return privateMessage(`공개된 도전 과제가 없는 게임이에요. ${link}`);
-  if (result.state === 'complete') return privateMessage(`확인된 공개 과제를 모두 함께 달성했어요! ${link}`);
+  if (result.state === 'unsupported') return privateMessage(`공개된 도전 과제가 없는 게임이에요. ${storeLink}`);
+  if (result.state === 'complete') return privateMessage(`확인된 공개 과제를 모두 함께 달성했어요! ${storeLink}`);
   const lines = result.missions.slice(0, 5).map(mission => {
     const kind = mission.kind === 'team-first' ? '팀 첫 도전' : `따라잡기 · 아직: ${mission.lockedIds.map(who).join(', ')}`;
     return `• **${label(mission.title, 100)}** — ${kind}${mission.description ? `\n   ${label(mission.description, 150)}` : ''}`;
   });
-  return privateMessage(fit([`🏆 같이 도전 ${link} · 공개 과제 ${result.totalPublic}개 · 모두 달성 ${result.completedTogether}개 · 진행도 미확인 ${result.unknownAchievements}개`, ...lines].join('\n\n')));
+  return privateMessage(fit([`🏆 같이 도전 ${storeLink} · 공개 과제 ${result.totalPublic}개 · 모두 달성 ${result.completedTogether}개 · 진행도 미확인 ${result.unknownAchievements}개`, ...lines].join('\n\n')));
 }
