@@ -27,9 +27,9 @@ describe('/기록', () => {
     const content = (await records()).content;
     expect(listAwards).toHaveBeenCalledWith(1); expect(listHighlights).toHaveBeenCalledWith(1, 5); expect(getHotMoments).toHaveBeenCalledWith(5);
     expect(content).toMatch(/주간 시상식[\s\S]*개념글[\s\S]*뜨거웠던 순간/);
-    expect(content).toContain('11월 2일부터 한 주');
-    expect(content).toContain('**수다 갤러** \\*bold\\* · 메시지 1,234');
-    expect(content).toContain('**눈팅러** quiet\n');
+    expect(content).toContain('**11월 2일(월) ~ 11월 8일(일)**');
+    expect(content).toContain('🗣️ 수다 갤러 — **\\*bold\\***\n-# 메시지 1,234개 · 가장 말을 많이 한 사람');
+    expect(content).toContain('👀 눈팅러 — **quiet**\n-# 접속은 했는데');
     expect(content).toContain('🔥 4 · 💬 2 · [A님의 메시지](https://discord.com/channels/1/2/3) · 11월 10일');
     expect(content).toContain('10분 동안 5명이 42개');
     expect(content.length).toBeLessThanOrEqual(2000);
@@ -41,7 +41,7 @@ describe('/기록', () => {
     const content = (await records()).content;
     expect(content).toContain('아직 계산된 주간 시상식이 없어요');
     expect(content).toContain('[A님의 메시지]');
-    expect(content).toMatch(/뜨거웠던 순간[^\n]*\n불러오지 못했어요/);
+    expect(content).toMatch(/뜨거웠던 순간\n-# [^\n]*\n불러오지 못했어요/);
     expect(reportFailure).toHaveBeenCalledWith('chat.discord.moments', expect.any(Error));
     expect(content).not.toContain('secret-db-detail');
   });

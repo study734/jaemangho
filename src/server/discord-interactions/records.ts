@@ -7,6 +7,7 @@ import { reportFailure } from '../diagnostics';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { scoreLabel } from '../../lib/chat-format';
 import { TITLES } from '../../lib/titles';
+import { awardLines, weekRange } from '../chat/award-post';
 
 // 채팅 집계 기록(/기록)과 멤버 프로필(/멤버). DB만 읽고 외부 호출은 없다.
 const KST = { timeZone: 'Asia/Seoul' } as const;
@@ -23,11 +24,7 @@ async function section(operation: string, load: () => Promise<string>) {
 const awardsSection = async () => {
   const awards = await listAwards(1);
   if (!awards.length) return '아직 계산된 주간 시상식이 없어요. 한 주(월~일)가 끝나면 다음 날 새벽에 정해져요.';
-  const lines = awards.map(award => {
-    const title = TITLES[award.title];
-    return `**${title.label}** ${label(award.authorName)}${title.unit ? ` · ${title.unit} ${award.value.toLocaleString('ko-KR')}` : ''}`;
-  });
-  return [`${day(`${awards[0].week}T00:00:00+09:00`)}부터 한 주`, ...lines].join('\n');
+  return [`**${weekRange(awards[0].week)}**`, ...awardLines(awards)].join('\n');
 };
 
 const highlightsSection = async () => {
@@ -50,10 +47,10 @@ export async function records(): Promise<Message> {
     section('chat.discord.moments', momentsSection),
   ]);
   return privateMessage(fit([
-    `🏆 **주간 시상식**\n${awards}`,
-    `📌 **개념글**\n${highlights}`,
-    `💬 **뜨거웠던 순간** (최근 8일, 메시지 수 순)\n${moments}`,
-    `내용은 읽지 않고 반응·답글·메시지 수만 셌어요. 더 보기: ${SITE}/community`,
+    `### 🏆 주간 시상식\n${awards}`,
+    `### 📌 개념글\n${highlights}`,
+    `### 🔥 뜨거웠던 순간\n-# 최근 8일, 메시지 수 순\n${moments}`,
+    `-# 내용은 읽지 않고 반응·답글·메시지 수만 셌어요 · [더 보기](<${SITE}/community>)`,
   ].join('\n\n')));
 }
 
@@ -68,7 +65,7 @@ export async function memberProfile(discordId: string): Promise<Message> {
     `롤: ${person.lol.length ? person.lol.map(account => label(`${account.gameName}#${account.tagLine}`)).join(', ') : '연결된 계정 없음'}`,
     `Steam: ${person.steam.length ? person.steam.map(account => label(account.name)).join(', ') : '연결된 계정 없음'}`,
     `칭호: ${titles.length ? titles.map(title => `${TITLES[title.title].label} ${title.count}회`).join(', ') : '아직 없음'}`,
-    `프로필: ${SITE}/people/${encodeURIComponent(person.id)}`,
+    `-# [사이트 프로필](<${SITE}/people/${encodeURIComponent(person.id)}>)`,
   ];
   return privateMessage(fit(lines.join('\n')));
 }

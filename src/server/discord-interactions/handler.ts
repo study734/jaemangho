@@ -6,10 +6,10 @@ import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { ACK_BODY, ackFor, friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction } from './protocol';
+import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction, type Reply } from './protocol';
+import { lastParty } from './party';
+import { reportFailure } from '../diagnostics';
 
-// 공개로 올릴 메시지. 그 밖의 결과는 모두 본인에게만 보인다(공개 지연 응답이라도 오류는 공개하지 않는다).
-type Reply = Message | { public: Message } | null;
 
 const WORK_BUDGET_MS = 45_000;
 const API = 'https://discord.com/api/v10';
@@ -98,9 +98,9 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     case '출처 찾기': return findSource(data);
     case '기록': return records();
     case '멤버': return memberProfile(option<string>(data.options, '대상') ?? owner);
-    case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'));
+    case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'), Date.now(), userId);
     case '게임추천': return await steamConsentMessage(userId)
-      ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced');
+      ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced', Date.now(), await lastParty(owner));
   }
 }
 
@@ -123,8 +123,9 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
     return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: lobby.memberIds, scope: 'all', preference: 'balanced' });
   }
   if (prefix === 'party') {
-    const value = 'values' in interaction.data ? interaction.data.values[0] : arg;
-    return partyAction(partyId, owner, action as PartyAction | 'mission', value);
+    // again:<범위>:<기준>은 두 조각이고, 선택 메뉴(mission·pref)는 고른 값이 인자다.
+    const value = 'values' in interaction.data ? interaction.data.values[0] : action === 'again' ? interaction.data.custom_id.split(':').slice(3).join(':') : arg;
+    return partyAction(partyId, owner, action as PartyAction, value, interaction.id);
   }
   const chosen = selection(interaction);
   if (!chosen) return privateMessage('선택창이 만료됐거나 다른 사람의 선택창이에요. /게임추천을 다시 실행해 주세요.');
@@ -133,7 +134,7 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
 
 async function processCommand(interaction: Interaction): Promise<Reply> {
   const userId = await commandUser(interaction.member.user.id);
-  if (!userId) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
+  if (!userId) return privateMessage(`[재망호 사이트](<${SITE}/login>)에 디스코드로 한 번 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.`);
   return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
 }
 
@@ -145,14 +146,18 @@ export async function completeInteraction(interaction: Interaction) {
     reply = await Promise.race([processCommand(interaction), new Promise<Message>(resolve => {
       timer = setTimeout(() => resolve(privateMessage('조회 시간이 길어 마치지 못했어요. 잠시 후 다시 실행해 주세요.')), WORK_BUDGET_MS);
     })]);
-  } catch {
-    console.error('discord interaction processing failed');
-    reply = privateMessage('명령을 처리하지 못했어요. 연결 설정을 확인하거나 잠시 후 다시 시도해 주세요.');
+  } catch (error) {
+    // 작업 이름·분류·위치만 남긴다(원문 메시지·토큰 없음). 오류 ID로 서버 로그의 [failure]를 찾는다.
+    const id = reportFailure('api/discord.interaction', error);
+    reply = privateMessage(`명령을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.\n-# 오류 ID: ${id}`);
   } finally { clearTimeout(timer); }
   const { application_id: app, token } = interaction;
   const ack = ackFor(interaction);
   if (reply && 'public' in reply) {
     await editReply(app, token, reply.public);
+  } else if (reply && 'edit' in reply) {
+    // 버튼이 달린 메시지를 그 자리에서 고친다(update 응답의 @original이 그 메시지다).
+    await editReply(app, token, reply.edit);
   } else if (ack === 'public') {
     // 공개로 시작한 응답이 오류로 끝나면 공개 자리를 지우고 본인에게만 알린다.
     await deleteReply(app, token);
