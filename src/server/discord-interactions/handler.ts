@@ -4,6 +4,7 @@ import { gameRecommendations, partyAction, steamConsentMessage } from './games';
 import { createLobby, lobbyAction, lobbyMessage, loadLobby, type LobbyAction } from './lobby';
 import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
+import { guildNow, nowMessage } from './guild';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
 import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction, type Reply } from './protocol';
@@ -98,6 +99,7 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     case '출처 찾기': return findSource(data);
     case '기록': return records();
     case '멤버': return memberProfile(option<string>(data.options, '대상') ?? owner);
+    case '지금': return nowMessage(await guildNow({ guildId: interaction.guild_id, token: process.env.DISCORD_BOT_TOKEN }));
     case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'), Date.now(), userId);
     case '게임추천': return await steamConsentMessage(userId)
       ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced', Date.now(), await lastParty(owner));

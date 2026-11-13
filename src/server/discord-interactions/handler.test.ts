@@ -328,7 +328,7 @@ describe('command definitions', () => {
     const { default: commands } = await import('./commands.json');
     const sample = { 게임추천: { options: [{ name: '범위', type: 3, value: 'all' }, { name: '기준', type: 3, value: 'fresh' }] },
       패치노트: {}, 기록: {}, 멤버: { options: [{ name: '대상', type: 6, value: friend }] },
-      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] },
+      전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] }, 지금: {},
       모집: { options: [{ name: '게임', type: 3, value: 'Lethal' }, { name: '시간', type: 3, value: '오늘 10시' }, { name: '인원', type: 4, value: 4 }] }, 개선: {},
       운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
       '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
@@ -515,5 +515,19 @@ describe('recruit from a recommendation', () => {
     expect(createLobby).not.toHaveBeenCalled();
     expect(fetchFn.mock.calls.map(call => call[1].method)).toEqual(['DELETE', 'POST']);
     expect(lastMessage()).toMatchObject({ flags: 64 });
+  });
+});
+
+describe('/지금 routing', () => {
+  it('queries the signed guild only and answers privately', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'fixture-bot');
+    fetchFn.mockImplementation(async (url: string) => String(url).includes('widget.json')
+      ? Response.json({ channels: [], members: [{ username: 'a', activity: { name: 'Raft' } }] })
+      : String(url).includes('with_counts')
+        ? Response.json({ approximate_member_count: 3, approximate_presence_count: 2 }) : new Response('{}'));
+    await completeInteraction(parsed({ ...command(), data: { name: '지금', type: 1 } }));
+    expect(fetchFn.mock.calls.some(call => String(call[0]).includes(`/guilds/${guild}/widget.json`))).toBe(true);
+    expect(lastMessage().content).toContain('온라인 2명 · 전체 3명'); expect(lastMessage().content).toContain('Raft 1명');
+    vi.unstubAllEnvs();
   });
 });

@@ -39,6 +39,7 @@ const commandData = z.discriminatedUnion('name', [
     name: z.literal('멤버'), type: z.literal(1),
     options: z.array(z.object({ name: z.literal('대상'), type: z.literal(6), value: snowflake })).max(1).optional(),
   }),
+  z.object({ name: z.literal('지금'), type: z.literal(1) }),
   z.object({
     name: z.literal('전적'), type: z.literal(1),
     options: z.array(stringOption('닉네임', z.string().trim().min(3).max(60))).max(1).optional(),
