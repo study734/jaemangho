@@ -57,25 +57,8 @@
   },
   {
     "name": "기록",
-    "description": "디스코드 채팅에서 모인 재망호 기록을 봅니다",
-    "type": 1,
-    "options": [
-      {
-        "name": "시상식",
-        "description": "지난주 주간 시상식 칭호",
-        "type": 1
-      },
-      {
-        "name": "개념글",
-        "description": "반응·답글을 많이 받은 최근 개념글",
-        "type": 1
-      },
-      {
-        "name": "순간",
-        "description": "최근 8일 중 대화가 뜨거웠던 순간",
-        "type": 1
-      }
-    ]
+    "description": "지난주 시상식·최근 개념글·뜨거웠던 순간을 한 번에 봅니다",
+    "type": 1
   },
   {
     "name": "멤버",
