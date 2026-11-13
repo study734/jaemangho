@@ -102,7 +102,7 @@ export function AutomationPanel({ now, revision, onEvidence, usage }: { now: num
     <p>자동 보호: <strong>{!usage || usage.mode === 'unconfigured' ? '아직 검증되지 않음' : usage.mode === 'paused' ? '예약 수집 중단' : usage.mode === 'limited' ? '48시간에 한 번으로 감속' : '예약 수집 정상'}</strong></p>
     {usage?.sample && <p>확인한 연산: {(usage.sample.computeSeconds / 3600).toFixed(2)} / 100 CU-hour · 전송: {(usage.sample.transferBytes / 1_000_000_000).toFixed(3)} / 5 GB<br />집계 기간 시작: {when(usage.sample.periodStart)} · 사용량 확인: {when(usage.sample.at)}</p>}
     {(!usage || usage.stale || usage.errorCode) && <p role="alert">최신 사용량 확인 불가. 이전 숫자로 무료 여유를 판단하지 마세요. 사용량 점검의 키·예약 실행을 확인하세요.</p>}
-    <p style={styles.muted}>6시간마다 Neon의 실제 연산·전송 사용량을 확인합니다. 예산 80%에서 예약 채팅 수집·복구를 감속하고 90%에서 중단합니다. 중단은 75% 미만, 감속은 70% 미만의 새 성공 샘플에서 해제합니다. 활성화 후 조회 실패·12시간 지난 샘플은 감속하며 기존 중단을 유지합니다. 수동 수집·백업·장애 감시는 유지합니다.</p>
+    <p style={styles.muted}>6시간마다 Neon의 실제 연산·전송 사용량을 확인합니다. 예산 80%에서 예약 채팅 수집·복구를 감속하고 90%에서 중단합니다. 중단은 75% 미만, 감속은 70% 미만의 새 성공 샘플에서 해제합니다. 활성화 후 조회 실패·24시간 지난 샘플은 감속하며 기존 중단을 유지합니다. 수동 수집·백업·장애 감시는 유지합니다.</p>
     <p>Neon 프로젝트 전체 저장량, Vercel CPU·전송량, Cloudflare 실제 사용량: <strong>이 화면에서 확인 불가</strong></p>
     <p style={styles.muted}>전체 인프라의 무료 한도를 보장하는 기능은 아닙니다. DB를 깨우지 않는 5분 감시, 30분 DB 점검, 복구 6회·48시간 상한과 백업 용량 제한도 유지합니다.</p>
     <div style={styles.controls}>

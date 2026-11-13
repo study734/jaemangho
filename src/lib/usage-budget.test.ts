@@ -16,7 +16,14 @@ describe('무료 예산 보호', () => {
   it('조회 실패·오래된 샘플로 중단을 풀지 않으며 정상도 감속한다', () => {
     expect(usageMode(null, 'paused', now)).toBe('paused');
     expect(usageMode(null, 'normal', now)).toBe('limited');
-    expect(usageMode({ ...sample(1), at: '2026-10-10T20:00:00Z' }, 'paused', now)).toBe('paused');
+    expect(usageMode({ ...sample(1), at: '2026-10-10T09:00:00Z' }, 'paused', now)).toBe('paused');
+    expect(usageMode({ ...sample(1), at: '2026-10-10T09:00:00Z' }, 'normal', now)).toBe('limited');
+  });
+  it('GitHub 예약 지연으로 벌어진 간격(14.5시간)은 정상 샘플을 감속하지 않고 24시간을 넘기면 감속한다', () => {
+    const aged = (hours: number) => ({ ...sample(10), at: new Date(now - hours * 3_600_000).toISOString() });
+    expect(usageMode(aged(14.5), 'normal', now)).toBe('normal');
+    expect(usageMode(aged(24), 'normal', now)).toBe('normal');
+    expect(usageMode(aged(24.1), 'normal', now)).toBe('limited');
   });
   it('감속 상태는 성공 여부와 관계없이 예약 시도 간격을 제한한다', () => {
     const budget: UsageBudget = { checkedAt: null, sample: sample(80), mode: 'limited', errorCode: null, stale: false };

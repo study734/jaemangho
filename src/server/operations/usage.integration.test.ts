@@ -61,7 +61,7 @@ describe.skipIf(!testDbUrl)('실제 DB 사용량 보호', () => {
       expect(await jobs.resumePendingChat()).toBe('budget_paused');
       expect(fetchFn).not.toHaveBeenCalled();
       expect((await pool.query(`select count(*)::int as n from ops_jobs where job = 'chat'`)).rows[0].n).toBe(1);
-      await pool.query(`update ops_usage set sample = jsonb_set(sample, '{at}', to_jsonb((now() - interval '13 hours')::text))`);
+      await pool.query(`update ops_usage set sample = jsonb_set(sample, '{at}', to_jsonb((now() - interval '25 hours')::text))`);
       expect((await usage.usageStatus()).mode).toBe('paused');
     } finally { await pool.query('delete from ops_usage'); await pool.query('delete from ops_jobs'); vi.unstubAllEnvs(); vi.unstubAllGlobals(); }
   });
