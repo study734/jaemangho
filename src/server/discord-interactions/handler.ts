@@ -1,8 +1,10 @@
-import { canUseCommand } from './access';
-import { gameRecommendations } from './games';
+import { commandUser } from './access';
+import { gameRecommendations, partyAction, steamConsentMessage } from './games';
+import { lolCommand, lolSelection } from './lol';
+import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type Interaction, type Message } from './protocol';
+import { friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction } from './protocol';
 
 const WORK_BUDGET_MS = 45_000;
 const API = 'https://discord.com/api/v10';
@@ -58,17 +60,42 @@ export async function editReply(applicationId: string, token: string, message: M
   return false;
 }
 
-async function processCommand(interaction: Interaction): Promise<Message> {
-  const userId = interaction.member.user.id;
-  if (!await canUseCommand(userId)) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
-  if (interaction.type === 2) {
-    const { data } = interaction;
-    if (data.name === '패치노트') return privateMessage(discordPatchNotesText());
-    return data.name === '출처 찾기' ? findSource(data) : friendPicker(userId, data.options?.[0]?.value ?? 'all');
+const option = <T>(options: { name: string; value?: unknown }[] | undefined, name: string) =>
+  options?.find(item => item.name === name)?.value as T | undefined;
+
+async function runCommand(interaction: CommandInteraction, userId: string): Promise<Message> {
+  const { data } = interaction;
+  const owner = interaction.member.user.id;
+  switch (data.name) {
+    case '패치노트': return privateMessage(discordPatchNotesText());
+    case '출처 찾기': return findSource(data);
+    case '기록': return records(data.options[0].name);
+    case '멤버': return memberProfile(option<string>(data.options, '대상') ?? owner);
+    case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'));
+    case '게임추천': return await steamConsentMessage(userId)
+      ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced');
+  }
+}
+
+async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Message> {
+  const owner = interaction.member.user.id;
+  const [prefix, partyId, action, arg] = interaction.data.custom_id.split(':');
+  if (prefix === 'lol') return lolSelection(interaction);
+  const denied = await steamConsentMessage(userId);
+  if (denied) return denied;
+  if (prefix === 'party') {
+    const value = 'values' in interaction.data ? interaction.data.values[0] : arg;
+    return partyAction(partyId, owner, action as PartyAction | 'mission', value);
   }
   const chosen = selection(interaction);
   if (!chosen) return privateMessage('선택창이 만료됐거나 다른 사람의 선택창이에요. /게임추천을 다시 실행해 주세요.');
-  return gameRecommendations(chosen.ids, chosen.scope);
+  return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: chosen.ids, scope: chosen.scope, preference: chosen.preference });
+}
+
+async function processCommand(interaction: Interaction): Promise<Message> {
+  const userId = await commandUser(interaction.member.user.id);
+  if (!userId) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
+  return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
 }
 
 export async function completeInteraction(interaction: Interaction) {

@@ -23,6 +23,30 @@
             "value": "unowned"
           }
         ]
+      },
+      {
+        "name": "기준",
+        "description": "기본값은 경험이 비슷한 게임입니다(전원 미보유에서는 무시)",
+        "type": 3,
+        "required": false,
+        "choices": [
+          {
+            "name": "경험이 비슷한 게임",
+            "value": "balanced"
+          },
+          {
+            "name": "익숙한 게임",
+            "value": "familiar"
+          },
+          {
+            "name": "새로 해 볼 게임",
+            "value": "fresh"
+          },
+          {
+            "name": "요즘 크루픽 (최근 2주)",
+            "value": "recent"
+          }
+        ]
       }
     ]
   },
@@ -30,6 +54,56 @@
     "name": "패치노트",
     "description": "재망호 디스코드에 추가된 기능을 봅니다",
     "type": 1
+  },
+  {
+    "name": "기록",
+    "description": "디스코드 채팅에서 모인 재망호 기록을 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "시상식",
+        "description": "지난주 주간 시상식 칭호",
+        "type": 1
+      },
+      {
+        "name": "개념글",
+        "description": "반응·답글을 많이 받은 최근 개념글",
+        "type": 1
+      },
+      {
+        "name": "순간",
+        "description": "최근 8일 중 대화가 뜨거웠던 순간",
+        "type": 1
+      }
+    ]
+  },
+  {
+    "name": "멤버",
+    "description": "멤버의 연결 계정과 칭호를 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "대상",
+        "description": "비워 두면 본인",
+        "type": 6,
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "전적",
+    "description": "롤 소환사의 랭크와 최근 경기를 봅니다",
+    "type": 1,
+    "options": [
+      {
+        "name": "닉네임",
+        "description": "이름#태그 (비워 두면 등록된 소환사 목록에서 선택)",
+        "type": 3,
+        "required": false,
+        "min_length": 3,
+        "max_length": 60
+      }
+    ]
   },
   {
     "name": "출처 찾기",

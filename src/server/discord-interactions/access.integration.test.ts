@@ -22,19 +22,19 @@ describe.skipIf(!testDbUrl)('Discord command account mapping (isolated DB)', () 
   });
   afterAll(async () => { await cleanup(); await pool.end(); });
   it('maps Discord provider identities to project users and Steam owners', async () => {
-    expect(await access.canUseCommand(discordIds[0])).toBe(true);
-    expect(await access.canUseCommand('100000000000000099')).toBe(false);
+    expect(await access.commandUser(discordIds[0])).toBe('dci_test_0');
+    expect(await access.commandUser('100000000000000099')).toBeNull();
     expect(await access.linkedPlayers(discordIds)).toEqual(discordIds.map((discordId, i) => ({ discordId, steamId: steamIds[i] })));
   });
   it('honors new bans immediately on commands and selections', async () => {
     await pool.query('update "user" set banned = true where id = $1', ['dci_test_1']);
-    expect(await access.canUseCommand(discordIds[1])).toBe(false);
+    expect(await access.commandUser(discordIds[1])).toBeNull();
     expect(await access.linkedPlayers(discordIds)).toEqual([{ discordId: discordIds[0], steamId: steamIds[0] }]);
     await pool.query('update "user" set banned = false where id = $1', ['dci_test_1']);
   });
   it('ignores other providers and ownerless Steam accounts; returns multiple linked accounts without guessing', async () => {
     await pool.query('update account set "providerId" = $1 where id = $2', ['steam', 'dci_test_1']);
-    expect(await access.canUseCommand(discordIds[1])).toBe(false);
+    expect(await access.commandUser(discordIds[1])).toBeNull();
     expect(await access.linkedPlayers([discordIds[1]])).toEqual([]);
     await pool.query('update account set "providerId" = $1 where id = $2', ['discord', 'dci_test_1']);
     await pool.query('update steam_members set owner_id = null where steam_id = $1', [steamIds[1]]);
