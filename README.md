@@ -264,7 +264,7 @@ rtk proxy python3 scripts/dev-env.py install
 
 Codex에는 [`.codex/environments/environment.toml`](.codex/environments/environment.toml)의 setup도 연결돼 있습니다. 앱에서 `Jaemangho` 로컬 환경을 선택해 새 worktree를 만들면 공통 복사 명령을 먼저 실행하며 Linux에서는 기존 의존성 설치도 수행합니다. 도구의 `create_worktree`처럼 setup을 선택하거나 Git hook을 실행하지 않는 경로가 있어 Git hook만으로 Codex의 모든 생성 경로를 보장하지 않습니다. setup이 실행되지 않았다면 [에이전트 규칙](AGENTS.md)에 따라 개발 시작 전에 같은 `sync` 명령을 수행합니다. 기존 파일은 모든 경로에서 보존됩니다. [OpenAI 로컬 환경 문서](https://learn.chatgpt.com/docs/environments/local-environment).
 
-Claude Code에는 [`.claude/settings.json`](.claude/settings.json)의 `SessionStart` hook도 연결돼 있습니다. 프로젝트 설정을 포함한 브랜치에서 새 세션을 시작/재개하면 stdin의 `cwd`를 사용해 현재 worktree의 누락된 파일을 준비합니다. 실행기는 Git에서 공용 폴더를 조회하므로 `${CLAUDE_PROJECT_DIR}`가 출발 폴더를 계속 가리키더라도 복사 대상은 실제 worktree입니다. 다른 저장소에는 복사하지 않습니다. `--no-checkout`·hook 비활성화·아직 설치하지 않은 별도 clone에서는 자동 복사를 보장하지 않으며 다음 공통 명령으로 준비합니다. 별도 clone·새 컴퓨터는 최초 등록·설치를 다시 수행합니다.
+Claude Code에는 [`.claude/settings.json`](.claude/settings.json)의 `SessionStart` hook도 연결돼 있습니다. 공용 실행기가 설치되지 않은 곳(클라우드 세션 등)에서는 이 hook이 아무것도 하지 않고 끝나며, 클라우드 세션은 같은 hook의 두 번째 명령이 아래 클라우드 준비를 실행합니다. 프로젝트 설정을 포함한 브랜치에서 새 세션을 시작/재개하면 stdin의 `cwd`를 사용해 현재 worktree의 누락된 파일을 준비합니다. 실행기는 Git에서 공용 폴더를 조회하므로 `${CLAUDE_PROJECT_DIR}`가 출발 폴더를 계속 가리키더라도 복사 대상은 실제 worktree입니다. 다른 저장소에는 복사하지 않습니다. `--no-checkout`·hook 비활성화·아직 설치하지 않은 별도 clone에서는 자동 복사를 보장하지 않으며 다음 공통 명령으로 준비합니다. 별도 clone·새 컴퓨터는 최초 등록·설치를 다시 수행합니다.
 
 ```bash
 rtk proxy python3 scripts/dev-env.py sync
@@ -293,7 +293,7 @@ rtk proxy python3 scripts/dev-env.py sync --replace
 클라우드 세션에는 위의 로컬 공용 원본이 없으므로 `npm run dev:prepare`([`scripts/cloud-dev.sh`](scripts/cloud-dev.sh) `start`)가 컨테이너 안에서 준비합니다. 로컬 컴퓨터(`CLAUDE_CODE_REMOTE`가 `true`가 아님)에서는 공용 사본 `sync`만 하고, `setup` 모드는 아무것도 하지 않습니다.
 
 - `setup`: 클라우드 환경 `jaemangho`의 setup script가 새 컨테이너마다 실행합니다. 컨테이너의 PostgreSQL로 `127.0.0.1:54329`에 개발 DB `jaemangho`와 테스트 DB `jaemangho_test`를 만들고(`trust` 인증, 컨테이너 밖에서 접속 불가), `npm ci`와 개발 DB 마이그레이션을 수행합니다. 마이그레이션은 `.env.local`의 주소가 아니라 이 로컬 개발 DB에만 적용합니다.
-- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로, DB 테스트·개발 서버 전에 `npm run dev:prepare`를 실행합니다. 이미 켜져 있으면 바로 끝납니다.
+- `start`: DB를 켜고 DB를 만들기만 합니다(0.1~1초). 세션을 재개하면 데이터는 남지만 Postgres 프로세스가 꺼져 있으므로 [`.claude/settings.json`](.claude/settings.json)의 SessionStart hook이 클라우드 세션의 시작·재개마다 실행합니다. hook이 실행되지 않은 경우에는 `npm run dev:prepare`로 같은 준비를 합니다. 이미 켜져 있으면 바로 끝납니다.
 - 두 모드 모두 `.env.local`이 없을 때만 로컬 DB 주소·무작위 `SESSION_SECRET`·`DEV_LOGIN=1`로 만듭니다(권한 600). 기존 파일과 DB는 덮어쓰지 않으며 값을 출력하지 않습니다. 외부 연동 키(Discord·Riot·Steam)는 비어 있으므로 해당 기능은 미준비 상태입니다.
 - 환경 변수 `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:54329/jaemangho_test`는 클라우드 환경 설정에 있어 `npm test`·`npm run test:e2e`가 그대로 DB 통합 테스트를 실행합니다.
 

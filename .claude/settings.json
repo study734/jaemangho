@@ -6,8 +6,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "rtk proxy python3 \"$(git rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py\" hook",
+            "command": "f=\"$(git rev-parse --path-format=absolute --git-common-dir)/jaemangho-dev-env/tool.py\"; [ -f \"$f\" ] || exit 0; rtk proxy python3 \"$f\" hook",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "[ \"${CLAUDE_CODE_REMOTE:-}\" = true ] && [ -f \"$CLAUDE_PROJECT_DIR/scripts/cloud-dev.sh\" ] || exit 0; bash \"$CLAUDE_PROJECT_DIR/scripts/cloud-dev.sh\" start",
+            "timeout": 30
           }
         ]
       }
