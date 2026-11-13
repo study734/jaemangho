@@ -2,6 +2,7 @@ import { reportFailure } from '../diagnostics';
 import { db } from '../db';
 import { syncErrorCode } from '../operations/failures';
 import { recordAwards } from './awards';
+import { postWeeklyAwards } from './award-post';
 import { DiscordRateLimitedError, fetchMessagePage, findWatchedChannels } from './bot';
 import { recordDailyActivity } from './daily-activity';
 import { recordHighlights } from './highlights';
@@ -140,7 +141,10 @@ export async function syncChat(o: SyncOptions): Promise<SyncResult> {
   await recordHighlights(now).catch((e) => { warnings.push('highlights_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.highlights', e); });
   if (!rateLimited && !truncated && channels.length > 0) {
     // 불완전한 기록으로 기존 주간 결과를 덮어쓰지 않는다.
-    await recordAwards(now).catch((e) => { warnings.push('awards_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.awards', e); });
+    const week = await recordAwards(now).catch((e) => { warnings.push('awards_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.awards', e); });
+    // 관리자가 채널을 정했으면 지난주 시상식을 주마다 한 번 공개로 올린다. 게시 실패는 동기화 결과를 바꾸지 않고
+    // app_failures(chat.award-post)에 남으며, 다음 동기화가 다시 시도한다.
+    if (week) await postWeeklyAwards({ token: o.token, fetchFn, now }).catch((e) => reportFailure('chat.award-post', e));
     await recordDailyActivity(now).catch((e) => { warnings.push('daily_activity_failed'); warningCodes.push(syncErrorCode(e)); reportFailure('chat.daily-activity', e); });
   }
 

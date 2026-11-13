@@ -8,6 +8,7 @@ import { operationStatus } from '../operations/status';
 import { purgeSteamCache } from '../steam/cache';
 import { hasAdministrator } from './access';
 import { adminTask } from './admin';
+import { postWeeklyAwards, setAwardChannel } from '../chat/award-post';
 
 vi.mock('../admin', () => ({ purgeRiotCache: vi.fn() }));
 vi.mock('../improvements', () => ({ improvementReport: vi.fn() }));
@@ -16,6 +17,7 @@ vi.mock('../operations/jobs', async original => ({ ...await original<typeof impo
 vi.mock('../operations/monitor', () => ({ checkOperations: vi.fn() }));
 vi.mock('../operations/status', () => ({ operationStatus: vi.fn() }));
 vi.mock('../steam/cache', () => ({ purgeSteamCache: vi.fn() }));
+vi.mock('../chat/award-post', () => ({ postWeeklyAwards: vi.fn(), setAwardChannel: vi.fn() }));
 const actor = { id: 'u1', name: 'Admin' };
 beforeEach(() => {
   vi.resetAllMocks();
@@ -63,5 +65,25 @@ describe('admin tasks', () => {
       steam: { cache: { rows: 10, fresh: 7 }, stats: [], errors: [] } });
     const status = (await adminTask('상태', actor)).content;
     expect(status).toContain('활성 경고 1개'); expect(status).toContain('🔴 Riot 키 오류'); expect(status).toContain('7/10');
+  });
+});
+
+describe('weekly award posting (admin)', () => {
+  it('sets and clears the channel through the audit log', async () => {
+    expect((await adminTask('시상식채널', actor, '100000000000000777')).content).toContain('<#100000000000000777>');
+    expect((await adminTask('시상식채널', actor)).content).toContain('껐어요');
+    expect(vi.mocked(setAwardChannel).mock.calls).toEqual([['100000000000000777', 'u1'], [null, 'u1']]);
+    expect(vi.mocked(audited).mock.calls.map(call => call[1])).toEqual(['awards.channel.set', 'awards.channel.clear']);
+  });
+  it('posts now and explains each outcome, including missing bot permission', async () => {
+    for (const [result, text] of [
+      [{ status: 'posted', week: '2026-11-02', channelId: '100000000000000777' }, '올렸어요'],
+      [{ status: 'already_posted' }, '이미 올렸어요'], [{ status: 'disabled' }, '먼저 정해'], [{ status: 'no_awards' }, '눈팅러만'],
+      [{ status: 'failed', week: '2026-11-02', channelId: '100000000000000777', code: 'discord_http_403' }, '메시지 보내기 권한'],
+    ] as const) {
+      vi.mocked(postWeeklyAwards).mockResolvedValue(result);
+      expect((await adminTask('시상식게시', actor)).content).toContain(text);
+    }
+    expect(vi.mocked(audited).mock.calls.every(call => call[1] === 'awards.post')).toBe(true);
   });
 });

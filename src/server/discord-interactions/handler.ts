@@ -1,11 +1,15 @@
 import { adminUser, commandUser } from './access';
 import { ADMIN_DENIED, adminTask, type AdminTask } from './admin';
 import { gameRecommendations, partyAction, steamConsentMessage } from './games';
+import { createLobby, lobbyAction, lobbyMessage, loadLobby, type LobbyAction } from './lobby';
 import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction } from './protocol';
+import { ACK_BODY, ackFor, friendPicker, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction } from './protocol';
+
+// 공개로 올릴 메시지. 그 밖의 결과는 모두 본인에게만 보인다(공개 지연 응답이라도 오류는 공개하지 않는다).
+type Reply = Message | { public: Message } | null;
 
 const WORK_BUDGET_MS = 45_000;
 const API = 'https://discord.com/api/v10';
@@ -27,15 +31,25 @@ async function readPayload(request: Request): Promise<Uint8Array | null> {
   return Buffer.concat(chunks, size);
 }
 
+type Sleep = (ms: number) => Promise<void>;
+const wait: Sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// 지연 응답 수정(PATCH @original), 본인에게만 보이는 후속 메시지(POST), 공개 지연 응답 삭제(DELETE @original).
+export const editReply = (applicationId: string, token: string, message: Message, fetchFn: typeof fetch = fetch, sleep: Sleep = wait) =>
+  deliver(`${API}/webhooks/${applicationId}/${token}/messages/@original`, 'PATCH', message, fetchFn, sleep);
+export const followUp = (applicationId: string, token: string, message: Message, fetchFn: typeof fetch = fetch, sleep: Sleep = wait) =>
+  deliver(`${API}/webhooks/${applicationId}/${token}`, 'POST', { ...message, flags: 64 }, fetchFn, sleep);
+export const deleteReply = (applicationId: string, token: string, fetchFn: typeof fetch = fetch, sleep: Sleep = wait) =>
+  deliver(`${API}/webhooks/${applicationId}/${token}/messages/@original`, 'DELETE', undefined, fetchFn, sleep);
+
 // Only an error code/status is logged: interaction tokens and webhook URLs must never reach logs.
-export async function editReply(applicationId: string, token: string, message: Message, fetchFn: typeof fetch = fetch,
-  sleep: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+async function deliver(url: string, method: 'PATCH' | 'POST' | 'DELETE', message: object | undefined, fetchFn: typeof fetch, sleep: Sleep) {
   for (let attempt = 0; attempt < 3; attempt++) {
     let response: Response;
     try {
-      response = await fetchFn(`${API}/webhooks/${applicationId}/${token}/messages/@original`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(message), signal: AbortSignal.timeout(3000), cache: 'no-store',
+      response = await fetchFn(url, {
+        method, ...(message ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message) } : {}),
+        signal: AbortSignal.timeout(3000), cache: 'no-store',
       });
     } catch {
       if (attempt < 2) { await sleep(250); continue; }
@@ -64,7 +78,7 @@ export async function editReply(applicationId: string, token: string, message: M
 const option = <T>(options: { name: string; value?: unknown }[] | undefined, name: string) =>
   options?.find(item => item.name === name)?.value as T | undefined;
 
-async function runCommand(interaction: CommandInteraction, userId: string): Promise<Message> {
+async function runCommand(interaction: CommandInteraction, userId: string): Promise<Reply> {
   const { data } = interaction;
   const owner = interaction.member.user.id;
   if (data.name === '개선' || data.name === '운영') {
@@ -72,7 +86,12 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     if (!actor) return ADMIN_DENIED;
     const sub = data.name === '운영' ? data.options[0] : undefined;
     const task: AdminTask = !sub ? '개선' : sub.name === '캐시' ? sub.options[0].value : sub.name;
-    return adminTask(task, actor);
+    return adminTask(task, actor, sub?.name === '시상식채널' ? sub.options?.[0]?.value : undefined);
+  }
+  if (data.name === '모집') {
+    const lobby = await createLobby({ id: interaction.id, ownerId: owner, game: option<string>(data.options, '게임') ?? null,
+      playTime: option<string>(data.options, '시간') ?? null, max: option<number>(data.options, '인원') ?? null });
+    return { public: lobbyMessage(lobby) };
   }
   switch (data.name) {
     case '패치노트': return privateMessage(discordPatchNotesText());
@@ -85,12 +104,24 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
   }
 }
 
-async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Message> {
+async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Reply> {
   const owner = interaction.member.user.id;
   const [prefix, partyId, action, arg] = interaction.data.custom_id.split(':');
   if (prefix === 'lol') return lolSelection(interaction);
+  if (prefix === 'lobby' && action !== 'recommend') {
+    return lobbyAction(partyId, owner, action as Exclude<LobbyAction, 'recommend'>,
+      message => editReply(interaction.application_id, interaction.token, message));
+  }
   const denied = await steamConsentMessage(userId);
   if (denied) return denied;
+  if (prefix === 'lobby') {
+    // 모집에서 바로 게임추천: 참여한 사람들이 곧 함께할 친구다(다시 고르지 않음).
+    const lobby = await loadLobby(partyId);
+    if (!lobby) return privateMessage('24시간이 지난 모집이에요. /모집으로 새로 모아 주세요.');
+    if (!lobby.memberIds.includes(owner)) return privateMessage('모집에 참여한 사람만 게임추천을 받을 수 있어요.');
+    if (lobby.memberIds.length < 2) return privateMessage('2명 이상 모이면 게임추천을 받을 수 있어요.');
+    return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: lobby.memberIds, scope: 'all', preference: 'balanced' });
+  }
   if (prefix === 'party') {
     const value = 'values' in interaction.data ? interaction.data.values[0] : arg;
     return partyAction(partyId, owner, action as PartyAction | 'mission', value);
@@ -100,7 +131,7 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
   return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: chosen.ids, scope: chosen.scope, preference: chosen.preference });
 }
 
-async function processCommand(interaction: Interaction): Promise<Message> {
+async function processCommand(interaction: Interaction): Promise<Reply> {
   const userId = await commandUser(interaction.member.user.id);
   if (!userId) return privateMessage('프로젝트에 디스코드로 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.');
   return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
@@ -108,17 +139,29 @@ async function processCommand(interaction: Interaction): Promise<Message> {
 
 export async function completeInteraction(interaction: Interaction) {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let message: Message;
+  let reply: Reply;
   try {
     // A timeout answers the user within the route budget. Shared Steam/cache requests are not cancelled.
-    message = await Promise.race([processCommand(interaction), new Promise<Message>(resolve => {
+    reply = await Promise.race([processCommand(interaction), new Promise<Message>(resolve => {
       timer = setTimeout(() => resolve(privateMessage('조회 시간이 길어 마치지 못했어요. 잠시 후 다시 실행해 주세요.')), WORK_BUDGET_MS);
     })]);
   } catch {
     console.error('discord interaction processing failed');
-    message = privateMessage('명령을 처리하지 못했어요. 연결 설정을 확인하거나 잠시 후 다시 시도해 주세요.');
+    reply = privateMessage('명령을 처리하지 못했어요. 연결 설정을 확인하거나 잠시 후 다시 시도해 주세요.');
   } finally { clearTimeout(timer); }
-  await editReply(interaction.application_id, interaction.token, message);
+  const { application_id: app, token } = interaction;
+  const ack = ackFor(interaction);
+  if (reply && 'public' in reply) {
+    await editReply(app, token, reply.public);
+  } else if (ack === 'public') {
+    // 공개로 시작한 응답이 오류로 끝나면 공개 자리를 지우고 본인에게만 알린다.
+    await deleteReply(app, token);
+    if (reply) await followUp(app, token, reply);
+  } else if (ack === 'update') {
+    if (reply) await followUp(app, token, reply);
+  } else {
+    await editReply(app, token, reply ?? privateMessage('처리했어요.'));
+  }
 }
 
 // No DB or upstream request before the acknowledgement: Discord requires the initial response within 3s.
@@ -144,5 +187,5 @@ export async function receiveInteraction(request: Request, defer: (work: () => P
     return Response.json({ type: 4, data: { ...privateMessage('재망호 서버에서만 이용할 수 있는 명령이에요.'), flags: 64 } });
   }
   defer(() => completeInteraction(interaction));
-  return Response.json({ type: 5, data: { flags: 64 } });
+  return Response.json(ACK_BODY[ackFor(interaction)]);
 }

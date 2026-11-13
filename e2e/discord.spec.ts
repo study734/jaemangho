@@ -31,6 +31,13 @@ test('new Discord commands and party buttons parse through the deployed route an
     const response = await request.post('/api/discord/interactions', signedDiscordRequest({ ...base, type: 2, data }));
     expect(await response.json()).toMatchObject({ type: 4, data: { flags: 64 } });
   }
+  for (const data of [{ name: '모집', type: 1, options: [{ name: '인원', type: 4, value: 4 }] }]) {
+    expect(await (await request.post('/api/discord/interactions', signedDiscordRequest({ ...base, type: 2, data }))).json()).toMatchObject({ type: 4, data: { flags: 64 } });
+  }
+  const lobbyButton = { ...base, type: 3, data: { component_type: 2, custom_id: 'lobby:100000000000000009:join' } };
+  expect(await (await request.post('/api/discord/interactions', signedDiscordRequest(lobbyButton))).json()).toMatchObject({ type: 4 });
+  const tooMany = { ...base, guild_id: E2E_ENV.DISCORD_GUILD_ID, type: 2, data: { name: '모집', type: 1, options: [{ name: '인원', type: 4, value: 25 }] } };
+  expect((await request.post('/api/discord/interactions', signedDiscordRequest(tooMany))).status()).toBe(400);
   const button = { ...base, type: 3, data: { component_type: 2, custom_id: 'party:100000000000000009:deals' } };
   expect(await (await request.post('/api/discord/interactions', signedDiscordRequest(button))).json()).toMatchObject({ type: 4 });
   const invalid = { ...base, guild_id: E2E_ENV.DISCORD_GUILD_ID, type: 2, data: { name: '기록', type: 1, options: [{ name: '없음', type: 1 }] } };

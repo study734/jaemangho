@@ -11,6 +11,8 @@ const normalizeOption = (option) => ({
   type: option.type, name: option.name, description: option.description ?? '', required: !!option.required,
   choices: (option.choices ?? []).map(({ name, value }) => ({ name, value })),
   min_length: option.min_length ?? null, max_length: option.max_length ?? null,
+  min_value: option.min_value ?? null, max_value: option.max_value ?? null,
+  channel_types: [...(option.channel_types ?? [])].sort(),
   options: (option.options ?? []).map(normalizeOption),
 });
 export const normalizeCommand = (command) => ({

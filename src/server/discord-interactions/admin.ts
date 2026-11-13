@@ -5,12 +5,13 @@ import { chatConfigured, runChatSync, SyncBusyError } from '../operations/jobs';
 import { checkOperations } from '../operations/monitor';
 import { operationStatus } from '../operations/status';
 import { purgeSteamCache } from '../steam/cache';
+import { postWeeklyAwards, setAwardChannel, type AwardPostResult } from '../chat/award-post';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { KIND_LABEL } from '../../lib/improvements';
 
 // 관리자 전용 명령. 웹 /api/admin/operations와 같은 서비스와 작업 이력(audited)을 쓴다.
 // 사용자 차단·해제, 소환사 삭제처럼 되돌리기 어려운 작업은 웹 관리자 화면에만 둔다.
-export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot';
+export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot' | '시상식채널' | '시상식게시';
 type Actor = { id: string; name: string };
 const KST = { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' } as const;
 const when = (value: unknown) => value ? new Date(value as string).toLocaleString('ko-KR', KST) : '없음';
@@ -19,8 +20,18 @@ const SYNC_BUDGET_MS = 30_000;
 
 export const ADMIN_DENIED = privateMessage('관리자만 실행할 수 있어요. 디스코드 Administrator 권한과 사이트 관리자 상태(로그인할 때 갱신)가 모두 필요해요.');
 
-export async function adminTask(task: AdminTask, actor: Actor): Promise<Message> {
+export async function adminTask(task: AdminTask, actor: Actor, channelId?: string): Promise<Message> {
   switch (task) {
+    case '시상식채널': {
+      await audited(actor, channelId ? 'awards.channel.set' : 'awards.channel.clear', 'awards', () => setAwardChannel(channelId ?? null, actor.id));
+      return privateMessage(channelId
+        ? `주간 시상식을 <#${channelId}>에 자동으로 올릴게요. 채팅 동기화가 지난주 칭호를 계산한 뒤(월요일 새벽) 주마다 한 번 올리며, 눈팅러는 빼요. 봇에 이 채널의 메시지 보내기 권한이 있어야 해요. 지금 시험하려면 /운영 시상식게시를 실행해 주세요.`
+        : '주간 시상식 자동 게시를 껐어요. 다시 켜려면 /운영 시상식채널 채널:#채널 을 실행해 주세요.');
+    }
+    case '시상식게시': {
+      const result = await audited(actor, 'awards.post', 'awards', () => postWeeklyAwards({ token: process.env.DISCORD_BOT_TOKEN }));
+      return privateMessage(awardPostMessage(result));
+    }
     case '개선': return improvements();
     case '상태': return status();
     case '점검': {
@@ -73,4 +84,15 @@ async function status(): Promise<Message> {
     `DB 사용량 모드: ${data.usage?.mode ?? '확인 불가'}${data.usage?.stale ? ' (오래된 표본)' : ''} · 알림 웹훅 ${data.notificationsConfigured ? '설정됨' : '없음'}`,
     `자세히: ${SITE}/admin`,
   ].join('\n')));
+}
+
+function awardPostMessage(result: AwardPostResult): string {
+  switch (result.status) {
+    case 'disabled': return '게시 채널이 없거나 봇 토큰이 설정되지 않았어요. /운영 시상식채널 채널:#채널 로 먼저 정해 주세요.';
+    case 'no_awards': return '최근 2주 안에 공개로 올릴 시상식이 없어요(눈팅러만 있는 주는 올리지 않아요).';
+    case 'already_posted': return '이번 시상식은 이미 올렸어요. 주마다 한 번만 올려요.';
+    case 'posted': return `<#${result.channelId}>에 ${result.week} 주 시상식을 올렸어요.`;
+    case 'failed': return `<#${result.channelId}>에 올리지 못했어요 (${result.code}). ${result.code === 'discord_http_403' ? '봇에 그 채널의 보기·메시지 보내기 권한을 주세요.'
+      : result.code === 'discord_http_404' ? '채널을 찾지 못했어요. 채널을 다시 정해 주세요.' : '잠시 후 다시 시도해 주세요.'} 다음 채팅 동기화 때도 다시 시도해요.`;
+  }
 }
