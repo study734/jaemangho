@@ -65,7 +65,7 @@ const commandData = z.discriminatedUnion('name', [
 ]);
 
 // 메시지 구성요소. custom_id 형식이 곧 상태다(최대 100자). 파티 버튼은 DB의 파티 id만 담는다.
-export const PARTY_ACTIONS = ['pick', 'deals', 'missions', 'common', 'more', 'again', 'mission', 'pref'] as const;
+export const PARTY_ACTIONS = ['pick', 'deals', 'missions', 'common', 'more', 'again', 'mission', 'pref', 'recruit'] as const;
 export type PartyAction = typeof PARTY_ACTIONS[number];
 const componentData = z.union([
   // 친구 선택: v1(배포 전 열린 선택창)은 기준 없이 balanced로 처리한다.
@@ -79,6 +79,8 @@ const componentData = z.union([
   z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^lobby:\d{17,20}:(join|leave|close|recommend)$/) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:mission$/), values: z.tuple([z.string().regex(/^\d{1,10}$/)]) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:pref$/), values: z.tuple([preferenceSchema]) }),
+  // 추천 결과에서 고른 게임 이름으로 공개 모집을 연다(이름은 그대로 모집 메시지의 게임 칸에 들어간다).
+  z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:recruit$/), values: z.tuple([z.string().trim().min(1).max(100)]) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^lol:v1:\d{17,20}:\d{10}$/), values: z.tuple([z.string().regex(/^[\w-]{1,32}$/)]) }),
 ]);
 
@@ -100,6 +102,7 @@ export const privateMessage = (content: string, components: unknown[] = []): Mes
 export type Ack = 'private' | 'public' | 'update';
 export function ackFor(interaction: Interaction): Ack {
   if (interaction.type === 2) return interaction.data.name === '모집' ? 'public' : 'private';
+  if (/^party:\d+:recruit$/.test(interaction.data.custom_id)) return 'public';
   // 다른 추천·기준 바꾸기는 새 메시지를 만들지 않고 보고 있던 추천 메시지를 고친다.
   return /^(lobby:\d+:(join|leave|close)|party:\d+:(more:\d+|pref))$/.test(interaction.data.custom_id) ? 'update' : 'private';
 }

@@ -3,6 +3,8 @@ import { listAwards, awardsForUser } from '../chat/awards';
 import { listHighlights } from '../chat/highlights';
 import { getHotMoments } from '../chat/moments';
 import { getPerson } from '../people';
+import { summonerRank } from '../lol/stats';
+import { topPlayed } from '../steam/games';
 import { commandUser } from './access';
 import { reportFailure } from '../diagnostics';
 import { memberProfile, records } from './records';
@@ -11,6 +13,8 @@ vi.mock('../chat/awards', () => ({ listAwards: vi.fn(), awardsForUser: vi.fn() }
 vi.mock('../chat/highlights', () => ({ listHighlights: vi.fn() }));
 vi.mock('../chat/moments', () => ({ getHotMoments: vi.fn() }));
 vi.mock('../people', () => ({ getPerson: vi.fn() }));
+vi.mock('../lol/stats', () => ({ summonerRank: vi.fn() }));
+vi.mock('../steam/games', () => ({ topPlayed: vi.fn() }));
 vi.mock('./access', () => ({ commandUser: vi.fn() }));
 vi.mock('../diagnostics', () => ({ reportFailure: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
@@ -53,18 +57,42 @@ describe('/기록', () => {
 });
 
 describe('/멤버', () => {
-  it('shows linked accounts and titles only for registered, unbanned members', async () => {
+  const person = { id: 'u1', name: 'Friend', image: null, lastLogin: '2026-11-12T00:00:00Z',
+    lol: [{ id: 'l1', gameName: 'Hide on bush', tagLine: 'KR1' }, { id: 'l2', gameName: 'Gone', tagLine: 'KR1' }, { id: 'l3', gameName: 'Third', tagLine: 'KR1' }],
+    steam: [{ steamId: '76561190000000001', name: 'SteamFriend', avatar: null }, { steamId: '76561190000000002', name: 'Private', avatar: null }] };
+  beforeEach(() => {
+    vi.mocked(commandUser).mockResolvedValue('u1');
+    vi.mocked(getPerson).mockResolvedValue(person);
+    vi.mocked(awardsForUser).mockResolvedValue([{ title: 'owl', count: 3, lastWeek: '2026-11-02' }]);
+    vi.mocked(summonerRank).mockImplementation(async name => name === 'Gone' ? null : { solo: { tier: 'GOLD', rank: 'II', leaguePoints: 45, wins: 1, losses: 1 }, flex: null });
+    vi.mocked(topPlayed).mockImplementation(async id => id.endsWith('1') ? [{ name: 'Lethal', minutes: 600 }, { name: 'Valheim', minutes: 120 }] : null);
+  });
+  it('only shows registered, unbanned members', async () => {
     vi.mocked(commandUser).mockResolvedValue(null);
     expect((await memberProfile('100000000000000004')).content).toContain('가입한 멤버만');
-    expect(getPerson).not.toHaveBeenCalled();
-    vi.mocked(commandUser).mockResolvedValue('u1');
-    vi.mocked(getPerson).mockResolvedValue({ id: 'u1', name: 'Friend', image: null, lastLogin: '2026-11-12T00:00:00Z',
-      lol: [{ id: 'l', gameName: 'Hide on bush', tagLine: 'KR1' }], steam: [] });
-    vi.mocked(awardsForUser).mockResolvedValue([{ title: 'owl', count: 3, lastWeek: '2026-11-02' }]);
+    expect(getPerson).not.toHaveBeenCalled(); expect(summonerRank).not.toHaveBeenCalled();
+  });
+  it('shows rank and most-played games per account like the site profile, at most two accounts each', async () => {
     const content = (await memberProfile('100000000000000004')).content;
-    expect(content).toContain('롤: Hide on bush#KR1');
-    expect(content).toContain('Steam: 연결된 계정 없음');
-    expect(content).toContain('새벽 갤러 3회');
-    expect(content).toContain('/people/u1');
+    expect(content).toContain('Hide on bush#KR1 · 솔로 골드 II 45LP');
+    expect(content).toContain('Gone#KR1 · 계정을 찾지 못했어요');
+    expect(content).not.toContain('Third#KR1'); expect(content).toContain('외 1개 계정');
+    expect(summonerRank).toHaveBeenCalledTimes(2);
+    expect(topPlayed).toHaveBeenCalledWith('76561190000000001', 3);
+    expect(content).toContain('SteamFriend · Lethal 10시간, Valheim 2시간');
+    expect(content).toContain('Private · 게임 목록이 비공개이거나 불러오지 못했어요');
+    expect(content).toContain('🌙 새벽 갤러 3회');
+    expect(content).toContain('(<https://www.jaemangho.shop/people/u1>)');
+  });
+  it('keeps the rest when one lookup fails, and marks the failed part', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(summonerRank).mockRejectedValue(new Error('riot-secret'));
+    vi.mocked(awardsForUser).mockRejectedValue(new Error('db'));
+    const content = (await memberProfile('100000000000000004')).content;
+    expect(content).toContain('Hide on bush#KR1 · 랭크를 불러오지 못했어요');
+    expect(content).toContain('칭호를 불러오지 못했어요');
+    expect(content).toContain('SteamFriend · Lethal');
+    expect(reportFailure).toHaveBeenCalledWith('profile.discord.rank', expect.any(Error));
+    expect(content).not.toContain('riot-secret');
   });
 });

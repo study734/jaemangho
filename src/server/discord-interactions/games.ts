@@ -1,5 +1,6 @@
 import { linkedPlayers } from './access';
 import { loadParty, saveParty, setPartyPreference, type Party } from './party';
+import { createLobby, lobbyMessage } from './lobby';
 import { fit, label, mention, privateMessage, SITE, type Message, type PartyAction, type Preference, type Reply, type Scope } from './protocol';
 import { recommendGames, type RecommendationsResult } from '../steam/recommendations';
 import { hasSteamConsent } from '../steam/consent';
@@ -45,7 +46,7 @@ const unreadable = (ids: string[], who: (id: string) => string) =>
 
 const button = (label: string, custom_id: string) => ({ type: 2, style: 2, label, custom_id });
 // 추천 결과 아래 버튼: 다른 추천(같은 메시지에서 다음 5개), 뽑기·세일·같이 도전·모두 가진 게임, 기준 바꾸기.
-export function partyButtons(partyId: string, { total = 0, offset = 0, scope = 'all', preference = 'balanced' }: { total?: number; offset?: number; scope?: Scope; preference?: Preference } = {}) {
+export function partyButtons(partyId: string, { total = 0, offset = 0, scope = 'all', preference = 'balanced', games = [] }: { total?: number; offset?: number; scope?: Scope; preference?: Preference; games?: string[] } = {}) {
   const next = offset + PAGE < total ? offset + PAGE : 0;
   return [
     { type: 1, components: [
@@ -56,6 +57,9 @@ export function partyButtons(partyId: string, { total = 0, offset = 0, scope = '
     // 전원 미보유는 Steam 인기·신규 순서라 기준이 없다.
     ...(scope === 'unowned' ? [] : [{ type: 1, components: [{ type: 3, custom_id: `party:${partyId}:pref`, placeholder: '추천 기준 바꾸기',
       options: (Object.keys(preferenceNames) as Preference[]).map(value => ({ label: preferenceNames[value], value, default: value === preference })) }] }]),
+    // 보고 있는 추천 중 하나로 바로 /모집을 연다(채널에 공개, 정원은 고른 친구 수).
+    ...(games.length ? [{ type: 1, components: [{ type: 3, custom_id: `party:${partyId}:recruit`, placeholder: '📣 이 게임으로 모집하기',
+      options: games.map(name => ({ label: name.slice(0, 100), value: name.slice(0, 100) })) }] }] : []),
   ];
 }
 
@@ -89,7 +93,10 @@ export async function gameRecommendations(party: Party, offset = 0): Promise<Mes
   if ('unknownIds' in result) return changed;
   const message = recommendationMessage(result, players.steamIds, party.discordIds, party.scope, party.preference, offset);
   if (result.excluded.length) return message;
-  return { ...message, components: partyButtons(party.id, { total: result.games.length, offset: offset < result.games.length ? offset : 0, scope: party.scope, preference: party.preference }) };
+  const start = offset < result.games.length ? offset : 0;
+  // 같은 이름의 게임이 겹치면 선택 메뉴가 거부되므로 한 번씩만 넣는다.
+  const shown = [...new Set(result.games.slice(start, start + PAGE).map(game => game.name.replace(/[\r\n]/g, ' ').trim().slice(0, 100)).filter(Boolean))];
+  return { ...message, components: partyButtons(party.id, { total: result.games.length, offset: start, scope: party.scope, preference: party.preference, games: shown }) };
 }
 
 // more·pref는 보고 있던 추천 메시지를 그 자리에서 고친다({ edit }). 나머지는 새 비공개 메시지로 답한다.
@@ -99,6 +106,10 @@ export async function partyAction(partyId: string, ownerId: string, action: Part
   if (action === 'again') {
     const [scope, preference] = (arg ?? '').split(':') as [Scope, Preference];
     return gameRecommendations({ ...party, id: newId!, scope, preference });
+  }
+  if (action === 'recruit') {
+    const lobby = await createLobby({ id: newId!, ownerId, game: arg!, playTime: null, max: party.discordIds.length });
+    return { public: lobbyMessage(lobby) };
   }
   if (action === 'more') return { edit: await gameRecommendations(party, Number(arg)) };
   if (action === 'pref') {

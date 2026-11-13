@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RiotUnavailableError, summonerStats, type RiotGet } from './stats';
+import { RiotUnavailableError, summonerRank, summonerStats, type RiotGet } from './stats';
 
 const puuid = 'p-1';
 const ok = (body: unknown) => ({ status: 200, body });
@@ -38,5 +38,15 @@ describe('server-side summoner stats', () => {
   it('keeps rank when matches or live game fail, and marks them as failures', async () => {
     const stats = await summonerStats('Hide on bush', 'KR1', fakeRiot({ '/ids': { status: 500 }, '/spectator/': { status: 503 } }));
     expect(stats).toMatchObject({ solo: { tier: 'GOLD' }, recent: [], inGame: null, failures: ['activeGame', 'matches'] });
+  });
+});
+
+describe('profile rank lookup', () => {
+  it('uses only the account and league routes', async () => {
+    const get = fakeRiot();
+    expect(await summonerRank('Hide on bush', 'KR1', get)).toEqual({ solo: { tier: 'GOLD', rank: 'II', leaguePoints: 45, wins: 12, losses: 10 }, flex: null });
+    expect(get.mock.calls.map(call => call[1].split('/')[2])).toEqual(['account', 'league']);
+    expect(await summonerRank('Nobody', 'KR1', fakeRiot())).toBeNull();
+    await expect(summonerRank('Hide on bush', 'KR1', fakeRiot({ '/league/': { status: 403 } }))).rejects.toBeInstanceOf(RiotUnavailableError);
   });
 });
