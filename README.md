@@ -181,7 +181,6 @@ src/
 | `DATABASE_URL_UNPOOLED` | (선택) 마이그레이션이 우선 사용하는 직접 연결 주소. Neon 연동이 자동 등록합니다. |
 | `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. |
 | `DEV_LOGIN` | `1`이면 **개발 서버에서만** 디스코드 로그인 없이 관리자로 접속 (운영 빌드에서는 무시됨) |
-| `GITHUB_ACTIONS_READ_TOKEN` | (선택) 관리자 화면의 자동 운영 보호(암호화 백업·복원 검증·배포 검사)와 Actions 보관 용량 조회용. 저장소가 비공개라 없으면 모두 `확인 불가`입니다. GitHub fine-grained 토큰을 이 저장소만, 권한은 **Actions: Read-only**만 주어 만들고 Vercel Production에 등록합니다(`github_pat_`로 시작). 만료 전에 교체하며, 만료·폐기되면 다시 `확인 불가`로 표시됩니다. 요청 헤더에만 쓰고 기록하지 않습니다. |
 | `OPS_ALERT_WEBHOOK_URL` | (선택) 운영 장애·복구 알림 전용 Discord webhook URL. Vercel 환경변수와 GitHub Actions secret에 각각 설정. URL의 토큰은 비밀값으로 취급합니다. |
 
 Discord 앱의 OAuth2 Redirects에는 실제 접속 도메인 기준으로 `https://<도메인>/api/auth/callback/discord`를 등록합니다. 도메인이 `www`로 리다이렉트되면 `www` 주소를 등록해야 합니다. 로컬에서 실제 로그인을 시험하려면 `http://localhost:3000/api/auth/callback/discord`도 추가합니다. 리다이렉트 주소는 요청에서 자동으로 정해지므로 별도 URL 환경변수는 필요 없습니다.

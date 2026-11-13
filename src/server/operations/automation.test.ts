@@ -38,17 +38,6 @@ describe('자동 운영 증거 조회', () => {
     await read();
     expect(fetchFn).toHaveBeenCalledTimes(8);
   });
-  it('토큰이 있으면 Authorization 헤더에만 넣고, 없으면 인증 헤더 없이 조회한다', async () => {
-    const withToken = metadata();
-    await createAutomationReader(withToken, () => now, () => 'github_pat_test_only_0000000000')();
-    for (const [url, init] of withToken.mock.calls as unknown as [string, RequestInit][]) {
-      expect((init.headers as Record<string, string>).Authorization).toBe('Bearer github_pat_test_only_0000000000');
-      expect(String(url)).not.toContain('github_pat_');
-    }
-    const without = metadata();
-    await createAutomationReader(without, () => now, () => undefined)();
-    for (const [, init] of without.mock.calls as unknown as [string, RequestInit][]) expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
-  });
   it('한 공급자 요청 실패는 성공한 다른 보호 결과를 지우지 않으며 15분간 실패 요청을 반복하지 않는다', async () => {
     const fetchFn = metadata();
     const original = fetchFn.getMockImplementation()!;

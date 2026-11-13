@@ -1,9 +1,7 @@
 export const AUTOMATION_WORKFLOWS = {
   backup: { file: 'production-backup.yml', label: '암호화 백업', maxAgeHours: 36, schedule: '매일 03:19' },
   restore: { file: 'production-restore-check.yml', label: '보관 백업 복원 검증', maxAgeHours: 192, schedule: '목요일 03:47' },
-  // 예약은 30분 간격이지만 GitHub가 예약 실행을 건너뛰어 실제 간격이 약 8시간까지 벌어졌다(2026-11-12 02:44 → 10:45 → 18:43 UTC).
-  // 2시간 기준이면 정상인데도 늘 '성공 기록 공백'이 된다. 사이트 생존은 5분 간격 Cloudflare 감시가 따로 확인한다.
-  smoke: { file: 'smoke.yml', label: '배포 검사', maxAgeHours: 12, schedule: '배포 후·30분 간격(실제 지연 가능)' },
+  smoke: { file: 'smoke.yml', label: '배포 검사', maxAgeHours: 2, schedule: '배포 후·30분 간격' },
 } as const;
 export type AutomationKind = keyof typeof AUTOMATION_WORKFLOWS;
 export interface AutomationRun {

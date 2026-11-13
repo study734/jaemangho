@@ -13,21 +13,17 @@ function run(value: unknown, kind: AutomationKind): AutomationRun | null {
   return { id: Number(row.id), at, status: row.status, conclusion: typeof row.conclusion === 'string' ? row.conclusion : null };
 }
 
-// 실행 메타데이터(실행 상태, 보관 파일 이름·크기)만 조회한다. 백업 내용·DB 주소는 가져오지 않는다.
-// 저장소가 비공개라 토큰 없는 조회는 404다. GITHUB_ACTIONS_READ_TOKEN(이 저장소의 Actions 읽기만 허용한
-// fine-grained 토큰)이 있으면 Authorization 헤더에만 넣는다. 토큰은 주소·로그·응답에 남기지 않는다.
-export function createAutomationReader(fetchFn: typeof fetch = fetch, clock = Date.now,
-  token: () => string | undefined = () => process.env.GITHUB_ACTIONS_READ_TOKEN || undefined) {
+// 공개 실행 메타데이터만 조회한다. 토큰·백업 내용·DB 주소는 가져오지 않는다.
+export function createAutomationReader(fetchFn: typeof fetch = fetch, clock = Date.now) {
   let cached: AutomationEvidence | undefined;
   let expires = 0;
   let pending: Promise<AutomationEvidence> | undefined;
   async function inspect(): Promise<AutomationEvidence> {
     const now = clock();
-    const secret = token();
     const get = async (route: string) => {
       const response = await fetchFn(`https://api.github.com/repos/${REPOSITORY}/${route}`, {
         redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations-dashboard', ...(secret ? { Authorization: `Bearer ${secret}` } : {}) },
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'jaemangho-operations-dashboard' },
       });
       if (!response.ok) throw new Error('metadata_unavailable');
       return record(await response.json());
