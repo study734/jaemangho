@@ -19,6 +19,7 @@ describe('failure-stats', () => {
   it('skips database.* operations and environments without a database', async () => {
     const { shouldCount } = await import('./failure-stats');
     expect(shouldCount('database.query', Date.now(), env)).toBe(false);
+    expect(shouldCount('db.connect-retry', Date.now(), env)).toBe(true); // 회복한 다시 시도는 DB가 응답할 때라 센다(pool.ts)
     expect(shouldCount('steam.taste.GET', Date.now(), {})).toBe(false);
     expect(shouldCount('steam.taste.GET', Date.now(), env)).toBe(true);
   });

@@ -40,7 +40,7 @@ Next.js(App Router) + React 19 + TypeScript(strict), 로그인은 [Better Auth](
 Neon Postgres (로그인 테이블 user/session/account/verification, 소환사 목록, Riot 캐시/통계/오류)
 ```
 - 서버 함수는 Neon 저장소와 같은 `iad1`에서 실행합니다(`vercel.json`의 `regions`). 페이지 하나가 DB를 여러 번 왕복하므로 함수를 DB 옆에 두는 Vercel 권장 배치를 따릅니다. DB 리전을 옮기면 이 값도 함께 바꿉니다.
-- DB 연결 풀(`src/server/pool.ts`)은 Fluid compute(`vercel.json`의 `fluid: true`) 전제로 `attachDatabasePool`을 써서 인스턴스 정지 전에 유휴 연결을 정리하고, 응답 없는 쿼리는 `query_timeout`(30초) 뒤 연결째 버립니다. 새 연결이 시간 초과되면(Neon 절전 해제 지연, 인스턴스 정지 후 재개) 한 번만 다시 연결하고, 풀이 가득 차 대기하다 시간 초과된 경우는 다시 시도하지 않습니다. 운영 로그의 `database.connect` ETIMEDOUT은 다시 시도까지 끝난 최종 연결 실패(요청이 실제로 받은 오류), `database.query` ETIMEDOUT은 쿼리 응답 초과입니다. 다시 시도는 `[retry]` 경고(`recovered`, `firstAttemptMs`)로 따로 남기며, `firstAttemptMs`가 연결 제한(10초)보다 길면 그동안 인스턴스가 정지돼 있었다는 뜻입니다.
+- DB 연결 풀(`src/server/pool.ts`)은 Fluid compute(`vercel.json`의 `fluid: true`) 전제로 `attachDatabasePool`을 써서 인스턴스 정지 전에 유휴 연결을 정리하고, 응답 없는 쿼리는 `query_timeout`(30초) 뒤 연결째 버립니다. 새 연결이 시간 초과되면(Neon 절전 해제 지연, 인스턴스 정지 후 재개) 한 번만 다시 연결하고, 풀이 가득 차 대기하다 시간 초과된 경우는 다시 시도하지 않습니다. 운영 로그의 `database.connect` ETIMEDOUT은 다시 시도까지 끝난 최종 연결 실패(요청이 실제로 받은 오류), `database.query` ETIMEDOUT은 쿼리 응답 초과입니다. 다시 시도는 `[retry]` 경고(`recovered`, `firstAttemptMs`)로 따로 남기며, `firstAttemptMs`가 연결 제한(10초)보다 길면 그동안 인스턴스가 정지돼 있었다는 뜻입니다. 운영 로그는 1시간만 남으므로 회복한 다시 시도는 `app_failures`에 `db.connect-retry`(`recovered`)로도 세어 관리자 "개선 우선순위"의 운영·기타 영역에서 7일치를 볼 수 있고, 회복하지 못한 최종 실패는 Vercel 오류 묶음(7일)의 `database.connect`로 봅니다.
 - 브라우저는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
 - 로그인하지 않았거나 차단된 사용자는 어떤 화면과 API도 쓸 수 없습니다.
 
