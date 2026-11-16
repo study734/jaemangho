@@ -68,8 +68,9 @@ describe.skipIf(!testDbUrl)('PostgreSQL boundary diagnostics (isolated DB)', () 
     expect(Date.now() - started).toBeLessThan(2_000);
   });
 
-  it('pool.query도 새 연결 시간 초과를 한 번 다시 시도하고, 두 번 모두 실패하면 각 시도를 기록한다', async () => {
+  it('pool.query도 새 연결 시간 초과를 한 번 다시 시도하고, 두 번 모두 실패하면 최종 실패 하나와 회복 실패 경고를 남긴다', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // 연결은 받지만 아무 응답도 하지 않는 서버로 새 연결 시간 초과를 만든다(절전 중인 DB와 같은 모양).
     const sockets: Socket[] = [];
     const silent = createServer(socket => { sockets.push(socket); });
@@ -85,7 +86,11 @@ describe.skipIf(!testDbUrl)('PostgreSQL boundary diagnostics (isolated DB)', () 
       await new Promise(resolve => silent.close(resolve));
     }
     const attempts = log.mock.calls.filter(([, detail]) => (detail as { operation?: string }).operation === 'database.connect');
-    expect(attempts).toHaveLength(2);
-    expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-|postgres:\/\//);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0][1]).toMatchObject({ code: 'ETIMEDOUT', elapsedMs: expect.any(Number) });
+    expect((attempts[0][1] as { elapsedMs: number }).elapsedMs).toBeGreaterThanOrEqual(150);
+    expect(warn).toHaveBeenCalledWith('[retry]', expect.objectContaining({ operation: 'database.connect', recovered: false }));
+    expect(JSON.stringify([...log.mock.calls, ...warn.mock.calls])).not.toMatch(/private-|postgres:\/\//);
+    warn.mockRestore();
   });
 });
