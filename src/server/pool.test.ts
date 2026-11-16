@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const { countFailure } = vi.hoisted(() => ({ countFailure: vi.fn() }));
+vi.mock('./failure-stats', () => ({ countFailure }));
+
 describe('pool', () => {
   it('풀에서 놀던 연결이 끊겨 error가 나도 처리되지 않은 예외가 되지 않고 로그만 남긴다', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -29,7 +32,9 @@ describe('pool', () => {
       expect(await (retryConnectOnTimeout(a.pool) as { connect: () => Promise<unknown> }).connect()).toBe(client);
       expect(a.connect).toHaveBeenCalledTimes(2);
       expect(warn).toHaveBeenCalledWith('[retry]', { operation: 'database.connect', recovered: true, firstAttemptMs: expect.any(Number) });
+      expect(countFailure).toHaveBeenCalledExactlyOnceWith('db.connect-retry', 'recovered');
       warn.mockRestore();
+      countFailure.mockClear();
       const b = fake(timeout(), client);
       const wrapped = retryConnectOnTimeout(b.pool) as { connect: (cb: (...args: unknown[]) => void) => void };
       const args = await new Promise<unknown[]>(resolve => wrapped.connect((...values) => resolve(values)));
@@ -52,6 +57,7 @@ describe('pool', () => {
         expect(args[0]).toBe(error); expect(b.connect).toHaveBeenCalledOnce();
       }
       expect(warn).not.toHaveBeenCalled();
+      expect(countFailure).not.toHaveBeenCalled();
       warn.mockRestore();
     });
   });

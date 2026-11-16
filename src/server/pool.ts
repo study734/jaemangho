@@ -1,4 +1,5 @@
 import { reportFailure } from './diagnostics';
+import { countFailure } from './failure-stats';
 import { attachDatabasePool } from '@vercel/functions';
 import { Pool } from 'pg';
 import type { PoolClient, PoolConfig } from 'pg';
@@ -40,7 +41,10 @@ export function createPool(options: PoolConfig = {}) {
 // 스키마 확인처럼 여러 요청이 공유하는 첫 연결이면 다음 요청이 그 실패를 받는다). 두 경우 모두 바로 다시 연결하면
 // 대개 성공한다. 풀이 가득 차 대기열에서 시간 초과된 경우('timeout exceeded when trying to connect')는
 // 부하만 늘리므로 다시 시도하지 않는다. 다시 시도할 때마다 첫 시도 시간과 회복 여부를 [retry] 경고로 남긴다
-// (첫 시도 시간이 연결 제한보다 길면 그동안 인스턴스가 정지돼 있었다는 뜻이다).
+// (첫 시도 시간이 연결 제한보다 길면 그동안 인스턴스가 정지돼 있었다는 뜻이다). 운영 로그는 1시간만 남으므로
+// 회복한 경우는 app_failures에도 db.connect-retry(recovered)로 센다. 회복 직후라 DB가 응답하는 때이므로
+// database.* 를 세지 않는 이유(장애 중 실패가 기록을 부르는 순환)에 걸리지 않는다. 회복하지 못한 경우는 세지 않고
+// [failure] database.connect 오류 로그(Vercel 오류 묶음에 7일 보관)로 본다.
 const NEW_CONNECTION_TIMEOUT = 'Connection terminated due to connection timeout';
 type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: boolean | Error) => void) => void;
 
@@ -52,7 +56,11 @@ export function retryConnectOnTimeout<T extends Pick<Pool, 'connect'>>(target: T
       if (!(error instanceof Error) || error.message !== NEW_CONNECTION_TIMEOUT) throw error;
       const firstAttemptMs = Date.now() - started;
       const report = (recovered: boolean) => console.warn('[retry]', { operation: 'database.connect', recovered, firstAttemptMs });
-      return connect().then(client => { report(true); return client; }, (retryError: unknown) => { report(false); throw retryError; });
+      return connect().then(client => {
+        report(true);
+        countFailure('db.connect-retry', 'recovered');
+        return client;
+      }, (retryError: unknown) => { report(false); throw retryError; });
     });
     if (typeof callback !== 'function') return result;
     result.then(client => callback(undefined, client, client.release.bind(client)), (error: Error) => callback(error, undefined, () => {}));
