@@ -40,7 +40,7 @@ Next.js(App Router) + React 19 + TypeScript(strict), 로그인은 [Better Auth](
 Neon Postgres (로그인 테이블 user/session/account/verification, 소환사 목록, Riot 캐시/통계/오류)
 ```
 - 서버 함수는 Neon 저장소와 같은 `iad1`에서 실행합니다(`vercel.json`의 `regions`). 페이지 하나가 DB를 여러 번 왕복하므로 함수를 DB 옆에 두는 Vercel 권장 배치를 따릅니다. DB 리전을 옮기면 이 값도 함께 바꿉니다.
-- DB 연결 풀(`src/server/pool.ts`)은 Fluid compute(`vercel.json`의 `fluid: true`) 전제로 `attachDatabasePool`을 써서 인스턴스 정지 전에 유휴 연결을 정리하고, 응답 없는 쿼리는 `query_timeout`(30초) 뒤 연결째 버립니다. 새 연결이 시간 초과되면(Neon 절전 해제 지연, 인스턴스 정지 후 재개) 한 번만 다시 연결하고, 풀이 가득 차 대기하다 시간 초과된 경우는 다시 시도하지 않습니다. 운영 로그의 `database.connect` ETIMEDOUT은 연결 대기 초과, `database.query` ETIMEDOUT은 쿼리 응답 초과입니다.
+- DB 연결 풀(`src/server/pool.ts`)은 Fluid compute(`vercel.json`의 `fluid: true`) 전제로 `attachDatabasePool`을 써서 인스턴스 정지 전에 유휴 연결을 정리하고, 응답 없는 쿼리는 `query_timeout`(30초) 뒤 연결째 버립니다. 새 연결이 시간 초과되면(Neon 절전 해제 지연, 인스턴스 정지 후 재개) 한 번만 다시 연결하고, 풀이 가득 차 대기하다 시간 초과된 경우는 다시 시도하지 않습니다. 운영 로그의 `database.connect` ETIMEDOUT은 다시 시도까지 끝난 최종 연결 실패(요청이 실제로 받은 오류), `database.query` ETIMEDOUT은 쿼리 응답 초과입니다. 다시 시도는 `[retry]` 경고(`recovered`, `firstAttemptMs`)로 따로 남기며, `firstAttemptMs`가 연결 제한(10초)보다 길면 그동안 인스턴스가 정지돼 있었다는 뜻입니다.
 - 브라우저는 Riot API 키를 갖지 않습니다. 모든 Riot 호출은 `/api/riot`을 거칩니다.
 - 로그인하지 않았거나 차단된 사용자는 어떤 화면과 API도 쓸 수 없습니다.
 
@@ -245,7 +245,7 @@ npm run db:migrate   # 아직 적용되지 않은 파일을 번호순으로 적�
 - 새 배포 코드가 먼저 켜지기 전에 DB가 바뀌므로, 마이그레이션은 **이전 버전 코드와도 호환**되게 작성합니다(컬럼 추가는 안전, 삭제·이름 변경은 먼저 코드에서 쓰지 않게 한 뒤 다음 배포에서).
 - 로그인 라이브러리 테이블(`user` 등)도 이 파일들이 만듭니다. `user`에 필드를 추가하거나 라이브러리를 올릴 때 마이그레이션을 빼먹으면 `schema-drift` 테스트가 실패합니다.
 
-DB 요청 실패는 `[failure]`의 `database.connect`(연결·풀 대기)와 `database.query`(체크아웃한 연결의 쿼리 포함)로 추적합니다. 오류 ID·원본 SQLSTATE/네트워크 코드·`phase`·`elapsedMs`·풀의 전체/유휴/대기 수만 남기며 SQL·인자·연결 문자열·원본 오류 메시지는 기록하지 않습니다. Better Auth의 `Could not validate the database schema`만으로 마이그레이션 누락을 단정하지 말고 같은 시각의 DB 오류 코드를 확인합니다. 풀 연결 대기는 5초로 제한하고, 실패 뒤 다음 요청은 새로 연결할 수 있습니다. 구현과 회귀 검증은 `src/server/pool*`에 있습니다.
+DB 요청 실패는 `[failure]`의 `database.connect`(연결·풀 대기)와 `database.query`(체크아웃한 연결의 쿼리 포함)로 추적합니다. 오류 ID·원본 SQLSTATE/네트워크 코드·`phase`·`elapsedMs`·풀의 전체/유휴/대기 수만 남기며 SQL·인자·연결 문자열·원본 오류 메시지는 기록하지 않습니다. Better Auth의 `Could not validate the database schema`만으로 마이그레이션 누락을 단정하지 말고 같은 시각의 DB 오류 코드를 확인합니다. 새 연결과 풀 대기는 10초로 제한하고, 실패 뒤 다음 요청은 새로 연결할 수 있습니다. 구현과 회귀 검증은 `src/server/pool*`에 있습니다.
 
 앱 풀과 마이그레이션은 기존 pg 8에서 인증서를 완전히 검증하던 `sslmode=prefer/require/verify-ca`를 `verify-full`로 명시해 향후 버전에서도 같은 검증 수준을 유지합니다(`src/server/postgres-url.mjs`). `uselibpqcompat=true`, SSL 비활성화·그 밖의 명시 설정은 바꾸지 않습니다. 연결 문자열 환경변수 자체는 수정하지 않습니다. 인증 기준 주소는 기존 `BETTER_AUTH_URL`이 있으면 사용하고, 없으면 `jaemangho.vercel.app`, `jaemangho.shop`, `www.jaemangho.shop`에서 요청별로 결정합니다. Vercel이 기본 제공하는 `VERCEL_URL`·`VERCEL_BRANCH_URL`의 정확한 현재 배포·브랜치 주소와 프로젝트의 고정 별칭도 허용합니다. 임의의 `*.vercel.app`은 허용하지 않습니다. 개발에서는 localhost/127.0.0.1의 포트도 허용하며, 운영 도메인을 추가할 때는 `src/server/auth-base-url.ts`의 허용 목록과 Discord 콜백 등록을 함께 확인합니다. 별도 환경변수 등록은 필요하지 않습니다.
 - 예전 버전이 만들던 `users` 테이블(디스코드 ID 기반 접속 기록)은 `0002_drop_legacy_users.sql`에서 삭제됩니다. 되돌릴 수 없으므로(복원은 Neon 시점 복구뿐) 같은 이름의 현재 테이블 `"user"`(단수형)와 혼동하지 마세요.

@@ -24,9 +24,12 @@ describe('pool', () => {
 
     it('새 연결이 시간 초과되면 한 번만 다시 연결해 성공한 클라이언트를 돌려준다(promise·callback)', async () => {
       const { retryConnectOnTimeout } = await import('./pool');
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const a = fake(timeout(), client);
       expect(await (retryConnectOnTimeout(a.pool) as { connect: () => Promise<unknown> }).connect()).toBe(client);
       expect(a.connect).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith('[retry]', { operation: 'database.connect', recovered: true, firstAttemptMs: expect.any(Number) });
+      warn.mockRestore();
       const b = fake(timeout(), client);
       const wrapped = retryConnectOnTimeout(b.pool) as { connect: (cb: (...args: unknown[]) => void) => void };
       const args = await new Promise<unknown[]>(resolve => wrapped.connect((...values) => resolve(values)));
@@ -36,15 +39,20 @@ describe('pool', () => {
 
     it('두 번째도 실패하면 그 오류를 돌려주고, 대기열 시간 초과·다른 오류는 다시 시도하지 않는다', async () => {
       const { retryConnectOnTimeout } = await import('./pool');
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const second = timeout();
       const a = fake(timeout(), second);
       await expect((retryConnectOnTimeout(a.pool) as { connect: () => Promise<unknown> }).connect()).rejects.toBe(second);
+      expect(warn).toHaveBeenCalledWith('[retry]', expect.objectContaining({ recovered: false }));
+      warn.mockClear();
       for (const error of [new Error('timeout exceeded when trying to connect'), Object.assign(new Error('refused'), { code: 'ECONNREFUSED' })]) {
         const b = fake(error, client);
         const wrapped = retryConnectOnTimeout(b.pool) as { connect: (cb: (...args: unknown[]) => void) => void };
         const args = await new Promise<unknown[]>(resolve => wrapped.connect((...values) => resolve(values)));
         expect(args[0]).toBe(error); expect(b.connect).toHaveBeenCalledOnce();
       }
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 });
