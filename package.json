@@ -18,10 +18,10 @@
     "db:verify-restore": "node --env-file-if-exists=.env.local scripts/backup.mjs verify"
   },
   "dependencies": {
-    "@vercel/functions": "^3.11.0",
-    "axios": "^1.21.0",
-    "better-auth": "^1.7.18",
-    "next": "^16.4.5",
+    "@vercel/functions": "^3.11.2",
+    "axios": "^1.21.1",
+    "better-auth": "^1.7.22",
+    "next": "^16.4.6",
     "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
@@ -39,7 +39,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.71.1",
+    "typescript-eslint": "^8.72.2",
     "vitest": "^5.1.0"
   }
 }
