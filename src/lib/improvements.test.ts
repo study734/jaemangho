@@ -62,4 +62,32 @@ describe('rankImprovements', () => {
     expect(few.usageEnough).toBe(false);
     expect(few.items).toEqual([]);
   });
+
+  it('2026-11 운영 보고 재현: DB 다시 시도는 실패가 아닌 살펴보기 한 항목, 웹 전체 미사용은 한 항목으로 묶는다', () => {
+    const views = [
+      { path: '/', current: 0, previous: 20 }, { path: '/steam', current: 0, previous: 5 }, { path: '/lol', current: 0, previous: 3 },
+      { path: '/memories', current: 0, previous: 2 },
+    ];
+    const report = rankImprovements(input({
+      views,
+      failures: [{ operation: 'db.connect-retry', code: 'recovered', count: 3 }],
+      steamErrors: [{ code: 'timeout', count: 3 }],
+    }));
+    expect(kinds(report)).toEqual(['fix:steam', 'check:db-retry', 'review:web']);
+    expect(report.items.find((i) => i.id === 'fix:ops')).toBeUndefined();
+    expect(report.items[0].next).toContain('timeout·http_5xx는 Steam 쪽');
+    expect(report.items[1].reasons).toEqual(['새 연결 시간 초과 후 다시 시도로 회복 3회 · 사용자 오류 없이 10초 이상 대기']);
+    expect(report.items[2].reasons[0]).toBe('최근 7일 열람 0회(그 전 7일 30회)');
+    expect(report.items[2].reasons[1]).toContain('듀오 시너지');
+    expect(report.items[2].reasons[1]).not.toContain('홈');
+    expect(report.items.some((i) => i.id.startsWith('review:/') || i.id.startsWith('check:/'))).toBe(false);
+  });
+
+  it('DB 다시 시도와 진짜 서버 실패가 함께 있으면 실패만 고치기로 센다', () => {
+    const report = rankImprovements(input({ failures: [
+      { operation: 'db.connect-retry', code: 'recovered', count: 9 }, { operation: 'mystery.job', code: 'unexpected', count: 1 },
+    ] }));
+    expect(kinds(report)).toEqual(['fix:ops', 'check:db-retry']);
+    expect(report.items[0].reasons).toEqual(['서버 실패 1회 · mystery.job(unexpected) 1회']);
+  });
 });
