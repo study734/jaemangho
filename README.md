@@ -341,7 +341,7 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 
 ### CI 보안 검사
 
-개인 소유 비공개 저장소에서 지원되지 않는 GitHub dependency review·CodeQL 대신, 러너에서 실행되는 검사를 사용합니다. [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 `npm audit --audit-level=high`로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
+개인 소유 비공개 저장소에서 지원되지 않는 GitHub dependency review·CodeQL 대신, 러너에서 실행되는 검사를 사용합니다. [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 [`scripts/audit-gate.mjs`](scripts/audit-gate.mjs)(`npm audit --audit-level=high`와 같은 기준)로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. 수정판이 없는 권고만 사유·만료일과 함께 그 파일의 `EXCEPTIONS`에 권고 ID 단위로 둘 수 있고(추가·연장은 CI 보안 규칙 변경이라 사전 확인), 만료일이 지나면 다시 실패하며 더 이상 보고되지 않는 예외는 경고로 알립니다. 현재 예외: `GHSA-fc5q-39xc-vjpf`(picomatch, 2026-12-01 만료). `check`의 운영 의존성 검사(`--omit=dev`)도 같은 도구를 씁니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
 
 [Security scan](.github/workflows/security.yml)은 고정 버전 Semgrep Community Edition으로 `src`·`scripts`·`e2e`의 JavaScript·TypeScript 보안 규칙(수동 검토용 `audit` 규칙 제외)을, zizmor로 `.github/workflows`를 검사하며 발견 사항이나 실행 오류가 있으면 실패합니다. Semgrep 커뮤니티 규칙은 커밋·다운로드 체크섬을 고정하고 메트릭·버전 확인을 끕니다. zizmor는 오프라인으로 실행합니다. 외부 계정·비밀값·code scanning 업로드 권한 없이 실행되며 소스 코드를 업로드하지 않습니다. 로컬 재현 명령과 도구·규칙 버전은 해당 워크플로의 `run` 단계가 기준입니다. Semgrep Community Edition의 함수·파일 단위 분석은 CodeQL의 분석 범위와 동일하지 않습니다. 지원하지 않는 구문의 부분 파싱 경고는 로그에 남지만 검사를 중단하지 않습니다. TypeScript 문법·타입 검사는 기존 build가 맡습니다.
 
