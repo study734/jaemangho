@@ -103,6 +103,37 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Dependabot의 minor·patch 묶음 PR을 필수 검사(check·e2e) 통과 뒤 바로 squash 머지한다.
+  # 비공개 저장소의 무료 플랜에는 GitHub 자동 머지(Allow auto-merge)가 없어 이 작업이 대신한다.
+  # 묶음 이름은 .github/dependabot.yml에서 update-types가 minor·patch뿐인 groups와 같아야 한다(scripts/workflows.test.ts가 확인).
+  # 메이저 업그레이드와 security-fixes 묶음(메이저 포함 가능)은 사람이 머지한다. 검사 중 새 커밋이 오면 머지하지 않는다.
+  # GITHUB_TOKEN으로 머지하므로 그 main 커밋에서는 Actions가 다시 돌지 않는다(같은 커밋을 이 실행이 이미 검사했다).
+  dependabot-merge:
+    needs: [check, e2e]
+    # PR 작성자로 판단한다(github.actor는 위조 가능하다고 zizmor가 막는다).
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: minor·patch 묶음이면 머지
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          case "$HEAD_REF" in
+            dependabot/npm_and_yarn/minor-and-patch-*|dependabot/github_actions/action-updates-*)
+              gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
+              echo "필수 검사 통과 후 머지했습니다." >> "$GITHUB_STEP_SUMMARY" ;;
+            *)
+              echo "자동 머지 대상 아님(메이저·보안 묶음 등): 사람이 검토합니다." >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
+
   dependency-review:
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-24.04

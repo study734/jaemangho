@@ -48,3 +48,20 @@ describe('운영 배포 확인', () => {
     expect((await probeSmoke('https://site.example', async () => Response.json({ ok: false })))[0].ok).toBe(false);
   });
 });
+
+describe('Dependabot 자동 머지 대상', () => {
+  it('자동 머지하는 묶음은 dependabot.yml에서 minor·patch만 담는 묶음이다', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
+    const config = await readFile('.github/dependabot.yml', 'utf8');
+    const prefixes = [...workflow.matchAll(/dependabot\/(\w+)\/([\w-]+)-\*/g)].map(([, ecosystem, group]) => ({ ecosystem, group }));
+    expect(prefixes.map((p) => p.group)).toEqual(['minor-and-patch', 'action-updates']);
+    const ecosystem = { npm_and_yarn: 'npm', github_actions: 'github-actions' } as const;
+    for (const { ecosystem: branchEcosystem, group } of prefixes) {
+      const block = config.split('\n  - package-ecosystem: ').find((b) => b.startsWith(ecosystem[branchEcosystem as keyof typeof ecosystem]));
+      expect(block, branchEcosystem).toBeDefined();
+      expect(block).toMatch(new RegExp(`\\n      ${group}:\\n        update-types: \\[minor, patch\\]\\n`));
+    }
+    expect(workflow).not.toMatch(/dependabot\/\w+\/security-fixes-\*/);
+  });
+});
