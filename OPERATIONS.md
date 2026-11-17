@@ -142,7 +142,7 @@ npm run db:verify-restore -- backups/jaemangho-YYYYMMDD.dump --confirm-isolated
 | Recovery rehearsal / backup-restore | PR·main push·merge queue·수동·매주 목요일 03:41 KST | 임시 DB에 가짜 데이터 생성 → 실제 pg_dump/pg_restore → 사용자·세션·소환사·통계·스키마 체크섬 비교 |
 | CodeQL / analyze | PR·main push·merge queue·수동·매주 금요일 03:13 KST | JavaScript/TypeScript와 Actions 코드의 보안 분석, Security 탭에 결과 저장 |
 | Operations monitor | 기존 30분 예약·main에서 수동 | 외부 사이트·DB 점검과 내부 운영 점검, 기존 Discord 알림 |
-| Dependabot auto-merge / enable | Dependabot PR | `minor-and-patch`·`action-updates` 묶음 PR에 자동 머지(squash) 예약. 실제 머지는 필수 검사 통과 후. 메이저·`security-fixes`는 사람이 머지. 저장소 설정 'Allow auto-merge'가 꺼져 있으면 실패한다 |
+| CI / dependabot-merge | Dependabot PR | `check`·`e2e` 통과 후 `minor-and-patch`·`action-updates` 묶음 PR을 바로 squash 머지(비공개 무료 저장소라 GitHub 자동 머지 대신). 검사 중 새 커밋이 오면 머지하지 않는다. 메이저·`security-fixes`는 사람이 머지. GITHUB_TOKEN 머지라 그 main 커밋의 Actions는 다시 돌지 않는다 |
 | Smoke / health | 성공한 Production 배포·30분 예약·main에서 수동 | health JSON, 로그인 HTML, 홈의 로그인 이동, 공개되지 않아야 하는 API의 401 응답 |
 
 PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 남지 않게 한다. 새 PR 커밋은 이전 PR 실행을 취소하고, main 실행은 보존한다. 고정된 Ubuntu 24.04와 Node 24를 쓰고 각 작업에 시간 제한을 둔다. Actions는 검증한 전체 커밋 SHA로 고정하며 Dependabot이 갱신 PR을 만든다. checkout에는 자격 증명을 남기지 않는다.

@@ -52,7 +52,7 @@ describe('운영 배포 확인', () => {
 describe('Dependabot 자동 머지 대상', () => {
   it('자동 머지하는 묶음은 dependabot.yml에서 minor·patch만 담는 묶음이다', async () => {
     const { readFile } = await import('node:fs/promises');
-    const workflow = await readFile('.github/workflows/dependabot-auto-merge.yml', 'utf8');
+    const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
     const config = await readFile('.github/dependabot.yml', 'utf8');
     const prefixes = [...workflow.matchAll(/dependabot\/(\w+)\/([\w-]+)-\*/g)].map(([, ecosystem, group]) => ({ ecosystem, group }));
     expect(prefixes.map((p) => p.group)).toEqual(['minor-and-patch', 'action-updates']);
