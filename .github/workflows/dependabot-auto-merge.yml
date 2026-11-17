@@ -1,0 +1,35 @@
+name: Dependabot auto-merge
+
+# Dependabot의 minor·patch 묶음 PR에 GitHub 자동 머지(squash)를 건다. 실제 머지는 필수 검사(check·e2e)가
+# 통과한 뒤 GitHub가 한다. 묶음 이름은 .github/dependabot.yml의 groups와 같아야 하며(scripts/workflows.test.ts가 확인),
+# 그 묶음은 update-types가 minor·patch뿐이라 메이저 업그레이드와 security-fixes 묶음(메이저 포함 가능)은 사람이 머지한다.
+# 저장소 설정 'Allow auto-merge'가 꺼져 있으면 이 작업이 실패해 알 수 있다.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  enable:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: minor·patch 묶음이면 자동 머지 예약
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          case "$HEAD_REF" in
+            dependabot/npm_and_yarn/minor-and-patch-*|dependabot/github_actions/action-updates-*)
+              gh pr merge --auto --squash "$PR_URL"
+              echo "자동 머지 예약: 필수 검사 통과 후 GitHub가 머지합니다." >> "$GITHUB_STEP_SUMMARY" ;;
+            *)
+              echo "자동 머지 대상 아님(메이저·보안 묶음 등): 사람이 검토합니다." >> "$GITHUB_STEP_SUMMARY" ;;
+          esac
