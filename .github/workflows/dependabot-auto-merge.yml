@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   enable:
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    # PR 작성자로 판단한다(github.actor는 다른 사람이 다시 실행하면 바뀌고 위조 가능하다고 zizmor가 막는다).
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
