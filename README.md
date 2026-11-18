@@ -369,9 +369,11 @@ CI 통과와 운영 반영은 서로 다른 결과입니다. 변경을 운영에
 ```bash
 npm run verify:production -- --pr 75 --wait 120
 # PR 없이 특정 커밋을 확인하려면 --commit <40자리 SHA>
+# 클라우드 개발 세션(Vercel CLI 로그인 없음): 끝에 --api
+npm run verify:production -- --pr 75 --wait 120 --api
 ```
 
-이 명령은 기존 GitHub CLI와 Vercel CLI 로그인으로 배포 정보를 읽고, 기존 smoke의 공개 경로 5개를 검사합니다. Node·npm이 PATH에 없다면 `rtk proxy bash scripts/agent-npm.sh run verify:production -- --pr 75 --wait 120`을 사용합니다. `gh`가 필요하고 Vercel CLI 63.1.2는 npm 실행 캐시를 사용합니다. 처음 실행할 때만 CLI 다운로드가 필요할 수 있습니다. CLI 인증에 실패하면 기존 계정으로 로그인한 뒤 재실행하며, 운영 환경변수 파일을 내려받지 않습니다.
+이 명령은 기존 GitHub CLI와 Vercel CLI 로그인으로 배포 정보를 읽고, 기존 smoke의 공개 경로 5개를 검사합니다. Node·npm이 PATH에 없다면 `rtk proxy bash scripts/agent-npm.sh run verify:production -- --pr 75 --wait 120`을 사용합니다. `gh`가 필요하고 Vercel CLI 63.1.2는 npm 실행 캐시를 사용합니다. 처음 실행할 때만 CLI 다운로드가 필요할 수 있습니다. CLI 인증에 실패하면 기존 계정으로 로그인한 뒤 재실행하며, 운영 환경변수 파일을 내려받지 않습니다. `--api`는 Vercel CLI 대신 Vercel REST API를 직접 부릅니다. 클라우드 세션은 프록시가 `api.vercel.com` 인증을 넣으므로 토큰을 받거나 출력하지 않으며, Node `fetch`가 프록시를 따르도록 `NODE_USE_ENV_PROXY=1`로 자신을 다시 실행합니다. GitHub 조회(`gh`)는 그대로입니다.
 
 `public_verified`와 종료 코드 0은 **요청한 머지 커밋이 운영 주소에 반영됐고 공개 검사 5개가 통과했다**는 뜻입니다. DB health는 고유 query로 캐시를 우회합니다. 검사 전후 배포 ID를 비교해 도중에 버전이 바뀌면 성공으로 처리하지 않습니다. 이후 다른 커밋이 배포된 경우에도 지정한 과거 커밋의 검증을 성공으로 대신하지 않습니다.
 
