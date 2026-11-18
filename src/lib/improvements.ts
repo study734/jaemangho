@@ -52,6 +52,8 @@ export const AREAS: Area[] = [
 
 // riot_errors·steam_errors에 이미 세는 외부 응답 실패. 서버 실패 수에서 빼서 두 번 세지 않는다.
 const EXTERNAL_OPERATIONS = new Set(['riot.upstream', 'riot.response', 'steam.web-api']);
+// 실패가 아니라 다시 시도로 회복한 느린 DB 연결(src/server/pool.ts). 서버 실패에서 빼고 '살펴보기' 한 항목으로 보여준다.
+const DB_RETRY = 'db.connect-retry';
 
 const MIN_VIEWS = 30; // 두 주 합계가 이보다 적으면 사용량 변화로 판단하지 않는다
 const MIN_SCREEN = 10; // 화면별 변화를 볼 최소 열람 수
@@ -70,7 +72,7 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
   // 1) 고치기: 영역별 활성 경고·서버 실패·외부 오류
   const fixes = AREAS.map((area) => {
     const alerts = input.alerts.filter((a) => areaOf(a.key, (x) => x.alerts) === area);
-    const failures = input.failures.filter((f) => !EXTERNAL_OPERATIONS.has(f.operation) && areaOf(f.operation, (x) => x.operations) === area)
+    const failures = input.failures.filter((f) => !EXTERNAL_OPERATIONS.has(f.operation) && f.operation !== DB_RETRY && areaOf(f.operation, (x) => x.operations) === area)
       .sort((a, b) => b.count - a.count || a.operation.localeCompare(b.operation));
     const serverCount = sum(failures.map((f) => f.count));
     const reasons: string[] = [];
@@ -99,7 +101,7 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
       if (count) {
         const top = [...input.steamErrors].sort((a, b) => b.count - a.count).slice(0, 3).map((e) => `${e.code} ${e.count}회`).join(', ');
         reasons.push(`Steam 요청 오류 ${count}회 · ${top}`);
-        steps.push('관리자 연동 탭의 Steam 오류와 키 설정 확인');
+        steps.push('관리자 연동 탭의 Steam 오류 코드 확인(http_401·403은 키, 429는 호출 한도, timeout·http_5xx는 Steam 쪽 지연·장애)');
         score += count;
       }
     }
@@ -116,13 +118,29 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
     .sort((a, b) => b.score - a.score || b.item.views - a.item.views)
     .map((f) => f.item);
 
+  // DB 연결 다시 시도: 사용자 오류는 없었지만 10초 넘게 기다린 요청. 최종 실패는 Vercel 오류의 database.connect로 본다.
+  const retries = sum(input.failures.filter((f) => f.operation === DB_RETRY).map((f) => f.count));
+  const slow: Improvement[] = retries ? [{
+    id: 'check:db-retry', kind: 'check', target: 'DB 연결', views: 0,
+    reasons: [`새 연결 시간 초과 후 다시 시도로 회복 ${retries}회 · 사용자 오류 없이 10초 이상 대기`],
+    next: 'Vercel 오류의 database.connect(최종 실패)와 비교하고, 계속 늘면 Neon 풀러 주소·드라이버 교체 검토',
+  }] : [];
+
   // 2) 사용량 기반: 화면별 변화. 관리자 화면은 판단에서 뺀다.
   const screens = (Object.keys(TRACKED) as TrackKey[]).filter((p) => p !== '/admin')
     .map((path) => ({ path, current: viewsByPath.get(path)?.current ?? 0, previous: viewsByPath.get(path)?.previous ?? 0 }));
   const totalViews = { current: sum(input.views.map((v) => v.current)), previous: sum(input.views.map((v) => v.previous)) };
   const usageEnough = totalViews.current + totalViews.previous >= MIN_VIEWS;
   const usage: Improvement[] = [];
-  if (usageEnough) {
+  if (usageEnough && totalViews.current === 0) {
+    // 웹 전체가 한 주 동안 쓰이지 않았으면 화면별 '감소·정리 검토'를 늘어놓지 않고 한 항목으로 묶는다(2026-11 디스코드 우선 전환 이후 흔한 상태).
+    const idle = screens.filter((s) => s.current + s.previous <= 2).map((s) => label(s.path));
+    usage.push({
+      id: 'review:web', kind: 'review', target: '웹 화면 전체', views: 0,
+      reasons: [`최근 7일 열람 0회(그 전 7일 ${totalViews.previous}회)`, ...(idle.length ? [`2주간 거의 안 쓴 화면: ${idle.join(', ')}`] : [])],
+      next: '디스코드 명령으로 옮겨 간 사용인지 확인하고, 디스코드에 없는 웹 전용 화면의 유지 여부를 결정',
+    });
+  } else if (usageEnough) {
     const byViews = (a: { current: number }, b: { current: number }) => b.current - a.current;
     for (const s of [...screens].sort((a, b) => b.previous - a.previous)) {
       if (s.previous >= MIN_SCREEN && s.current <= s.previous * (1 - CHANGE)) usage.push({
@@ -146,5 +164,5 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
       });
     }
   }
-  return { usageEnough, totalViews, items: [...fixes, ...usage] };
+  return { usageEnough, totalViews, items: [...fixes, ...slow, ...usage] };
 }
