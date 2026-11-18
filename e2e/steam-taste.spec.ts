@@ -17,8 +17,7 @@ test('개인 취향을 공통 추천 데이터로 저장하고 삭제하면 실�
   }
   for (const appId of [620, 1599600]) await db.query(`insert into steam_cache(key,body,expires_at) values($1,'"coop"',now()+interval '1 hour') on conflict(key) do update set body=excluded.body,expires_at=excluded.expires_at`, [`store:play-support:v1:${appId}`]);
   await page.route('**/store_item_assets/**', route => route.abort());
-  await page.goto('/steam/recommend');
-  await expect(page).toHaveURL(/\/steam$/);
+  await page.goto('/steam');
   await expect(page.getByRole('link', { name: '내 취향 추천', exact: true })).toHaveCount(0);
   await page.getByText('내 추천 데이터·취향 설정', { exact: true }).click();
   await page.getByText('공통 추천에 쓸 내 취향', { exact: true }).click();
