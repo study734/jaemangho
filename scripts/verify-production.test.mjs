@@ -82,4 +82,20 @@ describe('대상 커밋의 운영 반영 검증', () => {
     expect(parseArguments(['--pr', '75', '--wait', '120'])).toEqual({ pr: '75', waitSeconds: 120 });
     expect(parseArguments(['--commit', commit])).toEqual({ commit, waitSeconds: 0 });
   });
+  it('--api는 CLI 대신 Vercel REST API로 같은 경로를 조회하고, GitHub 조회는 그대로 둔다', async () => {
+    expect(parseArguments(['--pr', '137', '--wait', '120', '--api'])).toEqual({ pr: '137', waitSeconds: 120, api: true });
+    expect(parseArguments(['--api', '--commit', commit])).toEqual({ commit, waitSeconds: 0, api: true });
+    expect(parseArguments(['--commit', commit])).toEqual({ commit, waitSeconds: 0 });
+    const reads = [], routes = [];
+    const result = await runVerification({ pr: '137', waitSeconds: 0, api: true }, {
+      read: async (...args) => { reads.push(args[0]); return { merged: true, merge_commit_sha: commit }; },
+      readApi: async route => { routes.push(route); return deployment(); },
+      verify: async ({ inspect, candidates }) => { await inspect(); await candidates(commit); return { status: 'public_verified' }; },
+    });
+    expect(result.status).toBe('public_verified');
+    expect(reads).toEqual(['gh']);
+    expect(routes).toHaveLength(2);
+    expect(routes[0]).toMatch(/^\/v13\/deployments\/jaemangho\.vercel\.app\?teamId=/);
+    expect(routes[1]).toContain(`sha=${commit}`);
+  });
 });

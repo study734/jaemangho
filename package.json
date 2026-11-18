@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "verify:production": "node scripts/verify-production.mjs",
     "db:backup": "node --env-file-if-exists=.env.local scripts/backup.mjs create",
-    "db:verify-restore": "node --env-file-if-exists=.env.local scripts/backup.mjs verify"
+    "db:verify-restore": "node --env-file-if-exists=.env.local scripts/backup.mjs verify",
+    "lint:workflows": "node scripts/lint-workflows.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.11.2",
