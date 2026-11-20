@@ -53,7 +53,7 @@ export async function usageReport(limit = 8): Promise<UsageRow[]> {
       round(sum(u.total_ms) filter (where u.day > t.today - 7) / nullif(sum(u.uses) filter (where u.day > t.today - 7), 0))::int as "avgMs"
     from discord_usage u, t where u.day > t.today - 14
     group by u.action having sum(u.uses) filter (where u.day > t.today - 7) > 0
-    order by uses desc, u.action limit ${limit}`;
+    order by uses desc, u.action collate "C" limit ${limit}`;
   return rows as unknown as UsageRow[];
 }
 

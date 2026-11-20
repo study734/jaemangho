@@ -16,7 +16,7 @@ describe.skipIf(!testDbUrl)('디스코드 사용량 집계 (격리 DB)', () => {
     await usage.recordUsage('/게임추천', a, 3000);
     await usage.recordUsage('/게임추천', b, 300);
     await usage.recordUsage('/모집', a, 50);
-    const rows = (await pool.query(`select action, uses, users, total_ms::int as total, max_ms as max from discord_usage order by action`)).rows;
+    const rows = (await pool.query(`select action, uses, users, total_ms::int as total, max_ms as max from discord_usage order by action collate "C"`)).rows;
     expect(rows).toEqual([
       { action: '/게임추천', uses: 3, users: 2, total: 4500, max: 3000 },
       { action: '/모집', uses: 1, users: 1, total: 50, max: 50 },
