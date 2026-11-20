@@ -6,8 +6,9 @@ import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type PartyAction, type Reply } from './protocol';
+import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
 import { lastParty } from './party';
+import { feedbackModal, saveFeedback } from './feedback';
 import { reportFailure } from '../diagnostics';
 
 
@@ -101,8 +102,23 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'), Date.now(), userId);
     case '게임추천': return await steamConsentMessage(userId)
       ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced', Date.now(), await lastParty(owner));
+    // 의견 명령은 receiveInteraction이 첫 응답으로 입력창을 보내 여기까지 오지 않는다.
+    case '의견': case '재순이에게 전달': return null;
   }
 }
+
+// 멤버 의견 제출(intent/0002). 원문은 저장만 하고 로그·오류 기록에는 남기지 않는다.
+async function runFeedback(interaction: ModalInteraction, userId: string): Promise<Reply> {
+  const [, kind, channelId, messageId] = interaction.data.custom_id.split(':');
+  const result = await saveFeedback({ id: interaction.id, userId, discordId: interaction.member.user.id, body: modalText(interaction),
+    source: kind === 'msg' ? 'message' : 'command',
+    messageLink: kind === 'msg' ? `https://discord.com/channels/${interaction.guild_id}/${channelId}/${messageId}` : null });
+  return privateMessage(result === 'saved'
+    ? '💌 재순이가 전달받았어요. 운영진이 /개선에서 확인하고, 반영되면 /패치노트에 올라와요.'
+    : '오늘은 의견을 많이 보내 주셨어요. 잠시 뒤에 다시 보내 주세요(24시간에 5건까지).');
+}
+
+const quote = (text: string) => text.split('\n').map(line => `> ${line}`).join('\n');
 
 async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Reply> {
   const owner = interaction.member.user.id;
@@ -132,9 +148,21 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
   return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: chosen.ids, scope: chosen.scope, preference: chosen.preference });
 }
 
+const LOGIN_REQUIRED = `[재망호 사이트](<${SITE}/login>)에 디스코드로 한 번 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.`;
+
 async function processCommand(interaction: Interaction): Promise<Reply> {
   const userId = await commandUser(interaction.member.user.id);
-  if (!userId) return privateMessage(`[재망호 사이트](<${SITE}/login>)에 디스코드로 한 번 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.`);
+  if (!userId) {
+    // 입력창은 가입 확인 전에 열리므로, 거절할 때 쓴 글을 돌려줘 로그인 뒤 다시 붙여 넣을 수 있게 한다.
+    return privateMessage(interaction.type === 5 ? `${LOGIN_REQUIRED}\n보내려던 의견은 저장하지 않았어요. 아래 글을 복사해 두세요.\n${quote(modalText(interaction))}` : LOGIN_REQUIRED);
+  }
+  if (interaction.type === 5) {
+    try { return await runFeedback(interaction, userId); }
+    catch (error) {
+      const id = reportFailure('api/discord.feedback', error);
+      return privateMessage(`의견을 저장하지 못했어요. 잠시 후 다시 보내 주세요.\n-# 오류 ID: ${id}`);
+    }
+  }
   return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
 }
 
@@ -190,6 +218,11 @@ export async function receiveInteraction(request: Request, defer: (work: () => P
   if (interaction.type === 1) return Response.json({ type: 1 });
   if (!env.DISCORD_CLIENT_ID || !env.DISCORD_GUILD_ID || interaction.application_id !== env.DISCORD_CLIENT_ID || interaction.guild_id !== env.DISCORD_GUILD_ID) {
     return Response.json({ type: 4, data: { ...privateMessage('재망호 서버에서만 이용할 수 있는 명령이에요.'), flags: 64 } });
+  }
+  // 의견 명령은 첫 응답이 입력창이다(DB 없음). 제출(type 5)이 오면 그때 가입 확인·저장한다.
+  if (interaction.type === 2 && interaction.data.name === '의견') return Response.json(feedbackModal('feedback:cmd'));
+  if (interaction.type === 2 && interaction.data.name === '재순이에게 전달') {
+    return Response.json(feedbackModal(interaction.channel_id ? `feedback:msg:${interaction.channel_id}:${interaction.data.target_id}` : 'feedback:cmd'));
   }
   defer(() => completeInteraction(interaction));
   return Response.json(ACK_BODY[ackFor(interaction)]);
