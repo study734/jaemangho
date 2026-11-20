@@ -10,6 +10,7 @@ import { hasAdministrator } from './access';
 import { adminTask } from './admin';
 import { postWeeklyAwards, setAwardChannel } from '../chat/award-post';
 import { recentFeedback } from './feedback';
+import { usageReport } from './usage';
 
 vi.mock('../admin', () => ({ purgeRiotCache: vi.fn() }));
 vi.mock('../improvements', () => ({ improvementReport: vi.fn() }));
@@ -20,11 +21,13 @@ vi.mock('../operations/status', () => ({ operationStatus: vi.fn() }));
 vi.mock('../steam/cache', () => ({ purgeSteamCache: vi.fn() }));
 vi.mock('../chat/award-post', () => ({ postWeeklyAwards: vi.fn(), setAwardChannel: vi.fn() }));
 vi.mock('./feedback', () => ({ recentFeedback: vi.fn() }));
+vi.mock('./usage', () => ({ usageReport: vi.fn() }));
 const actor = { id: 'u1', name: 'Admin' };
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(audited).mockImplementation(async (_actor, _action, _target, work) => work());
   vi.mocked(recentFeedback).mockResolvedValue({ count: 0, items: [] });
+  vi.mocked(usageReport).mockResolvedValue([]);
 });
 
 describe('Administrator permission bit', () => {
@@ -110,5 +113,20 @@ describe('/개선의 멤버 의견 (intent/0002 R6)', () => {
   it('의견이 없으면 의견 절을 붙이지 않는다', async () => {
     vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
     expect((await adminTask('개선', actor)).content).not.toContain('멤버 의견');
+  });
+});
+
+describe('/개선의 디스코드 사용 (intent/0003 R6)', () => {
+  it('최근 7일 횟수·전주 대비·하루 최대 사용자·평균 시간을 보여주고, 사용이 없으면 생략한다', async () => {
+    vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
+    expect((await adminTask('개선', actor)).content).not.toContain('디스코드 사용');
+    vi.mocked(usageReport).mockResolvedValue([
+      { action: '/게임추천', uses: 12, previous: 4, maxUsers: 5, avgMs: 2100 },
+      { action: '/의견', uses: 1, previous: 0, maxUsers: 1, avgMs: 30 },
+    ]);
+    const text = (await adminTask('개선', actor)).content;
+    expect(text).toContain('🎮 디스코드 사용 (최근 7일, 그 전 7일 대비)');
+    expect(text).toContain('/게임추천 12회 (+200%) · 하루 최대 5명 · 평균 2.1초');
+    expect(text).toContain('/의견 1회 (새로) · 하루 최대 1명 · 평균 0.0초');
   });
 });
