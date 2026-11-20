@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportFailure } from '../diagnostics';
 import { runScheduledSteamCollection, SteamCollectionBudgetError, SteamCollectionBusyError, type runSteamCollection } from './steam-collection';
 
+// 결과 분류만 본다: DB 연결과, 로그인(viewer → Better Auth)을 불러오는 동의 모듈은 가짜로 둔다.
 vi.mock('../pool', () => ({ pool: {} }));
+vi.mock('../steam/consent', () => ({ STEAM_FEATURE_NOTICE: 'test-notice' }));
+vi.mock('../operations/usage', () => ({ usageStatus: vi.fn() }));
 vi.mock('../diagnostics', () => ({ reportFailure: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
 
