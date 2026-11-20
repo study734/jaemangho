@@ -92,7 +92,7 @@ Steam `store/appdetails/<appId>` 오류는 `http_<상태>`, `timeout`, `network`
 운영에서 실행된다(2026-10-16, #88부터). 실행 경로는 셋이다. 결정 이유는 [intent/0001](intent/0001-steam-regular-collection/intent.md)에 있다.
 - 이용 동의(`POST /api/steam/consent`)와 수집 요청(`POST /api/steam/activity`) 직후 해당 계정의 첫 관측을 수집한다(응답 뒤 `after`, `manual`).
 - 활동 설정 조회(`GET /api/steam/activity`) 때 마지막 성공에서 7일이 지난 본인 계정을 다시 수집한다(`manual`).
-- **예약 수집**: 매일 운영 보조 점검(`/api/cron/ops-watchdog`, UTC 03시) 뒤에 대상 전체를 25초 예산으로 수집한다(`scheduled`). 새 Cron 없이 이미 DB를 깨운 점검 안에서 돌고, 채팅 예약 수집과 같은 무료 사용량 보호를 따른다(`paused`면 건너뜀, `limited`면 마지막 예약 수집 뒤 48시간이 지나야 실행). 막힘은 `budget`, 다른 수집 실행 중은 `busy`, 실패는 `app_failures`의 `steam.activity.scheduled`로 남고 점검 응답의 `steamActivity`에 상태와 개수만 담긴다. 예산 안에 못 한 계정은 `deferred`로 다음 날 이어서 한다. 하루 20계정을 넘는 대상이 생기면 7일 간격을 못 지킬 수 있으므로 `ops_jobs`의 이월 수를 본다.
+- **예약 수집**: 매일 운영 보조 점검(`/api/cron/ops-watchdog`, UTC 03시) 뒤에 대상 전체를 25초 예산으로 수집한다(`scheduled`). 새 Cron 없이 이미 DB를 깨운 점검 안에서 돌고, 채팅 예약 수집과 같은 무료 사용량 보호를 따른다(`paused`면 건너뜀, `limited`면 이틀에 한 번 — 마지막 예약 수집 뒤 36시간 이상). 막힘은 `budget`, 다른 수집 실행 중은 `busy`, 실패는 `app_failures`의 `steam.activity.scheduled`로 남고 점검 응답의 `steamActivity`에 상태와 개수만 담긴다. 예산 안에 못 한 계정은 `deferred`로 다음 날 이어서 한다. 하루 20계정을 넘는 대상이 생기면 7일 간격을 못 지킬 수 있으므로 `ops_jobs`의 이월 수를 본다.
 
 Steam OpenID 확인 경로와 본인의 수집 요청·중단·기록 삭제 API가 있다. 검증된 계정의 주인 지정은 다른 사용자가 변경·삭제할 수 없다. 저장 국가는 `src/server/activity/steam-policy.ts`에 `미국 (Neon · iad1)`로 설정돼 있으며(2026-10-16 확인), DB를 다른 국가로 옮기기 전에 다시 확인한다. 이 값이 `null`이면 수집 요청이 닫힌다. 운영 DB에 `steam_collection_requests` 행을 수동으로 넣어 요청 흐름을 대신하지 않는다.
 

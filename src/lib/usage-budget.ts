@@ -17,7 +17,10 @@ export function usageMode(sample: UsageSample | null, previous: UsageBudget['mod
   if (ratio >= .8 || previous === 'limited' && ratio >= .7) return 'limited';
   return 'normal';
 }
+// 감속(limited)이면 이틀에 한 번만 예약 수집한다. 예약 실행은 하루 한 번이고 시작 시각이 날마다 조금씩 흔들리므로
+// 정확히 48시간을 요구하면 이틀째가 몇 초 모자라 사흘에 한 번이 된다. 36시간 이상이면 다음 날은 막고 이틀째는 허용한다.
+const LIMITED_INTERVAL = 36 * 3_600_000;
 export function scheduledCollectionAllowed(budget: UsageBudget, lastAttempt: string | null, now = Date.now()) {
   if (budget.mode === 'paused') return false;
-  return budget.mode !== 'limited' || !lastAttempt || now - Date.parse(lastAttempt) >= 48 * 3_600_000;
+  return budget.mode !== 'limited' || !lastAttempt || now - Date.parse(lastAttempt) >= LIMITED_INTERVAL;
 }

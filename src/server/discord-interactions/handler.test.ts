@@ -605,3 +605,28 @@ describe('디스코드 사용량 기록 (intent/0003 R1·R4·R5)', () => {
     expect(recordUsage).not.toHaveBeenCalled();
   });
 });
+
+describe('의견 제출의 예외 경로', () => {
+  const channel = '100000000000000080';
+  const submit = (value: string) => ({ ...command(), type: 5, channel_id: channel,
+    data: { custom_id: 'feedback:cmd', components: [{ type: 1, components: [{ type: 4, custom_id: 'body', value }] }] } });
+  it('줄이 많은 1000자 의견을 돌려줄 때도 디스코드 한도(2000자)를 넘지 않고 글을 모두 담는다', async () => {
+    vi.mocked(commandUser).mockResolvedValue(null);
+    const body = Array.from({ length: 499 }, (_, i) => String(i % 10)).join('\n');
+    expect(body.length).toBeLessThanOrEqual(1000);
+    await completeInteraction(parsed(submit(body)));
+    const content = lastMessage().content as string;
+    expect(content.length).toBeLessThanOrEqual(2000);
+    expect(content).toContain(body);
+  });
+  it('가입 확인 중 오류가 나도 쓴 글을 돌려주고 의견 실패로 기록한다', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(commandUser).mockRejectedValue(new Error('db down'));
+    await completeInteraction(parsed(submit('사라지면 안 되는 의견')));
+    expect(saveFeedback).not.toHaveBeenCalled();
+    expect(lastMessage().content).toContain('사라지면 안 되는 의견');
+    expect(lastMessage().content).toContain('오류 ID');
+    expect(JSON.stringify(log.mock.calls)).toContain('api/discord.feedback');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('사라지면 안 되는 의견');
+  });
+});

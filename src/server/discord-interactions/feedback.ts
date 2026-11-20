@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { pool } from '../pool';
 
 // 멤버 의견(intent/0002-member-feedback-channel). 저장·조회·보존 정리 SQL은 여기에만 둔다.
 // 의견 원문은 로그·오류 기록에 남기지 않는다. 원래 메시지 내용은 받지도 저장하지도 않고 위치(링크)만 둔다.
@@ -18,18 +19,25 @@ export interface FeedbackInput {
   source: 'command' | 'message'; messageLink: string | null;
 }
 
-// 같은 interaction ID는 한 번만 저장한다(Discord 재전송). 한도 판단과 저장을 한 문장으로 해 동시 제출에도 5건을 넘지 않게 한다.
+// 같은 interaction ID는 한 번만 저장한다(Discord 재전송). 같은 사람의 제출은 트랜잭션 잠금으로 한 줄로 세워
+// 개수 확인과 저장 사이에 다른 제출이 끼지 않게 한다(동시 제출에도 24시간 5건을 넘지 않는다).
 export async function saveFeedback(input: FeedbackInput): Promise<'saved' | 'limited'> {
-  const sql = await db();
-  const [existing] = await sql`select 1 from member_feedback where id = ${input.id}`;
-  if (existing) return 'saved';
-  const rows = await sql`insert into member_feedback (id, user_id, discord_id, body, source, message_link)
-    select ${input.id}, ${input.userId}, ${input.discordId}, ${input.body}, ${input.source}, ${input.messageLink}
-    where (select count(*) from member_feedback where discord_id = ${input.discordId} and created_at > now() - interval '24 hours') < ${DAILY_LIMIT}
-    on conflict (id) do nothing returning id`;
-  if (rows.length) return 'saved';
-  const [again] = await sql`select 1 from member_feedback where id = ${input.id}`;
-  return again ? 'saved' : 'limited';
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query(`select pg_advisory_xact_lock(hashtext('member_feedback:' || $1))`, [input.discordId]);
+    if ((await client.query('select 1 from member_feedback where id = $1', [input.id])).rowCount) { await client.query('commit'); return 'saved'; }
+    const { rows: [{ n }] } = await client.query<{ n: number }>(`select count(*)::int as n from member_feedback
+      where discord_id = $1 and created_at > now() - interval '24 hours'`, [input.discordId]);
+    if (n >= DAILY_LIMIT) { await client.query('commit'); return 'limited'; }
+    await client.query(`insert into member_feedback (id, user_id, discord_id, body, source, message_link) values ($1, $2, $3, $4, $5, $6)`,
+      [input.id, input.userId, input.discordId, input.body, input.source, input.messageLink]);
+    await client.query('commit');
+    return 'saved';
+  } catch (error) {
+    await client.query('rollback').catch(() => {});
+    throw error;
+  } finally { client.release(); }
 }
 
 export interface FeedbackItem { name: string; body: string; messageLink: string | null; createdAt: string }

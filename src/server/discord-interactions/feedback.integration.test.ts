@@ -43,6 +43,12 @@ describe.skipIf(!testDbUrl)('멤버 의견 저장 (격리 DB)', () => {
     expect(recent.items[0]).toMatchObject({ name: '의견테스트', body: '가장 최근', messageLink: link });
     expect(recent.items.map(item => item.body)).not.toContain('오래된 의견');
   });
+  it('동시에 여러 건을 제출해도 24시간 5건을 넘지 않는다', async () => {
+    for (let n = 1; n <= 4; n++) await save(n);
+    const results = await Promise.all([10, 11, 12].map(n => save(n)));
+    expect(results.filter(r => r === 'saved')).toHaveLength(1);
+    expect((await pool.query('select count(*)::int as n from member_feedback')).rows[0].n).toBe(5);
+  });
   it('90일이 지난 의견을 지운다', async () => {
     await save(1); await save(2);
     await pool.query(`update member_feedback set created_at = now() - interval '91 days' where id = $1`, [id(1)]);
