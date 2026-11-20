@@ -9,6 +9,7 @@ import { findSource } from './source';
 import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
 import { lastParty } from './party';
 import { feedbackModal, saveFeedback } from './feedback';
+import { actionName, recordUsage } from './usage';
 import { reportFailure } from '../diagnostics';
 
 
@@ -169,6 +170,7 @@ async function processCommand(interaction: Interaction): Promise<Reply> {
 export async function completeInteraction(interaction: Interaction) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let reply: Reply;
+  const started = Date.now();
   try {
     // A timeout answers the user within the route budget. Shared Steam/cache requests are not cancelled.
     reply = await Promise.race([processCommand(interaction), new Promise<Message>(resolve => {
@@ -179,6 +181,14 @@ export async function completeInteraction(interaction: Interaction) {
     const id = reportFailure('api/discord.interaction', error);
     reply = privateMessage(`명령을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.\n-# 오류 ID: ${id}`);
   } finally { clearTimeout(timer); }
+  const elapsed = Date.now() - started;
+  await deliverReply(interaction, reply);
+  // 사용량(intent/0003)은 응답을 보낸 뒤 센다. 실패해도 응답은 이미 끝났다.
+  try { await recordUsage(actionName(interaction), interaction.member.user.id, elapsed); }
+  catch (error) { reportFailure('api/discord.usage', error); }
+}
+
+async function deliverReply(interaction: Interaction, reply: Reply) {
   const { application_id: app, token } = interaction;
   const ack = ackFor(interaction);
   if (reply && 'public' in reply) {

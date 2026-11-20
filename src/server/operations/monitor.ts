@@ -1,4 +1,5 @@
 import { purgeOldFeedback } from '../discord-interactions/feedback';
+import { purgeUsage } from '../discord-interactions/usage';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { db } from '../db';
 import { pool } from '../pool';
@@ -145,6 +146,7 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
     await sql`delete from ops_jobs where status <> 'running' and started_at < now() - interval '90 days'`;
     await sql`delete from ops_audit where created_at < now() - interval '180 days'`;
     await purgeOldFeedback(); // 멤버 의견 90일(intent/0002)
+    await purgeUsage(); // 디스코드 사용량: 임시 사용자 ID는 전날까지, 집계는 365일(intent/0003)
     await sql`delete from page_views where day < (now() at time zone 'Asia/Seoul')::date - 365`;
     await sql`delete from steam_stats where day < (now() at time zone 'Asia/Seoul')::date - 365`;
     await sql`delete from riot_stats where day < (now() at time zone 'Asia/Seoul')::date - 365`;

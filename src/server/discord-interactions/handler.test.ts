@@ -4,6 +4,7 @@ import { adminUser, commandUser, linkedPlayers } from './access';
 import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { saveFeedback } from './feedback';
+import { recordUsage } from './usage';
 import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -19,6 +20,7 @@ vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: v
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
 vi.mock('./feedback', async original => ({ ...await original<typeof import('./feedback')>(), saveFeedback: vi.fn() }));
+vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), recordUsage: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
 vi.mock('../steam/games', () => ({ compareGames: vi.fn() }));
 vi.mock('../steam/missions', () => ({ findMissions: vi.fn() }));
@@ -573,5 +575,33 @@ describe('멤버 의견 입력창 (intent/0002 R1·R2·R3·R8)', () => {
     expect(interactionSchema.safeParse(submit('feedback:cmd', '   ')).success).toBe(false);
     expect(interactionSchema.safeParse(submit('feedback:cmd', 'a'.repeat(1001))).success).toBe(false);
     expect(interactionSchema.safeParse(submit('other:cmd', '의견')).success).toBe(false);
+  });
+});
+
+describe('디스코드 사용량 기록 (intent/0003 R1·R4·R5)', () => {
+  it('응답을 보낸 뒤 기능 이름·누른 사람·처리 시간을 한 번 기록한다', async () => {
+    vi.mocked(recordUsage).mockResolvedValue(undefined);
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(recordUsage).toHaveBeenCalledWith('/패치노트', owner, expect.any(Number));
+    expect(fetchFn.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(recordUsage).mock.invocationCallOrder[0]);
+  });
+  it('가입 안내로 끝난 요청도 시도로 센다', async () => {
+    vi.mocked(commandUser).mockResolvedValue(null);
+    await completeInteraction(parsed({ ...command(), data: { name: '기록', type: 1 } }));
+    expect(recordUsage).toHaveBeenCalledWith('/기록', owner, expect.any(Number));
+  });
+  it('기록이 실패해도 응답은 이미 보냈고 실패만 남긴다', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(recordUsage).mockRejectedValue(new Error('db down'));
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(fetchFn).toHaveBeenCalled();
+    expect(JSON.stringify(log.mock.calls)).toContain('api/discord.usage');
+  });
+  it('입력창을 여는 첫 응답은 세지 않는다(첫 응답 전 DB 없음)', async () => {
+    const defer = vi.fn();
+    await receiveInteraction(request({ ...command(), data: { name: '의견', type: 1 } }), defer, env);
+    expect(defer).not.toHaveBeenCalled();
+    expect(recordUsage).not.toHaveBeenCalled();
   });
 });
