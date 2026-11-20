@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-20', area: 'discord', title: '재순이에게 의견 보내기', items: [
+    '/의견으로 불편한 점이나 바라는 점을 재순이에게 보낼 수 있어요. 운영진이 확인해서 다음 기능에 반영해요.',
+    '메시지를 우클릭해 "앱 → 재순이에게 전달"을 고르면 그 메시지 위치와 함께 의견을 보내요(메시지 내용은 저장하지 않아요).',
+  ] },
   { date: '2026-11-20', area: 'discord', title: '모집·시상식 안정성', items: [
     '모집 버튼을 눌렀는데 모집 글이 바로 바뀌지 않으면, 참여·나가기는 반영됐다고 나에게만 알려 줘요.',
     '주간 시상식이 같은 주에 두 번 올라가지 않도록 했어요.',

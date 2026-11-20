@@ -8,7 +8,7 @@ const traceResponse = z.object({ result: z.array(z.object({
   episode, from: z.number(), similarity: z.number(),
 })) });
 
-type MessageCommand = Extract<Extract<Interaction, { type: 2 }>['data'], { type: 3 }>;
+type MessageCommand = Extract<Extract<Interaction, { type: 2 }>['data'], { name: '출처 찾기' }>;
 
 // The first image/video attachment of the clicked message. Embeds and link previews are not looked up.
 export function attachmentUrl(data: MessageCommand): string | null {

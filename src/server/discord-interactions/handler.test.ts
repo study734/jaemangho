@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminUser, commandUser, linkedPlayers } from './access';
 import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
+import { saveFeedback } from './feedback';
 import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -17,6 +18,7 @@ vi.mock('./admin', async original => ({ ...await original<typeof import('./admin
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: vi.fn(), setPartyPreference: vi.fn() }));
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
+vi.mock('./feedback', async original => ({ ...await original<typeof import('./feedback')>(), saveFeedback: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
 vi.mock('../steam/games', () => ({ compareGames: vi.fn() }));
 vi.mock('../steam/missions', () => ({ findMissions: vi.fn() }));
@@ -331,7 +333,8 @@ describe('command definitions', () => {
       전적: { options: [{ name: '닉네임', type: 3, value: 'Hide on bush#KR1' }] },
       모집: { options: [{ name: '게임', type: 3, value: 'Lethal' }, { name: '시간', type: 3, value: '오늘 10시' }, { name: '인원', type: 4, value: 4 }] }, 개선: {},
       운영: { options: [{ name: '캐시', type: 1, options: [{ name: '종류', type: 3, value: 'riot' }] }] },
-      '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
+      '출처 찾기': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } },
+      의견: {}, '재순이에게 전달': { target_id: friend, resolved: { messages: { [friend]: { attachments: [] } } } } } as Record<string, object>;
     for (const definition of commands) {
       expect(interactionSchema.safeParse({ ...command(), data: { name: definition.name, type: definition.type, ...sample[definition.name] } }).success).toBe(true);
     }
@@ -515,5 +518,60 @@ describe('recruit from a recommendation', () => {
     expect(createLobby).not.toHaveBeenCalled();
     expect(fetchFn.mock.calls.map(call => call[1].method)).toEqual(['DELETE', 'POST']);
     expect(lastMessage()).toMatchObject({ flags: 64 });
+  });
+});
+
+describe('멤버 의견 입력창 (intent/0002 R1·R2·R3·R8)', () => {
+  const channel = '100000000000000080';
+  const submit = (customId: string, value: string) => ({ ...command(), type: 5, channel_id: channel,
+    data: { custom_id: customId, components: [{ type: 1, components: [{ type: 4, custom_id: 'body', value }] }] } });
+  it('/의견은 DB 없이 바로 입력창을 연다', async () => {
+    const defer = vi.fn();
+    const body = await (await receiveInteraction(request({ ...command(), data: { name: '의견', type: 1 } }), defer, env)).json();
+    expect(body).toMatchObject({ type: 9, data: { custom_id: 'feedback:cmd' } });
+    expect(JSON.stringify(body)).toContain('"max_length":1000');
+    expect(defer).not.toHaveBeenCalled();
+    expect(commandUser).not.toHaveBeenCalled();
+  });
+  it('메시지 우클릭은 메시지 위치만 담은 입력창을 연다(내용은 담지 않는다)', async () => {
+    const defer = vi.fn();
+    const payload = { ...command(), channel_id: channel, data: { name: '재순이에게 전달', type: 3, target_id: friend,
+      resolved: { messages: { [friend]: { attachments: [], content: '비밀 원문' } } } } };
+    const body = await (await receiveInteraction(request(payload), defer, env)).json();
+    expect(body.data.custom_id).toBe(`feedback:msg:${channel}:${friend}`);
+    expect(JSON.stringify(body)).not.toContain('비밀 원문');
+    expect(defer).not.toHaveBeenCalled();
+  });
+  it('제출은 비공개 지연 응답 뒤 가입한 멤버의 의견만 저장하고 메시지 링크를 남긴다', async () => {
+    const defer = vi.fn();
+    const ack = await (await receiveInteraction(request(submit(`feedback:msg:${channel}:${friend}`, '  추천이 느려요  ')), defer, env)).json();
+    expect(ack).toEqual({ type: 5, data: { flags: 64 } });
+    vi.mocked(saveFeedback).mockResolvedValue('saved');
+    await completeInteraction(parsed(submit(`feedback:msg:${channel}:${friend}`, '  추천이 느려요  ')));
+    expect(saveFeedback).toHaveBeenCalledWith({ id: '100000000000000009', userId: 'user_owner', discordId: owner, body: '추천이 느려요',
+      source: 'message', messageLink: `https://discord.com/channels/${guild}/${channel}/${friend}` });
+    expect(lastMessage().content).toContain('재순이가 전달받았어요');
+  });
+  it('가입하지 않았으면 저장하지 않고, 쓴 글을 돌려준다', async () => {
+    vi.mocked(commandUser).mockResolvedValue(null);
+    await completeInteraction(parsed(submit('feedback:cmd', '로그인 안 한 의견')));
+    expect(saveFeedback).not.toHaveBeenCalled();
+    expect(lastMessage().content).toContain('로그인');
+    expect(lastMessage().content).toContain('로그인 안 한 의견');
+  });
+  it('하루 한도를 넘으면 알리고, 저장 실패는 원문 없이 오류 ID로 알린다', async () => {
+    vi.mocked(saveFeedback).mockResolvedValueOnce('limited');
+    await completeInteraction(parsed(submit('feedback:cmd', '여섯 번째')));
+    expect(lastMessage().content).toContain('잠시 뒤에');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(saveFeedback).mockRejectedValueOnce(new Error('db down'));
+    await completeInteraction(parsed(submit('feedback:cmd', '실패할 의견 원문')));
+    expect(lastMessage().content).toContain('오류 ID');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('실패할 의견 원문');
+  });
+  it('빈 글·1000자 초과·모르는 입력창은 거부한다', () => {
+    expect(interactionSchema.safeParse(submit('feedback:cmd', '   ')).success).toBe(false);
+    expect(interactionSchema.safeParse(submit('feedback:cmd', 'a'.repeat(1001))).success).toBe(false);
+    expect(interactionSchema.safeParse(submit('other:cmd', '의견')).success).toBe(false);
   });
 });

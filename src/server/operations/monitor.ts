@@ -1,3 +1,4 @@
+import { purgeOldFeedback } from '../discord-interactions/feedback';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { db } from '../db';
 import { pool } from '../pool';
@@ -143,6 +144,7 @@ export async function checkOperations(source: 'manual' | 'external' | 'watchdog'
     await sql`delete from steam_errors where at < now() - interval '7 days'`;
     await sql`delete from ops_jobs where status <> 'running' and started_at < now() - interval '90 days'`;
     await sql`delete from ops_audit where created_at < now() - interval '180 days'`;
+    await purgeOldFeedback(); // 멤버 의견 90일(intent/0002)
     await sql`delete from page_views where day < (now() at time zone 'Asia/Seoul')::date - 365`;
     await sql`delete from steam_stats where day < (now() at time zone 'Asia/Seoul')::date - 365`;
     await sql`delete from riot_stats where day < (now() at time zone 'Asia/Seoul')::date - 365`;

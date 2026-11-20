@@ -8,6 +8,7 @@ import { purgeSteamCache } from '../steam/cache';
 import { postWeeklyAwards, setAwardChannel, type AwardPostResult } from '../chat/award-post';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { KIND_LABEL } from '../../lib/improvements';
+import { recentFeedback } from './feedback';
 
 // 관리자 전용 명령. 웹 /api/admin/operations와 같은 서비스와 작업 이력(audited)을 쓴다.
 // 사용자 차단·해제, 소환사 삭제처럼 되돌리기 어려운 작업은 웹 관리자 화면에만 둔다.
@@ -62,13 +63,26 @@ export async function adminTask(task: AdminTask, actor: Actor, channelId?: strin
 }
 
 async function improvements(): Promise<Message> {
-  const report = await improvementReport();
+  const [report, feedback] = await Promise.all([improvementReport(), recentFeedback()]);
   const head = `📋 개선 우선순위 (최근 7일 열람 ${report.totalViews.current.toLocaleString('ko-KR')}회, 그 전 7일 ${report.totalViews.previous.toLocaleString('ko-KR')}회)`;
-  if (!report.items.length) return privateMessage(`${head}\n지금 고칠 경고·실패가 없어요.${report.usageEnough ? '' : ' 열람이 적어 사용량 판단은 하지 않았어요.'}`);
+  const voices = feedbackLines(feedback);
+  if (!report.items.length) return privateMessage(fit([`${head}\n지금 고칠 경고·실패가 없어요.${report.usageEnough ? '' : ' 열람이 적어 사용량 판단은 하지 않았어요.'}`, ...voices].join('\n\n')));
   const lines = report.items.slice(0, 8).map((item, index) =>
     `${index + 1}. **[${KIND_LABEL[item.kind]}] ${label(item.target)}** — ${item.reasons.map(reason => label(reason, 200)).join(' / ')}${item.next ? `\n   다음: ${item.next}` : ''}`);
   return privateMessage(fit([head, ...lines, ...(report.usageEnough ? [] : ['열람이 적어 사용량 판단(살펴보기·키우기·정리 검토)은 하지 않았어요.']),
-    `-# [관리자 화면에서 전체 보기](<${SITE}/admin>)`].join('\n\n')));
+    ...voices, `-# [관리자 화면에서 전체 보기](<${SITE}/admin>)`].join('\n\n')));
+}
+
+// 멤버 의견(intent/0002 R6). 이름·본문은 마크다운을 이스케이프하고(label) 멘션 알림이 가지 않게 한다.
+const DAY = { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' } as const;
+function feedbackLines(feedback: Awaited<ReturnType<typeof recentFeedback>>): string[] {
+  if (!feedback.count) return [];
+  const items = feedback.items.map(item => {
+    const body = item.body.length > 200 ? `${item.body.slice(0, 200)}…` : item.body;
+    const link = item.messageLink ? ` · [메시지](<${item.messageLink}>)` : '';
+    return `- ${label(item.name)} · ${new Date(item.createdAt).toLocaleDateString('ko-KR', DAY)}${link}\n  ${label(body, 201)}`;
+  });
+  return [`💬 멤버 의견 (최근 7일 ${feedback.count}건)`, ...items];
 }
 
 async function status(): Promise<Message> {

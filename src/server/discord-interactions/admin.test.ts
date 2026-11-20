@@ -9,6 +9,7 @@ import { purgeSteamCache } from '../steam/cache';
 import { hasAdministrator } from './access';
 import { adminTask } from './admin';
 import { postWeeklyAwards, setAwardChannel } from '../chat/award-post';
+import { recentFeedback } from './feedback';
 
 vi.mock('../admin', () => ({ purgeRiotCache: vi.fn() }));
 vi.mock('../improvements', () => ({ improvementReport: vi.fn() }));
@@ -18,10 +19,12 @@ vi.mock('../operations/monitor', () => ({ checkOperations: vi.fn() }));
 vi.mock('../operations/status', () => ({ operationStatus: vi.fn() }));
 vi.mock('../steam/cache', () => ({ purgeSteamCache: vi.fn() }));
 vi.mock('../chat/award-post', () => ({ postWeeklyAwards: vi.fn(), setAwardChannel: vi.fn() }));
+vi.mock('./feedback', () => ({ recentFeedback: vi.fn() }));
 const actor = { id: 'u1', name: 'Admin' };
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(audited).mockImplementation(async (_actor, _action, _target, work) => work());
+  vi.mocked(recentFeedback).mockResolvedValue({ count: 0, items: [] });
 });
 
 describe('Administrator permission bit', () => {
@@ -85,5 +88,27 @@ describe('weekly award posting (admin)', () => {
       expect((await adminTask('시상식게시', actor)).content).toContain(text);
     }
     expect(vi.mocked(audited).mock.calls.every(call => call[1] === 'awards.post')).toBe(true);
+  });
+});
+
+describe('/개선의 멤버 의견 (intent/0002 R6)', () => {
+  it('최근 7일 의견 수와 최신 의견을 이름·날짜·앞 200자·링크로, 멘션 없이 보여준다', async () => {
+    vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
+    const link = 'https://discord.com/channels/1/2/3';
+    vi.mocked(recentFeedback).mockResolvedValue({ count: 2, items: [
+      { name: '**굵게**', body: `${'가'.repeat(250)}`, messageLink: link, createdAt: '2026-11-20T03:00:00Z' },
+      { name: '둘', body: '<@100000000000000003> 줄\n바꿈', messageLink: null, createdAt: '2026-11-19T03:00:00Z' },
+    ] });
+    const text = (await adminTask('개선', actor)).content;
+    expect(text).toContain('💬 멤버 의견 (최근 7일 2건)');
+    expect(text).toContain('\\*\\*굵게\\*\\*');
+    expect(text).toContain(`${'가'.repeat(200)}…`);
+    expect(text).not.toContain('가'.repeat(201));
+    expect(text).toContain(`[메시지](<${link}>)`);
+    expect(text).not.toContain('<@100000000000000003>');
+  });
+  it('의견이 없으면 의견 절을 붙이지 않는다', async () => {
+    vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
+    expect((await adminTask('개선', actor)).content).not.toContain('멤버 의견');
   });
 });

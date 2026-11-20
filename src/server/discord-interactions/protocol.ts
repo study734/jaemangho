@@ -16,6 +16,8 @@ const envelope = {
   application_id: snowflake,
   token: z.string().regex(/^[\w.-]{1,256}$/),
   guild_id: snowflake,
+  // 명령을 실행한 채널. 메시지 우클릭 의견의 메시지 링크를 만들 때만 쓴다.
+  channel_id: snowflake.optional(),
   // permissions: 이 채널에서의 현재 권한 비트필드(Discord가 서명). 관리자 명령 실행 조건에 쓴다.
   member: z.object({ user: z.object({ id: snowflake }), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
 };
@@ -58,6 +60,9 @@ const commandData = z.discriminatedUnion('name', [
       z.object({ name: z.literal('시상식채널'), type: z.literal(1), options: z.array(z.object({ name: z.literal('채널'), type: z.literal(7), value: snowflake })).max(1).optional() }),
       z.object({ name: z.literal('캐시'), type: z.literal(1), options: z.tuple([stringOption('종류', z.enum(['steam', 'riot']))]) })])]),
   }),
+  // 멤버 의견(intent/0002): 첫 응답으로 입력창을 연다. 메시지 우클릭은 메시지 ID(target_id)만 쓰고 내용은 읽지 않는다.
+  z.object({ name: z.literal('의견'), type: z.literal(1) }),
+  z.object({ name: z.literal('재순이에게 전달'), type: z.literal(3), target_id: snowflake }),
   z.object({
     name: z.literal('출처 찾기'), type: z.literal(3), target_id: snowflake,
     resolved: z.object({ messages: z.record(snowflake, z.object({ attachments: z.array(attachment).max(10).default([]) })) }),
@@ -84,11 +89,27 @@ const componentData = z.union([
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^lol:v1:\d{17,20}:\d{10}$/), values: z.tuple([z.string().regex(/^[\w-]{1,32}$/)]) }),
 ]);
 
+// 입력창 제출(interaction type 5). 입력칸은 의견 본문 하나이며, 예전 형식(action row)과 Label 형식을 모두 받는다.
+const feedbackText = z.object({ type: z.literal(4), custom_id: z.literal('body'), value: z.string().trim().min(1).max(1000) });
+const modalData = z.object({
+  custom_id: z.string().regex(/^feedback:(cmd|msg:\d{17,20}:\d{17,20})$/),
+  components: z.tuple([z.union([
+    z.object({ type: z.literal(1), components: z.tuple([feedbackText]) }),
+    z.object({ type: z.literal(18), component: feedbackText }),
+  ])]),
+});
+
 export const interactionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal(1) }),
   z.object({ ...envelope, type: z.literal(2), data: commandData }),
   z.object({ ...envelope, type: z.literal(3), data: componentData }),
+  z.object({ ...envelope, type: z.literal(5), data: modalData }),
 ]);
+export type ModalInteraction = Extract<Interaction, { type: 5 }>;
+export const modalText = (interaction: ModalInteraction) => {
+  const field = interaction.data.components[0];
+  return 'component' in field ? field.component.value : field.components[0].value;
+};
 export type Interaction = Exclude<z.infer<typeof interactionSchema>, { type: 1 }>;
 export type CommandInteraction = Extract<Interaction, { type: 2 }>;
 export type ComponentInteraction = Extract<Interaction, { type: 3 }>;
