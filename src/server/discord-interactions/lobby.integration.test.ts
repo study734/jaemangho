@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { openTestDb, testDbUrl } from '../testing/db';
+import type { Message } from './protocol';
 
 describe.skipIf(!testDbUrl)('Discord lobby store (isolated DB)', () => {
   let pool: Awaited<ReturnType<typeof openTestDb>>;
@@ -23,7 +24,7 @@ describe.skipIf(!testDbUrl)('Discord lobby store (isolated DB)', () => {
     expect(lobby.version).toBe(3);
   });
   it('explains refusals: full, duplicate, owner leave, non-owner close, closed, expired', async () => {
-    const edit = vi.fn();
+    const edit = vi.fn<(message: Message) => Promise<boolean>>(async () => true);
     const lobby = (await store.loadLobby('300000000000000001'))!;
     const outsider = friends.find(id => !lobby.memberIds.includes(id))!;
     const member = lobby.memberIds.find(id => id !== owner)!;
@@ -50,8 +51,18 @@ describe.skipIf(!testDbUrl)('Discord lobby store (isolated DB)', () => {
     await store.renderLobby('300000000000000003', async message => {
       seen.push(message.content);
       if (!raced) { raced = true; await store.changeLobby('300000000000000003', friends[0], 'join'); }
+      return true;
     });
     expect(seen).toHaveLength(2);
     expect(seen[1]).toContain(`<@${friends[0]}>`);
+  });
+  it('tells the clicker when the change was saved but the lobby message could not be edited', async () => {
+    await store.createLobby({ id: '300000000000000004', ownerId: owner, game: null, playTime: null, max: null });
+    const edit = vi.fn<(message: Message) => Promise<boolean>>(async () => false);
+    const notice = await store.lobbyAction('300000000000000004', friends[1], 'join', edit);
+    expect(edit).toHaveBeenCalledTimes(1);
+    expect(notice?.content).toContain('참여했어요');
+    expect(notice?.content).toContain('고치지 못해');
+    expect((await store.loadLobby('300000000000000004'))?.memberIds).toContain(friends[1]);
   });
 });

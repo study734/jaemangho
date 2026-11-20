@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-20', area: 'discord', title: '모집·시상식 안정성', items: [
+    '모집 버튼을 눌렀는데 모집 글이 바로 바뀌지 않으면, 참여·나가기는 반영됐다고 나에게만 알려 줘요.',
+    '주간 시상식이 같은 주에 두 번 올라가지 않도록 했어요.',
+  ] },
   { date: '2026-11-13', area: 'discord', title: '추천에서 바로 모집, 멤버 프로필 강화', items: [
     '게임추천 결과에서 "이 게임으로 모집하기"를 고르면 그 게임으로 채널에 모집 글이 바로 올라가요.',
     '/멤버에서 롤 랭크와 Steam에서 가장 많이 한 게임도 볼 수 있어요.',

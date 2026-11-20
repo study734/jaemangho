@@ -64,18 +64,28 @@ export function lobbyMessage(lobby: Lobby): Message {
 
 // 바뀐 뒤 메시지를 고친다. 동시에 누른 다른 사람의 수정이 늦게 도착해 옛 상태로 덮어쓸 수 있으므로,
 // 고친 뒤 버전이 바뀌었으면 최신 상태로 다시 고친다(최대 3번). 마지막으로 바꾼 사람의 수정이 항상 최신을 반영한다.
-export async function renderLobby(id: string, edit: (message: Message) => Promise<unknown>) {
+// 수정이 실패하면(edit가 false, 재시도는 edit 안에서 이미 했다) 멈추고 false를 돌려준다.
+export async function renderLobby(id: string, edit: (message: Message) => Promise<boolean>): Promise<boolean> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const lobby = await loadLobby(id);
-    if (!lobby) return;
-    await edit(lobbyMessage(lobby));
-    if ((await loadLobby(id))?.version === lobby.version) return;
+    if (!lobby) return true;
+    if (!await edit(lobbyMessage(lobby))) return false;
+    if ((await loadLobby(id))?.version === lobby.version) return true;
   }
+  return true;
 }
 
+const EDIT_FAILED: Record<Exclude<LobbyAction, 'recommend'>, string> = {
+  join: '참여했어요', leave: '나갔어요', close: '마감했어요',
+};
+
 // 버튼을 누른 사람에게만 보이는 안내(null이면 메시지만 고친 것).
-export async function lobbyAction(id: string, userId: string, action: Exclude<LobbyAction, 'recommend'>, edit: (message: Message) => Promise<unknown>): Promise<Message | null> {
-  if (await changeLobby(id, userId, action)) { await renderLobby(id, edit); return null; }
+// 바뀌었는데 모집 메시지를 고치지 못하면, 반영은 됐고 메시지만 옛 상태라는 것을 누른 사람에게 알린다.
+export async function lobbyAction(id: string, userId: string, action: Exclude<LobbyAction, 'recommend'>, edit: (message: Message) => Promise<boolean>): Promise<Message | null> {
+  if (await changeLobby(id, userId, action)) {
+    if (await renderLobby(id, edit)) return null;
+    return privateMessage(`${EDIT_FAILED[action]}. 다만 모집 메시지를 고치지 못해 인원 표시가 늦을 수 있어요. 다른 버튼을 누르면 최신으로 바뀌어요.`);
+  }
   const lobby = await loadLobby(id);
   if (!lobby) return privateMessage(`${LOBBY_TTL_HOURS}시간이 지난 모집이에요. /모집으로 새로 모아 주세요.`);
   if (lobby.closed) return privateMessage('이미 마감된 모집이에요.');
