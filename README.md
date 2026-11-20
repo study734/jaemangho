@@ -220,7 +220,7 @@ src/
 
 ## 관리자
 - **개선 우선순위** (관리자 `개선` 탭, `GET /api/admin?resource=improvements`): 무엇을 고치거나 키울지 순서대로 보여줍니다. 최근 7일(한국 시간)의 활성 운영 경고, 서버 실패 횟수(`app_failures`), Riot 오류(404 제외, 401/403·429·5xx 구분), Steam 오류(`app_unavailable` 제외), 채팅 동기화 실패·부분 완료를 영역(롤·Steam·홈·우리 기록·멤버·운영·기타)별로 묶어 **고치기**로 먼저 보이고, 화면별 열람을 그 전 7일과 비교해 **살펴보기**(30% 이상 감소, 이전 10회 이상)·**키우기**(30% 이상 증가, 10회 이상)·**정리 검토**(2주 2회 이하)를 이어 보입니다. 두 주 열람 합계가 30회 미만이면 사용량 판단은 하지 않습니다. 최근 7일 웹 열람이 0회면 화면별 항목 대신 **정리 검토** `웹 화면 전체` 한 항목으로 묶습니다. 다시 시도로 회복한 DB 연결(`db.connect-retry`)은 서버 실패에서 빼고 **살펴보기** `DB 연결` 한 항목으로 보입니다. Steam 장르 조회 실패도 `store.ts`와 같은 코드(`http_<상태>`·`invalid_response`·`timeout`·`network`, 내려간 앱·게임 아닌 앱은 `app_unavailable`)로 나눠 기록합니다. 규칙과 영역 대응(작업 이름 접두어)은 [improvements.ts](src/lib/improvements.ts), 회귀 검사는 `npm test -- src/lib/improvements.test.ts src/server/improvements.integration.test.ts src/server/failure-stats.test.ts`입니다. 새 기능의 `serverError`/`reportFailure` 작업 이름이 `AREAS`의 접두어에 맞지 않으면 `운영·기타`로 보이므로 함께 추가합니다.
-- **서버 실패 횟수**: `reportFailure`는 로그와 함께 한국 시간 날짜·작업 이름·오류 분류(`code`)별 횟수만 `app_failures`에 더합니다(90일 보관). 사용자·요청·오류 원문은 저장하지 않습니다. 실패마다 쓰지 않고 인스턴스 안에서 모아 한 번에 하나의 쓰기만 실행합니다(한 요청의 연속 실패 21회 → 쓰기 1회, `failure-stats.test.ts`). 기록하는 요청은 이미 DB를 쓴 요청이라 절전 중인 Neon을 새로 깨우지 않습니다. `database.*` 실패는 세지 않고, 기록이 실패하면 60초 동안 기록을 멈추고 모은 횟수를 버려 DB 장애 중 연결을 더 쓰지 않습니다. 하루 50행씩 90일(4,500행)이 약 840 kB입니다(Neon Free 저장 0.5 GB). 개선 탭은 열 때와 `다시 계산`을 누를 때만 조회하고 폴링하지 않습니다. 구현은 [failure-stats.ts](src/server/failure-stats.ts)입니다.
+- **서버 실패 횟수**: `reportFailure`는 로그와 함께 한국 시간 날짜·작업 이름·오류 분류(`code`)별 횟수만 `app_failures`에 더합니다(90일 보관). 사용자·요청·오류 원문은 저장하지 않습니다. 실패마다 쓰지 않고 인스턴스 안에서 모아 한 번에 하나의 쓰기만 실행합니다(한 요청의 연속 실패 21회 → 쓰기 1회, `failure-stats.test.ts`). 기록하는 요청은 이미 DB를 쓴 요청이라 절전 중인 Neon을 새로 깨우지 않습니다. `database.*` 실패는 세지 않고, 기록이 실패하면 60초 동안 기록을 멈추고 모은 횟수를 버려 DB 장애 중 연결을 더 쓰지 않습니다. 하루 50행씩 90일(4,500행)이 약 840 kB입니다(Neon Free 저장 1 GB/프로젝트, [근거](docs/activity-data-evidence.md)). 개선 탭은 열 때와 `다시 계산`을 누를 때만 조회하고 폴링하지 않습니다. 구현은 [failure-stats.ts](src/server/failure-stats.ts)입니다.
 - **운영 상태**: 장애·복구 알림, 채팅 동기화 기록/재실행, Steam 캐시·오류 통계, 관리자 작업 이력, 기간별 열람 비교와 운영 현황 내보내기. 자동 감시 설정·백업·격리 복구·장애 대응은 [OPERATIONS.md](OPERATIONS.md)를 참고하세요.
 - 디스코드 서버 **소유자이거나 Administrator 권한**이 있는 사용자는 로그인 시 자동으로 관리자가 됩니다. 관리자를 추가하려면 디스코드에서 권한만 주면 됩니다(재로그인 필요).
 - 환경변수가 비었거나 형식이 틀리면(예: 값 자리에 변수 이름을 그대로 넣은 경우) 관리자 탭 위쪽에 경고가 뜨고 서버 시작 로그에도 남습니다. 값은 표시하지 않습니다.
@@ -465,7 +465,7 @@ Steam API 키는 서버에서만 사용한다. 보유·최근 기록 캐시는 5
 | `CRON_SECRET` | Cloudflare Worker Secret | 기존 Vercel·GitHub 값과 같은 크론 인증 |
 | `OPS_ALERT_WEBHOOK_URL` | Cloudflare Worker Secret | 앱/Actions가 실패해도 개입 필요 알림 |
 | `VERCEL_TOKEN` | GitHub Actions Secret | 고정된 프로젝트 배포 조회 및 승인된 정책의 롤백·재승격. 프로젝트/팀 접근이 필요함 |
-| `NEON_API_KEY` | GitHub Actions Secret | 재망호 프로젝트의 연산·전송 사용량 조회. 앱·Worker에는 전달하지 않음. 첫 성공 전에는 실제 보호 검증 미완료 |
+| `NEON_API_KEY` | GitHub Actions Secret | 재망호 프로젝트의 연산·전송 사용량 조회. 앱·Worker에는 전달하지 않음. 등록돼 운영 중(키가 없으면 Free usage protection 워크플로가 실패한다) |
 | `BACKUP_DATABASE_URL` | GitHub Actions Secret | 백업 전용 계정의 직접 DB 연결 주소. SELECT 권한으로 전체 테이블을 읽을 수 있어야 함 |
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions Secret | 무작위 32바이트의 canonical base64 AES-256-GCM 키. 백업과 별도로 안전하게 보관 |
 | `OPS_AUTO_ROLLBACK` | GitHub Actions Variable | `1`일 때 안전 조건을 통과한 이전 버전으로 자동 롤백. 기본은 비활성 |
