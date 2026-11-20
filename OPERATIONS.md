@@ -19,7 +19,7 @@ GitHub Actions는 30분 주기로 예약되어 앱 바깥에서 `/api/health`를
 
 Vercel은 별도 경로 `/api/cron/ops-watchdog`를 매일 UTC 03시(한국 시간 12시)에 실행한다. Hobby에서는 해당 시간대 안에서 지연될 수 있다. 이 보조 점검은 GitHub의 마지막 성공이 없거나 2시간 이상 지났으면 `monitor.stale` 알림을 만들고 내부 점검·알림 재시도·보존 기간 정리도 수행한다. 수동·보조 점검은 GitHub 성공 기록을 갱신하지 않는다. 첫 배포 후 GitHub 점검이 한 번도 성공하지 않았다면 누락으로 알린다. 새 `0015_monitor_heartbeat.sql`이 먼저 적용되어야 한다.
 
-같은 보조 점검이 끝나면 **주간 운영 요약**(`src/server/operations/weekly-summary.ts`)을 처리한다. 한국 시간 월~일의 지난주를 아직 처리하지 않았으면 운영 알림 채널(`OPS_ALERT_WEBHOOK_URL`)로 한 번 보낸다. 월요일 실행이 빠지면 다음 날 보낸다. 내용은 볼 것이 있는 항목만 넣는다: 무료 인프라(Neon 연산·전송 사용률과 집계 기간 경과 비율로 단순 추정한 월말 사용률, 70% 이상이거나 감속·중단·확인 불가일 때; `db.connect-retry` 회복 횟수), 그 주에 생긴·해소된·진행 중인 경고, `app_failures` 상위 실패, 채팅 동기화 실패·부분 완료, 관리자 수동 작업(`ops_audit`). 모두 없으면 보내지 않고 `quiet`로 기록한다. 주별 처리는 `ops_weekly_summaries`(`migrations/0027_ops_weekly_summaries.sql`)에 먼저 선점해 한 번만 보내며, 전송 실패·수집 오류는 선점을 지워 다음 날 다시 시도하고, 1시간 넘게 `pending`인 주는 다시 선점한다. 요약 실패는 점검 응답을 바꾸지 않고 `app_failures`의 `ops.weekly-summary`로 남는다. 회복하지 못한 DB 연결 실패는 이 요약에 없으며 Vercel 오류 묶음의 `database.connect`로 확인한다.
+같은 보조 점검이 끝나면 **주간 운영 요약**(`src/server/operations/weekly-summary.ts`)을 처리한다. 한국 시간 월~일의 지난주를 아직 처리하지 않았으면 운영 알림 채널(`OPS_ALERT_WEBHOOK_URL`)로 한 번 보낸다. 월요일 실행이 빠지면 다음 날 보낸다. 내용은 볼 것이 있는 항목만 넣는다: 무료 인프라(Neon 연산·전송 사용률과 집계 기간 경과 비율로 단순 추정한 월말 사용률, 70% 이상이거나 감속·중단·확인 불가일 때; `db.connect-retry` 회복 횟수), 그 주에 생긴·해소된·진행 중인 경고, `app_failures` 상위 실패, 채팅 동기화 실패·부분 완료, 관리자 수동 작업(`ops_audit`). 모두 없으면 보내지 않고 `quiet`로 기록한다. 주별 처리는 `ops_weekly_summaries`(`migrations/0027_ops_weekly_summaries.sql`)에 먼저 선점해 한 번만 보내며, 전송 실패·수집 오류는 선점을 지워 다음 날 다시 시도하고, 1시간 넘게 `pending`인 주는 다시 선점한다. 요약 실패는 점검 응답을 바꾸지 않고 `app_failures`의 `ops.weekly-summary`로 남는다. 회복하지 못한 DB 연결 실패는 이 요약에 없으며 Vercel 오류 묶음의 `database.connect`로 확인한다. 요약 뒤에는 [Steam 예약 수집](#steam-장기-활동-수집)을 실행한다.
 
 보조 감시는 하루 1회이므로 2시간 경과 즉시 알림을 보장하지 않는다. 앱/DB가 내려가면 Vercel 보조 감시도 작동하지 않으며, GitHub 외부 헬스체크가 필요하다. 5분 독립 감시 Worker는 아래 활성화 절차로 별도 배포한다. 두 경로 모두 기존 `CRON_SECRET`을 사용한다.
 
@@ -89,9 +89,10 @@ Steam `store/appdetails/<appId>` 오류는 `http_<상태>`, `timeout`, `network`
 
 `runSteamCollection`은 Steam OpenID로 확인한 계정의 요청행과 현재 `owner_id`가 일치할 때만 최대 20개씩 고르고, 마지막 성공에서 7일이 지난 계정만 조회한다. 조회 불가·오류는 계정별 상태와 `ops_jobs`의 `steam_activity` 작업에 코드와 개수만 기록한다. 429 또는 키 미설정 때는 남은 계정을 호출하지 않는다.
 
-운영에서 실행된다(2026-10-16, #88부터). Cron은 없고 본인 요청 흐름에서만 응답 뒤(`after`) 실행한다.
-- 이용 동의(`POST /api/steam/consent`)와 수집 요청(`POST /api/steam/activity`) 직후 해당 계정의 첫 관측을 수집한다.
-- 활동 설정 조회(`GET /api/steam/activity`) 때 마지막 성공에서 7일이 지난 본인 계정을 다시 수집한다. 따라서 주인이 7일 넘게 설정을 열지 않은 계정은 관측이 갱신되지 않는다. 정기 수집을 추가하려면 `vercel.json` Cron 변경이므로 먼저 사람에게 확인한다.
+운영에서 실행된다(2026-10-16, #88부터). 실행 경로는 셋이다. 결정 이유는 [intent/0001](intent/0001-steam-regular-collection/intent.md)에 있다.
+- 이용 동의(`POST /api/steam/consent`)와 수집 요청(`POST /api/steam/activity`) 직후 해당 계정의 첫 관측을 수집한다(응답 뒤 `after`, `manual`).
+- 활동 설정 조회(`GET /api/steam/activity`) 때 마지막 성공에서 7일이 지난 본인 계정을 다시 수집한다(`manual`).
+- **예약 수집**: 매일 운영 보조 점검(`/api/cron/ops-watchdog`, UTC 03시) 뒤에 대상 전체를 25초 예산으로 수집한다(`scheduled`). 새 Cron 없이 이미 DB를 깨운 점검 안에서 돌고, 채팅 예약 수집과 같은 무료 사용량 보호를 따른다(`paused`면 건너뜀, `limited`면 마지막 예약 수집 뒤 48시간이 지나야 실행). 막힘은 `budget`, 다른 수집 실행 중은 `busy`, 실패는 `app_failures`의 `steam.activity.scheduled`로 남고 점검 응답의 `steamActivity`에 상태와 개수만 담긴다. 예산 안에 못 한 계정은 `deferred`로 다음 날 이어서 한다. 하루 20계정을 넘는 대상이 생기면 7일 간격을 못 지킬 수 있으므로 `ops_jobs`의 이월 수를 본다.
 
 Steam OpenID 확인 경로와 본인의 수집 요청·중단·기록 삭제 API가 있다. 검증된 계정의 주인 지정은 다른 사용자가 변경·삭제할 수 없다. 저장 국가는 `src/server/activity/steam-policy.ts`에 `미국 (Neon · iad1)`로 설정돼 있으며(2026-10-16 확인), DB를 다른 국가로 옮기기 전에 다시 확인한다. 이 값이 `null`이면 수집 요청이 닫힌다. 운영 DB에 `steam_collection_requests` 행을 수동으로 넣어 요청 흐름을 대신하지 않는다.
 

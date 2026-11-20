@@ -5,12 +5,16 @@ import { getLibrary, SteamNotConfiguredError, SteamPayloadError, SteamUpstreamEr
 import { recordSteamObservation } from './steam-facts';
 import { STEAM_NOTICE_VERSION } from './steam-policy';
 import { STEAM_FEATURE_NOTICE } from '../steam/consent';
+import { usageStatus } from '../operations/usage';
+import { scheduledCollectionAllowed } from '../../lib/usage-budget';
 
 const WEEK_MS = 7 * 86_400_000;
 const JOB = 'steam_activity';
 const MAX_ACCOUNTS = 20;
 
 export class SteamCollectionBusyError extends Error {}
+// 예약 수집이 무료 사용량 보호(중단, 또는 감속 중 48시간 이내)로 막혔다. 실행 기록은 남기지 않는다.
+export class SteamCollectionBudgetError extends Error {}
 
 export interface SteamCollectionOptions {
   now?: Date;
@@ -27,8 +31,9 @@ function errorCode(error: unknown): string {
   return 'collection_failed';
 }
 
-// Activity settings visits/request handlers pass only the actor's verified IDs.
-// No cron: the first observation runs after consent, then on visits when due.
+// 'manual': 동의·수집 요청 직후와 활동 설정 조회 때, 그 사람의 확인된 계정만 넘긴다(사용량과 무관).
+// 'scheduled': 매일 운영 보조 점검(/api/cron/ops-watchdog) 뒤에 대상 전체를 이어서 수집한다. 새 Cron 없이
+// 이미 DB를 깨운 요청 안에서 돌고, 채팅 예약 수집과 같은 무료 사용량 보호를 따른다(intent/0001-steam-regular-collection).
 export async function runSteamCollection(source: 'scheduled' | 'manual', options: SteamCollectionOptions = {}) {
   const { now = new Date(), maxAccounts = MAX_ACCOUNTS, budgetMs = 45_000, fetchLibrary = getLibrary } = options;
   if (!Number.isInteger(maxAccounts) || maxAccounts < 1 || maxAccounts > MAX_ACCOUNTS) throw new Error('Invalid account limit');
@@ -38,6 +43,12 @@ export async function runSteamCollection(source: 'scheduled' | 'manual', options
   try {
     await client.query('begin');
     await client.query('select pg_advisory_xact_lock($1)', [727276]);
+    if (source === 'scheduled') {
+      const budget = await usageStatus();
+      const last = budget.mode === 'limited' ? (await client.query(`select max(started_at) as at from ops_jobs
+        where job = $1 and source = 'scheduled'`, [JOB])).rows[0]?.at : null;
+      if (!scheduledCollectionAllowed(budget, last ? new Date(last).toISOString() : null)) throw new SteamCollectionBudgetError();
+    }
     await client.query(`update ops_jobs set status = 'failed', error_code = 'interrupted', finished_at = now()
       where job = $1 and status = 'running' and started_at < now() - interval '5 minutes'`, [JOB]);
     const inserted = await client.query(`insert into ops_jobs (id, job, source, status)
