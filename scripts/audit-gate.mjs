@@ -6,14 +6,8 @@
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-export const EXCEPTIONS = [
-  {
-    id: 'GHSA-fc5q-39xc-vjpf',
-    expires: '2026-12-01',
-    reason: 'picomatch <=4.0.7 ReDoS(2026-11-17 공개). 수정판 없음(최신 4.0.7, 수정 PR micromatch/picomatch#254). '
-      + 'vitest·vite 내부의 테스트 파일 패턴 처리에만 쓰이고 운영 앱 요청 경로에서는 실행되지 않는다. 수정판이 나오면 Dependabot 보안 PR을 머지하고 이 항목을 지운다.',
-  },
-];
+// 현재 예외 없음. GHSA-fc5q-39xc-vjpf(picomatch)는 2026-11-18 철회돼(보안 문제 아님) 지웠다.
+export const EXCEPTIONS = [];
 
 const BLOCKING = new Set(['high', 'critical']);
 const advisoryId = (url) => /GHSA-[\w-]+$/.exec(url ?? '')?.[0] ?? null;
