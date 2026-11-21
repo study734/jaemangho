@@ -12,7 +12,7 @@ export const adminStyles: Record<string, CSSProperties> = {
   cell: { padding: '12px', borderBottom: '1px solid var(--hairline)', textAlign: 'left', minWidth: 90, overflowWrap: 'anywhere' },
   controls: { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
   input: { display: 'block', background: 'var(--surface-soft)', color: 'var(--ink)', border: '1px solid var(--hairline-strong)', borderRadius: 8, padding: '8px 12px', minHeight: 44, font: 'inherit' },
-  danger: { borderColor: '#ff4a4a', color: '#ff4a4a' },
+  danger: { borderColor: 'var(--status-error)', color: 'var(--status-error)' },
 };
 
 export function Panel({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {

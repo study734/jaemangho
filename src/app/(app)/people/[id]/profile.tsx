@@ -139,7 +139,7 @@ const styles = {
   avatar: { borderRadius: '50%', backgroundColor: 'var(--hairline)', display: 'inline-block' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
   hint: { color: 'var(--slate)', fontSize: '13px' },
-  error: { backgroundColor: 'var(--canvas-dark)', color: 'var(--ink)', border: '2px solid #fa6e39', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
+  error: { backgroundColor: 'var(--canvas-dark)', color: 'var(--ink)', border: '2px solid var(--accent-orange)', borderRadius: '8px', padding: '12px 16px', fontSize: '13px' },
   panel: { backgroundColor: 'var(--canvas-dark)', border: '1px solid var(--hairline)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column' as const, gap: '12px' },
   panelTitle: { color: 'var(--ink)' },
   list: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' as const, gap: '10px' },

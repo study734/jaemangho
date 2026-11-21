@@ -9,7 +9,7 @@ export function MatchHistoryCard({ match, now }: {
   const kda = getKdaRatio(match.kills, match.deaths, match.assists);
   const cardStyle = match.win ? styles.winMatchCard : styles.lossMatchCard;
   const statusText = match.win ? '승리' : '패배';
-  const statusColor = match.win ? 'var(--primary)' : '#ff4a4a';
+  const statusColor = match.win ? 'var(--primary)' : 'var(--status-error)';
   return (<div className="player-match-card" style={cardStyle}>
 
     {/* Game Status */}
@@ -68,9 +68,9 @@ const styles = {
   },
   lossMatchCard: {
     display: 'flex',
-    backgroundColor: 'rgba(255, 74, 74, 0.04)',
-    border: '1px solid rgba(255, 74, 74, 0.2)',
-    borderLeft: '5px solid #ff4a4a',
+    backgroundColor: 'color-mix(in srgb, var(--status-error) 4%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--status-error) 20%, transparent)',
+    borderLeft: '5px solid var(--status-error)',
     borderRadius: '8px',
     padding: '16px',
     gap: '24px',
@@ -140,7 +140,7 @@ const styles = {
     fontWeight: 400,
   },
   kdaDeaths: {
-    color: '#ff4a4a',
+    color: 'var(--status-error)',
   },
   kdaAssists: {
     color: 'var(--steel)',

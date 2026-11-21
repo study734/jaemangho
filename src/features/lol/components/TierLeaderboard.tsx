@@ -54,7 +54,7 @@ export function TierLeaderboard({ members, onSelectMember }: {
             const isTop3 = index < 3;
             const rankBadgeStyle = isTop3 ? {
               ...styles.rankBadge,
-              backgroundColor: index === 0 ? '#ffb703' : index === 1 ? '#adb5bd' : '#fa6e39',
+              backgroundColor: index === 0 ? '#ffb703' : index === 1 ? '#adb5bd' : 'var(--accent-orange)',
               color: 'var(--canvas-dark)'
             } : styles.rankBadge;
             return (<tr key={member.id} onClick={() => onSelectMember(member)} style={{ cursor: 'pointer' }}>
