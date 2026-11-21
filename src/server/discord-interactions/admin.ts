@@ -10,7 +10,7 @@ import { setMemberRole } from '../member-role';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { KIND_LABEL } from '../../lib/improvements';
 import { recentFeedback } from './feedback';
-import { usageReport, type UsageRow } from './usage';
+import { BLOCK_LABEL, blockReport, usageReport, type BlockRow, type UsageRow } from './usage';
 import { reportFailure } from '../diagnostics';
 
 // 관리자 전용 명령. 웹 /api/admin/operations와 같은 서비스와 작업 이력(audited)을 쓴다.
@@ -79,11 +79,12 @@ export async function adminTask(task: AdminTask, actor: Actor, target?: string):
 
 async function improvements(): Promise<Message> {
   // 덧붙이는 절(사용량·의견)이 실패해도 기존 개선 우선순위는 보여주고 그 절만 알린다(부분 실패).
-  const [report, feedback, usage] = await Promise.all([improvementReport(),
+  const [report, feedback, usage, blocks] = await Promise.all([improvementReport(),
     recentFeedback().catch((error: unknown) => { reportFailure('api/discord.feedback', error); return null; }),
-    usageReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; })]);
+    usageReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; }),
+    blockReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; })]);
   const head = `📋 개선 우선순위 (최근 7일 열람 ${report.totalViews.current.toLocaleString('ko-KR')}회, 그 전 7일 ${report.totalViews.previous.toLocaleString('ko-KR')}회)`;
-  const voices = [...usageLines(usage), ...feedbackLines(feedback)];
+  const voices = [...usageLines(usage), ...blockLines(blocks), ...feedbackLines(feedback)];
   if (!report.items.length) return privateMessage(fit([`${head}\n지금 고칠 경고·실패가 없어요.${report.usageEnough ? '' : ' 열람이 적어 사용량 판단은 하지 않았어요.'}`, ...voices].join('\n\n')));
   const lines = report.items.slice(0, 8).map((item, index) =>
     `${index + 1}. **[${KIND_LABEL[item.kind]}] ${label(item.target)}** — ${item.reasons.map(reason => label(reason, 200)).join(' / ')}${item.next ? `\n   다음: ${item.next}` : ''}`);
@@ -92,6 +93,13 @@ async function improvements(): Promise<Message> {
 }
 
 // 디스코드 사용(intent/0003 R6). 하루 사용자 수는 날짜별 고유 값이라 '하루 최대'로 보여준다.
+// 막힌 시도(이유별). 고칠 곳을 바로 알 수 있게 이유 이름으로 보인다.
+function blockLines(rows: BlockRow[] | null): string[] {
+  if (!rows) return ['🚧 막힌 시도를 불러오지 못했어요. 잠시 후 다시 실행해 주세요.'];
+  if (!rows.length) return [];
+  return ['🚧 막힌 시도 (최근 7일)', rows.map(row => `- ${BLOCK_LABEL[row.reason]} ${row.uses.toLocaleString('ko-KR')}회 · 하루 최대 ${row.maxUsers}명`).join('\n')];
+}
+
 function usageLines(rows: UsageRow[] | null): string[] {
   if (!rows) return ['🎮 디스코드 사용을 불러오지 못했어요. 잠시 후 다시 실행해 주세요.'];
   if (!rows.length) return [];

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import type { Interaction } from './protocol';
+import type { BlockReason, Interaction } from './protocol';
 
 // 디스코드 기능 사용량(intent/0003-discord-usage-metrics). 누가 썼는지는 영구 집계에 남기지 않는다.
 // 하루 사용자 수를 세려고 (날짜, 기능, 디스코드 ID)를 임시로 두고, 운영 점검이 전날보다 오래된 행을 지운다.
@@ -40,6 +40,27 @@ export async function recordUsage(action: string, discordId: string, ms: number)
       total_ms = discord_usage.total_ms + excluded.total_ms, max_ms = greatest(discord_usage.max_ms, excluded.max_ms)`;
 }
 
+// 막힌 시도(이유별). 고칠 방법이 다른 원인을 섞지 않도록 상태 코드가 아니라 정해진 이유로 센다.
+export const BLOCK_LABEL: Record<BlockReason, string> = {
+  no_role: '역할 없음', banned: '차단', steam_login: 'Steam 로그인 필요', steam_consent: 'Steam 동의 필요', friend_unlinked: '친구 Steam 미연결',
+};
+export async function recordBlock(reason: BlockReason, discordId: string) {
+  const sql = await db();
+  await sql`with today as (select (now() at time zone 'Asia/Seoul')::date as day),
+      fresh as (insert into discord_usage_users (day, action, discord_id) select day, ${`막힘:${reason}`}, ${discordId} from today
+        on conflict do nothing returning 1)
+    insert into discord_usage_blocks (day, reason, uses, users) select day, ${reason}, 1, (select count(*) from fresh)::int from today
+    on conflict (day, reason) do update set uses = discord_usage_blocks.uses + 1, users = discord_usage_blocks.users + excluded.users`;
+}
+
+export interface BlockRow { reason: BlockReason; uses: number; maxUsers: number }
+export async function blockReport(): Promise<BlockRow[]> {
+  const sql = await db();
+  const rows = await sql`select reason, sum(uses)::int as uses, max(users)::int as "maxUsers" from discord_usage_blocks
+    where day > (now() at time zone 'Asia/Seoul')::date - 7 group by reason order by uses desc, reason collate "C"`;
+  return rows as unknown as BlockRow[];
+}
+
 export interface UsageRow { action: string; uses: number; previous: number; maxUsers: number; avgMs: number }
 
 // 최근 7일(오늘 포함)과 그 전 7일. 하루 사용자 수는 날짜별 고유 값이라 7일 고유 사용자가 아니어서 하루 최대로 보여준다.
@@ -61,4 +82,5 @@ export async function purgeUsage() {
   const sql = await db();
   await sql`delete from discord_usage_users where day < (now() at time zone 'Asia/Seoul')::date - 1`;
   await sql`delete from discord_usage where day < (now() at time zone 'Asia/Seoul')::date - 365`;
+  await sql`delete from discord_usage_blocks where day < (now() at time zone 'Asia/Seoul')::date - 365`;
 }

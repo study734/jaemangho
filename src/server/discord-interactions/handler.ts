@@ -6,10 +6,10 @@ import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { ACK_BODY, ackFor, friendPicker, SITE, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
+import { ACK_BODY, ackFor, blocked, friendPicker, SITE, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type BlockReason, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
 import { lastParty } from './party';
 import { feedbackModal, saveFeedback } from './feedback';
-import { actionName, recordUsage } from './usage';
+import { actionName, recordBlock, recordUsage } from './usage';
 import { reportFailure } from '../diagnostics';
 
 
@@ -154,10 +154,10 @@ async function runComponent(interaction: ComponentInteraction, userId: string | 
 }
 
 // 사이트 계정이 없어도 대부분의 기능을 쓴다(intent/0004). 본인 Steam이 필요한 게임추천만 사이트 로그인을 안내한다.
-const BANNED = privateMessage('차단된 계정은 재순이를 이용할 수 없어요.');
+const BANNED = blocked('banned', privateMessage('차단된 계정은 재순이를 이용할 수 없어요.'));
 // 역할 멘션은 이름으로 보이고 알림은 가지 않는다(privateMessage의 allowed_mentions).
 const roleRequired = (roleId: string) => `<@&${roleId}> 역할이 있는 멤버만 재순이를 쓸 수 있어요. 서버 관리자에게 역할을 요청해 주세요.`;
-const STEAM_LOGIN_REQUIRED = privateMessage(`게임추천은 내 Steam 계정이 필요해요. [재망호 사이트](<${SITE}/steam>)에 디스코드로 로그인해 Steam을 연결해 주세요. 다른 기능은 로그인 없이 쓸 수 있어요.`);
+const STEAM_LOGIN_REQUIRED = blocked('steam_login', privateMessage(`게임추천은 내 Steam 계정이 필요해요. [재망호 사이트](<${SITE}/steam>)에 디스코드로 로그인해 Steam을 연결해 주세요. 다른 기능은 로그인 없이 쓸 수 있어요.`));
 
 // 의견 제출: 입력창은 요청자 확인 전에 열리므로, 저장하지 못하면(차단·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
 // 요청자 확인을 포함한 모든 실패는 api/discord.feedback으로 남고, 원문은 기록하지 않는다.
@@ -167,7 +167,7 @@ async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
     const access = await commandAccess(interaction.member);
     if (access.kind !== 'ok') {
       const reason = access.kind === 'banned' ? BANNED.content : roleRequired(access.roleId);
-      return privateMessage(`${reason}\n보내려던 의견은 저장하지 않았어요.\n${quoteRest(text)}`);
+      return blocked(access.kind, privateMessage(`${reason}\n보내려던 의견은 저장하지 않았어요.\n${quoteRest(text)}`));
     }
     return await runFeedback(interaction, access.userId);
   } catch (error) {
@@ -180,7 +180,7 @@ async function processCommand(interaction: Interaction): Promise<Reply> {
   if (interaction.type === 5) return processFeedback(interaction);
   const access = await commandAccess(interaction.member);
   if (access.kind === 'banned') return BANNED;
-  if (access.kind === 'no_role') return privateMessage(roleRequired(access.roleId));
+  if (access.kind === 'no_role') return blocked('no_role', privateMessage(roleRequired(access.roleId)));
   return interaction.type === 2 ? runCommand(interaction, access.userId) : runComponent(interaction, access.userId);
 }
 
@@ -199,10 +199,22 @@ export async function completeInteraction(interaction: Interaction) {
     reply = privateMessage(`명령을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.\n-# 오류 ID: ${id}`);
   } finally { clearTimeout(timer); }
   const elapsed = Date.now() - started;
-  await deliverReply(interaction, reply);
-  // 사용량(intent/0003)은 응답을 보낸 뒤 센다. 실패해도 응답은 이미 끝났다.
-  try { await recordUsage(actionName(interaction), interaction.member.user.id, elapsed); }
-  catch (error) { reportFailure('api/discord.usage', error); }
+  const [outgoing, block] = takeBlock(reply);
+  await deliverReply(interaction, outgoing);
+  // 사용량(intent/0003)과 막힌 이유는 응답을 보낸 뒤 센다. 실패해도 응답은 이미 끝났다.
+  try {
+    await recordUsage(actionName(interaction), interaction.member.user.id, elapsed);
+    if (block) await recordBlock(block, interaction.member.user.id);
+  } catch (error) { reportFailure('api/discord.usage', error); }
+}
+
+// 막힌 이유(Message.block)는 집계에만 쓰고 Discord에는 보내지 않는다.
+function takeBlock(reply: Reply): [Reply, BlockReason | undefined] {
+  if (!reply) return [reply, undefined];
+  const strip = ({ block, ...message }: Message): [Message, BlockReason | undefined] => [message, block];
+  if ('public' in reply) { const [message, block] = strip(reply.public); return [{ public: message }, block]; }
+  if ('edit' in reply) { const [message, block] = strip(reply.edit); return [{ edit: message }, block]; }
+  return strip(reply);
 }
 
 async function deliverReply(interaction: Interaction, reply: Reply) {

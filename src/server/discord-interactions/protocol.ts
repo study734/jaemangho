@@ -115,7 +115,10 @@ export const modalText = (interaction: ModalInteraction) => {
 export type Interaction = Exclude<z.infer<typeof interactionSchema>, { type: 1 }>;
 export type CommandInteraction = Extract<Interaction, { type: 2 }>;
 export type ComponentInteraction = Extract<Interaction, { type: 3 }>;
-export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[] } };
+// block: 이 응답이 막힌 시도라면 그 이유(사용량 집계용, usage.ts). Discord로 보내기 전에 handler가 떼어 낸다.
+export type BlockReason = 'no_role' | 'banned' | 'steam_login' | 'steam_consent' | 'friend_unlinked';
+export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[] }; block?: BlockReason };
+export const blocked = (block: BlockReason, message: Message): Message => ({ ...message, block });
 // 명령 결과: 보통은 본인에게만 보이는 메시지. public은 채널에 공개로 올리고, edit은 버튼이 달린 메시지를 그 자리에서 고친다.
 export type Reply = Message | { public: Message } | { edit: Message } | null;
 export const privateMessage = (content: string, components: unknown[] = []): Message => ({ content, components, allowed_mentions: { parse: [] } });

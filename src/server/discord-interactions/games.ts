@@ -1,7 +1,7 @@
 import { linkedPlayers } from './access';
 import { loadParty, saveParty, setPartyPreference, type Party } from './party';
 import { createLobby, lobbyMessage } from './lobby';
-import { fit, label, mention, privateMessage, SITE, type Message, type PartyAction, type Preference, type Reply, type Scope } from './protocol';
+import { blocked, fit, label, mention, privateMessage, SITE, type Message, type PartyAction, type Preference, type Reply, type Scope } from './protocol';
 import { recommendGames, type RecommendationsResult } from '../steam/recommendations';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -24,7 +24,7 @@ const changed = privateMessage('선택한 Steam 계정이 변경됐어요. 사�
 // 웹의 Steam 화면과 같은 기준: 요청자 본인의 현재 Steam 기능 동의가 있어야 한다.
 export async function steamConsentMessage(userId: string): Promise<Message | null> {
   return await hasSteamConsent(userId) ? null
-    : privateMessage(`Steam 공통 게임은 [사이트](<${SITE}/steam>)에서 이용 동의를 마친 뒤 쓸 수 있어요.`);
+    : blocked('steam_consent', privateMessage(`Steam 공통 게임은 [사이트](<${SITE}/steam>)에서 이용 동의를 마친 뒤 쓸 수 있어요.`));
 }
 
 type Players = { ok: true; steamIds: string[]; discordIds: string[] } | { ok: false; message: Message };
@@ -32,7 +32,7 @@ async function resolvePlayers(discordIds: string[]): Promise<Players> {
   const players = await linkedPlayers(discordIds);
   const counts = discordIds.map(id => players.filter(player => player.discordId === id));
   const missing = discordIds.filter((_, index) => counts[index].length === 0);
-  if (missing.length) return { ok: false, message: privateMessage(`프로젝트 가입과 Steam 계정 연결을 확인해 주세요: ${missing.map(mention).join(', ')}\n연결되지 않았거나 이용할 수 없는 계정은 추천에 포함할 수 없어요.`) };
+  if (missing.length) return { ok: false, message: blocked('friend_unlinked', privateMessage(`프로젝트 가입과 Steam 계정 연결을 확인해 주세요: ${missing.map(mention).join(', ')}\n연결되지 않았거나 이용할 수 없는 계정은 추천에 포함할 수 없어요.`)) };
   const ambiguous = discordIds.filter((_, index) => counts[index].length !== 1);
   if (ambiguous.length) return { ok: false, message: privateMessage(`Steam 계정이 여러 개 연결돼 있어요: ${ambiguous.map(mention).join(', ')}\n사이트에서 사용할 Steam 계정의 주인 연결을 정리한 뒤 다시 시도해 주세요.`) };
   const steamIds = counts.map(rows => rows[0].steamId);

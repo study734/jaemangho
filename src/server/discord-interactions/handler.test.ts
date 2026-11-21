@@ -4,7 +4,7 @@ import { adminUser, commandAccess, linkedPlayers } from './access';
 import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { saveFeedback } from './feedback';
-import { recordUsage } from './usage';
+import { recordBlock, recordUsage } from './usage';
 import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
 import { hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
@@ -20,7 +20,7 @@ vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: v
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
 vi.mock('./feedback', async original => ({ ...await original<typeof import('./feedback')>(), saveFeedback: vi.fn() }));
-vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), recordUsage: vi.fn() }));
+vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), recordUsage: vi.fn(), recordBlock: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
 vi.mock('../steam/games', () => ({ compareGames: vi.fn() }));
 vi.mock('../steam/missions', () => ({ findMissions: vi.fn() }));
@@ -687,5 +687,38 @@ describe('사용 역할 (intent/0004 R8)', () => {
     await completeInteraction(parsed({ ...command(), member: { user: { id: owner }, permissions: '8' },
       data: { name: '운영', type: 1, options: [{ name: '사용역할', type: 1 }] } }));
     expect(vi.mocked(adminTask).mock.calls).toEqual([['사용역할', actor, role], ['사용역할', actor, undefined]]);
+  });
+});
+
+describe('막힌 이유 집계 (2번)', () => {
+  const sent = () => fetchFn.mock.calls.map(call => String(call[1]?.body ?? ''));
+  it.each([
+    ['차단', { kind: 'banned' } as const, 'banned'],
+    ['역할 없음', { kind: 'no_role', roleId: '100000000000000500' } as const, 'no_role'],
+    ['사이트 계정 없이 게임추천', { kind: 'ok', userId: null } as const, 'steam_login'],
+  ])('%s → 이유를 세고 Discord로는 이유를 보내지 않는다', async (_name, access, reason) => {
+    vi.mocked(commandAccess).mockResolvedValue(access);
+    await completeInteraction(parsed(command()));
+    expect(recordBlock).toHaveBeenCalledWith(reason, owner);
+    expect(sent().join('')).not.toContain('"block"');
+  });
+  it('Steam 동의가 없거나 고른 친구가 연결되지 않았으면 그 이유를 센다', async () => {
+    vi.mocked(hasSteamConsent).mockResolvedValue(false);
+    await completeInteraction(parsed(command()));
+    expect(recordBlock).toHaveBeenLastCalledWith('steam_consent', owner);
+    vi.mocked(hasSteamConsent).mockResolvedValue(true);
+    vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }]);
+    await completeInteraction(parsed(component()));
+    expect(recordBlock).toHaveBeenLastCalledWith('friend_unlinked', owner);
+    expect(sent().join('')).not.toContain('"block"');
+  });
+  it('정상 응답은 막힘으로 세지 않고, 집계가 실패해도 응답은 그대로다', async () => {
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(recordBlock).not.toHaveBeenCalled();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(recordBlock).mockRejectedValue(new Error('db down'));
+    vi.mocked(commandAccess).mockResolvedValue({ kind: 'banned' });
+    await completeInteraction(parsed(command()));
+    expect(lastMessage().content).toContain('차단');
   });
 });

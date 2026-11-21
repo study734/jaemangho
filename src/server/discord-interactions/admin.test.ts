@@ -10,7 +10,7 @@ import { hasAdministrator } from './access';
 import { adminTask } from './admin';
 import { postWeeklyAwards, setAwardChannel } from '../chat/award-post';
 import { recentFeedback } from './feedback';
-import { usageReport } from './usage';
+import { blockReport, usageReport } from './usage';
 import { setMemberRole } from '../member-role';
 
 vi.mock('../admin', () => ({ purgeRiotCache: vi.fn() }));
@@ -22,7 +22,7 @@ vi.mock('../operations/status', () => ({ operationStatus: vi.fn() }));
 vi.mock('../steam/cache', () => ({ purgeSteamCache: vi.fn() }));
 vi.mock('../chat/award-post', () => ({ postWeeklyAwards: vi.fn(), setAwardChannel: vi.fn() }));
 vi.mock('./feedback', () => ({ recentFeedback: vi.fn() }));
-vi.mock('./usage', () => ({ usageReport: vi.fn() }));
+vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), usageReport: vi.fn(), blockReport: vi.fn() }));
 vi.mock('../member-role', () => ({ setMemberRole: vi.fn() }));
 const actor = { id: 'u1', name: 'Admin' };
 beforeEach(() => {
@@ -30,6 +30,7 @@ beforeEach(() => {
   vi.mocked(audited).mockImplementation(async (_actor, _action, _target, work) => work());
   vi.mocked(recentFeedback).mockResolvedValue({ count: 0, items: [] });
   vi.mocked(usageReport).mockResolvedValue([]);
+  vi.mocked(blockReport).mockResolvedValue([]);
 });
 
 describe('Administrator permission bit', () => {
@@ -73,6 +74,21 @@ describe('admin tasks', () => {
       steam: { cache: { rows: 10, fresh: 7 }, stats: [], errors: [] } });
     const status = (await adminTask('상태', actor)).content;
     expect(status).toContain('활성 경고 1개'); expect(status).toContain('🔴 Riot 키 오류'); expect(status).toContain('7/10');
+  });
+});
+
+describe('/개선의 막힌 시도 (2번)', () => {
+  it('이유별 횟수·하루 최대 사용자를 보여주고, 없으면 생략하고, 실패하면 그 절만 알린다', async () => {
+    vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
+    expect((await adminTask('개선', actor)).content).not.toContain('막힌 시도');
+    vi.mocked(blockReport).mockResolvedValue([{ reason: 'friend_unlinked', uses: 9, maxUsers: 3 }, { reason: 'no_role', uses: 2, maxUsers: 1 }]);
+    const text = (await adminTask('개선', actor)).content;
+    expect(text).toContain('🚧 막힌 시도 (최근 7일)');
+    expect(text).toContain('- 친구 Steam 미연결 9회 · 하루 최대 3명');
+    expect(text).toContain('- 역할 없음 2회 · 하루 최대 1명');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(blockReport).mockRejectedValue(new Error('down'));
+    expect((await adminTask('개선', actor)).content).toContain('막힌 시도를 불러오지 못했어요');
   });
 });
 
