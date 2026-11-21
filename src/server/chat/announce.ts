@@ -11,7 +11,6 @@ import { patchNotesFor, type PatchNote } from '../../lib/patch-notes';
 //   올라갔는지 모르는 결과(시간 초과·네트워크·5xx)는 'unknown'으로 남겨 다시 올리지 않는다(중복 게시보다 한 번 빠지는 쪽을 택함).
 // 문구를 고쳐 다시 알리려면 GUIDE_VERSION을 올린다.
 const DISCORD = 'https://discord.com/api/v10';
-const SITE = 'https://www.jaemangho.shop';
 const LIMIT = 2000;
 export const GUIDE_VERSION = 1;
 export const GUIDE_KEY = `guide:v${GUIDE_VERSION}`;
@@ -25,7 +24,7 @@ export const GUIDE = [
   '⚔️ `/전적` — 롤 랭크와 최근 경기',
   '📜 `/패치노트` — 재순이에게 새로 생긴 기능',
   '🔎 메시지 우클릭 → 앱 → `출처 찾기` — 짤의 애니 출처 찾기',
-  `🎮 \`/게임추천\` — 같이 할 친구들의 Steam 게임 추천. 내 Steam 연결이 필요해서 처음 한 번 [사이트](<${SITE}/steam>)에서 연결해요`,
+  '🎮 `/게임추천` — 같이 할 친구들의 Steam 게임 추천. 처음 한 번만 재순이가 주는 버튼으로 Steam을 연결해요(한 화면, 1분)',
   '',
   '💬 불편한 점이나 바라는 점은 `/의견`으로 보내 주세요. 메시지 우클릭 → 앱 → `재순이에게 전달`로도 보낼 수 있어요.',
   '-# 새 기능이 생기면 재순이가 여기에 알려 드려요.',

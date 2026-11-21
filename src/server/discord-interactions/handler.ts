@@ -1,12 +1,12 @@
 import { adminUser, commandAccess } from './access';
 import { ADMIN_DENIED, adminTask, type AdminTask } from './admin';
-import { gameRecommendations, partyAction, steamConsentMessage } from './games';
+import { acceptConsentAndPick, gameRecommendations, nudgeMessage, partyAction, steamConsentMessage } from './games';
 import { createLobby, lobbyAction, lobbyMessage, loadLobby, type LobbyAction } from './lobby';
 import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
 import { discordPatchNotesText } from '../../lib/patch-notes';
 import { findSource } from './source';
-import { ACK_BODY, ackFor, blocked, friendPicker, SITE, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type BlockReason, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
+import { ACK_BODY, ackFor, blocked, CONNECT_URL, linkButton, friendPicker, interactionSchema, modalText, privateMessage, selection, verifyInteraction, type CommandInteraction, type ComponentInteraction, type Interaction, type BlockReason, type Message, type ModalInteraction, type PartyAction, type Reply } from './protocol';
 import { lastParty } from './party';
 import { feedbackModal, saveFeedback } from './feedback';
 import { actionName, recordBlock, recordUsage } from './usage';
@@ -127,6 +127,9 @@ async function runComponent(interaction: ComponentInteraction, userId: string | 
   const owner = interaction.member.user.id;
   const [prefix, partyId, action, arg] = interaction.data.custom_id.split(':');
   if (prefix === 'lol') return lolSelection(interaction);
+  // 연결 안 된 친구 알림: 요청자가 누를 때만 채널에 공개로 올린다(첫 응답 public).
+  if (prefix === 'nudge') return { public: nudgeMessage(owner, partyId.split('.')) };
+  if (prefix === 'steamconsent') return userId ? acceptConsentAndPick(userId, owner) : STEAM_LOGIN_REQUIRED;
   if (prefix === 'lobby' && action !== 'recommend') {
     return lobbyAction(partyId, owner, action as Exclude<LobbyAction, 'recommend'>,
       message => editReply(interaction.application_id, interaction.token, message));
@@ -157,7 +160,8 @@ async function runComponent(interaction: ComponentInteraction, userId: string | 
 const BANNED = blocked('banned', privateMessage('차단된 계정은 재순이를 이용할 수 없어요.'));
 // 역할 멘션은 이름으로 보이고 알림은 가지 않는다(privateMessage의 allowed_mentions).
 const roleRequired = (roleId: string) => `<@&${roleId}> 역할이 있는 멤버만 재순이를 쓸 수 있어요. 서버 관리자에게 역할을 요청해 주세요.`;
-const STEAM_LOGIN_REQUIRED = blocked('steam_login', privateMessage(`게임추천은 내 Steam 계정이 필요해요. [재망호 사이트](<${SITE}/steam>)에 디스코드로 로그인해 Steam을 연결해 주세요. 다른 기능은 로그인 없이 쓸 수 있어요.`));
+const STEAM_LOGIN_REQUIRED = blocked('steam_login', privateMessage('게임추천은 내 Steam 계정이 필요해요. 아래 버튼에서 디스코드 로그인 → Steam 연결 → 동의를 한 화면에서 끝내고 돌아와 주세요(처음 한 번만). 다른 기능은 로그인 없이 쓸 수 있어요.',
+  [{ type: 1, components: [linkButton('Steam 연결하기', CONNECT_URL)] }]));
 
 // 의견 제출: 입력창은 요청자 확인 전에 열리므로, 저장하지 못하면(차단·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
 // 요청자 확인을 포함한 모든 실패는 api/discord.feedback으로 남고, 원문은 기록하지 않는다.

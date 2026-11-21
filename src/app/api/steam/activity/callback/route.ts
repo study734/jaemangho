@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     result = error instanceof SteamAccountAlreadyLinkedError ? 'already-linked' : 'failed';
   }
-  const destination = new URL('/steam', request.url);
+  const destination = new URL(request.nextUrl.searchParams.get('from') === 'connect' ? '/connect/steam' : '/steam', request.url);
   destination.searchParams.set('steam-link', result);
   const response = NextResponse.redirect(destination);
   response.cookies.set(COOKIE, '', {

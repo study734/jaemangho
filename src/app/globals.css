@@ -1292,6 +1292,30 @@ input, select, textarea, .game-search, .game-search-field { border-radius: 8px; 
 .login-title { display: flex; align-items: center; gap: 16px; }
 .login-lobby .lobby-card { align-self: center; user-select: auto; }
 .login-lobby .btn { align-self: flex-start; min-height: 48px; padding: 0 28px; font-size: 16px; font-weight: 800; box-shadow: 4px 4px 0 var(--primary-pressed); }
+/* 디스코드 게임추천 준비(/connect/steam, intent/0005): 로그인 화면의 로비 카드에 단계 목록을 둔다. */
+.connect-card { width: min(600px, 44%); }
+/* 단계 목록이 길어 페이지가 아래로 늘어나므로, 사선 패널을 넓혀 카드가 그림 위로 넘어가지 않게 한다. */
+.connect-lobby .lobby-veil { clip-path: polygon(0 0, 56% 0, 50% 100%, 0 100%); }
+.connect-lobby .lobby-edge { clip-path: polygon(56% 0, 56.6% 0, 50.6% 100%, 50% 100%); }
+@media (min-width: 1025px) { .connect-lobby .lobby-main { padding-top: 96px; padding-bottom: 48px; } }
+.connect-steps { display: flex; flex-direction: column; gap: 12px; margin: 8px 0; padding: 0; list-style: none; counter-reset: step; }
+.connect-steps > li { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 16px 16px 16px 60px; border: 2px solid var(--hairline-strong); border-radius: 12px; background: var(--surface); box-shadow: 4px 4px 0 var(--hairline); counter-increment: step; }
+.connect-steps > li::before { content: counter(step); position: absolute; left: 16px; top: 14px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--surface-soft); color: var(--ink); font-weight: 900; }
+.connect-steps > li[aria-current="step"] { border-color: var(--primary); box-shadow: 4px 4px 0 var(--primary-pressed); }
+.connect-steps > li.is-done::before { content: "✓"; background: var(--primary); color: var(--on-primary); }
+.connect-steps > li > b { font-size: 16px; }
+.connect-steps > li > span { color: var(--slate); font-size: 14px; line-height: 1.6; }
+.connect-steps > li.is-done > span { color: var(--steel); }
+.connect-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.login-lobby .connect-steps .btn { min-height: 44px; padding: 0 20px; font-size: 15px; }
+.login-lobby .connect-steps .btn-secondary, .login-lobby .connect-steps .btn-link { box-shadow: none; }
+.connect-notice dl { margin: 0; }
+.connect-notice dl > div { margin: 8px 0; }
+.connect-notice dt { font-weight: 700; font-size: 14px; }
+.connect-notice dd { margin: 2px 0 0; color: var(--slate); font-size: 13px; line-height: 1.6; }
+.connect-note { color: var(--ink); font-size: 14px; }
+@media (max-width: 1024px) { .connect-card { width: 100%; } }
+@media (max-width: 600px) { .connect-steps > li { padding: 14px 14px 14px 54px; } .connect-actions { flex-direction: column; } .login-lobby .connect-steps .btn { align-self: stretch; } }
 .settings-dialog, .steam-consent-dialog { border: 2px solid var(--hairline-strong); box-shadow: 6px 6px 0 var(--hairline); }
 .settings-menu-item { border-radius: 0; }
 .settings-menu-item[aria-current] { background: var(--primary); color: var(--on-primary); box-shadow: 3px 3px 0 var(--accent-pink); }

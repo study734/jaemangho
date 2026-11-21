@@ -3,6 +3,14 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-21', area: 'discord', title: '게임추천 준비를 디스코드에서', items: [
+    '이용 동의가 필요하면 디스코드에서 바로 동의하고 친구를 고를 수 있어요.',
+    'Steam이 연결 안 된 친구가 있으면 "연결 안 된 친구에게 알리기" 버튼으로 그 친구들에게 연결 화면을 보낼 수 있어요.',
+    '처음 한 번은 "Steam 연결하기" 버튼에서 로그인 → Steam 연결 → 동의를 한 화면에서 끝내요.',
+  ] },
+  { date: '2026-11-21', area: 'web', title: '게임추천 준비 화면', items: [
+    '디스코드 게임추천을 위한 로그인·Steam 연결·이용 동의를 한 화면(/connect/steam)에서 끝내고 디스코드로 돌아가요.',
+  ] },
   { date: '2026-11-21', area: 'discord', title: '로그인 없이 바로 쓰기, 재순이 공지', items: [
     '사이트에 로그인하지 않아도 /의견·/모집·/기록·/멤버·/전적·/패치노트·출처 찾기를 바로 쓸 수 있어요. /게임추천만 내 Steam 연결이 필요해요.',
     '새 기능이 생기면 재순이가 시상식 채널에 직접 알려 줘요.',

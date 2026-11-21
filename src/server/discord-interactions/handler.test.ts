@@ -6,7 +6,7 @@ import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { saveFeedback } from './feedback';
 import { recordBlock, recordUsage } from './usage';
 import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
-import { hasSteamConsent } from '../steam/consent';
+import { acceptSteamConsent, hasSteamConsent } from '../steam/consent';
 import { getDeals } from '../steam/deals';
 import { compareGames } from '../steam/games';
 import { findMissions } from '../steam/missions';
@@ -18,7 +18,7 @@ vi.mock('./access', () => ({ commandAccess: vi.fn(), commandUser: vi.fn(), linke
 vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: vi.fn(), setPartyPreference: vi.fn() }));
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
-vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn() }));
+vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn(), acceptSteamConsent: vi.fn(), STEAM_FEATURE_NOTICE: 'steam-common-v1' }));
 vi.mock('./feedback', async original => ({ ...await original<typeof import('./feedback')>(), saveFeedback: vi.fn() }));
 vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), recordUsage: vi.fn(), recordBlock: vi.fn() }));
 vi.mock('../steam/deals', () => ({ getDeals: vi.fn() }));
@@ -134,7 +134,7 @@ describe('game recommendation flow', () => {
   });
   it('does not guess missing, blocked, ambiguous or duplicated Steam accounts', async () => {
     vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }]);
-    await completeInteraction(parsed(component())); expect(lastMessage().content).toContain('계정 연결');
+    await completeInteraction(parsed(component())); expect(lastMessage().content).toContain('Steam이 연결되지 않은 친구');
     vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: owner, steamId: '76561190000000003' }, { discordId: friend, steamId: steamIds[1] }]);
     await completeInteraction(parsed(component())); expect(lastMessage().content).toContain('여러 개');
     vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: friend, steamId: steamIds[0] }]);
@@ -249,8 +249,9 @@ describe('Steam consent and party follow-ups', () => {
     vi.mocked(hasSteamConsent).mockResolvedValue(false);
     for (const value of [parsed(command()), parsed(component()), button(`party:${partyId}:deals`)]) {
       await completeInteraction(value);
-      expect(lastMessage().content).toContain('/steam');
-      expect(lastMessage().components).toEqual([]);
+      // 디스코드 안에서 동의하는 버튼(intent/0005 R4)만 있고 추천 버튼·선택창은 없다.
+      expect(JSON.stringify(lastMessage().components)).toContain('steamconsent:accept');
+      expect(JSON.stringify(lastMessage().components)).not.toMatch(/steamrec|party:/);
     }
     expect(hasSteamConsent).toHaveBeenCalledWith('user_owner');
     expect(linkedPlayers).not.toHaveBeenCalled(); expect(saveParty).not.toHaveBeenCalled(); expect(getDeals).not.toHaveBeenCalled();
@@ -269,7 +270,8 @@ describe('Steam consent and party follow-ups', () => {
   it('stores no party and shows no buttons when the selected accounts cannot be used', async () => {
     vi.mocked(linkedPlayers).mockResolvedValue([]);
     await completeInteraction(parsed(component()));
-    expect(saveParty).not.toHaveBeenCalled(); expect(lastMessage().components).toEqual([]);
+    // 추천 버튼은 없고, 연결 안 된 친구 알림·연결 화면 버튼만 붙는다(intent/0005 R5).
+    expect(saveParty).not.toHaveBeenCalled(); expect(JSON.stringify(lastMessage().components)).not.toContain('party:');
     vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: friend, steamId: steamIds[1] }]);
     vi.mocked(recommendGames).mockResolvedValue({ ...result, games: [], excluded: [steamIds[1]] });
     await completeInteraction(parsed(component()));
@@ -432,7 +434,7 @@ describe('/모집 (public lobby)', () => {
     expect(recommendGames).toHaveBeenCalledWith(steamIds, 'balanced', 'all');
     vi.mocked(hasSteamConsent).mockResolvedValue(false);
     await completeInteraction(lobbyButton('recommend'));
-    expect(lastMessage().content).toContain('/steam');
+    expect(JSON.stringify(lastMessage().components)).toContain('steamconsent:accept');
   });
 });
 
@@ -720,5 +722,64 @@ describe('막힌 이유 집계 (2번)', () => {
     vi.mocked(commandAccess).mockResolvedValue({ kind: 'banned' });
     await completeInteraction(parsed(command()));
     expect(lastMessage().content).toContain('차단');
+  });
+});
+
+describe('게임추천 준비를 디스코드에서 (intent/0005)', () => {
+  const buttons = (message: { components?: { components: { type: number; style?: number; url?: string; custom_id?: string; label?: string }[] }[] }) =>
+    (message.components ?? []).flatMap(row => row.components);
+  const click = (custom_id: string) => parsed({ ...command(), id: '100000000000000012', type: 3, data: { component_type: 2, custom_id } });
+  it('R1: 사이트 계정이 없으면 /connect/steam 링크 버튼을 붙인다', async () => {
+    vi.mocked(commandAccess).mockResolvedValue({ kind: 'ok', userId: null });
+    await completeInteraction(parsed(command()));
+    expect(buttons(lastMessage())).toContainEqual(expect.objectContaining({ type: 2, style: 5, url: 'https://www.jaemangho.shop/connect/steam' }));
+  });
+  it('R4: 동의만 없으면 웹과 같은 고지와 동의 버튼을 보이고, 누르면 저장한 뒤 바로 친구 선택창을 연다', async () => {
+    vi.mocked(hasSteamConsent).mockResolvedValue(false);
+    await completeInteraction(parsed(command()));
+    expect(lastMessage().content).toContain('Steam 공통 게임 이용 동의');
+    expect(lastMessage().content).toContain('사용하는 데이터');
+    expect(lastMessage().content).toContain('저장 국가');
+    expect(buttons(lastMessage()).map(b => b.custom_id)).toContain('steamconsent:accept');
+    vi.mocked(acceptSteamConsent).mockResolvedValue([]);
+    await completeInteraction(click('steamconsent:accept'));
+    expect(acceptSteamConsent).toHaveBeenCalledWith('user_owner', 'steam-common-v1');
+    expect(lastMessage().content).toContain('동의했어요');
+    expect(JSON.stringify(lastMessage().components)).toContain(`steamrec:v2:${owner}:all:balanced:`);
+  });
+  it('R4: 저장 국가가 정해지지 않아 동의를 저장할 수 없으면 웹으로 안내하고, 계정이 없으면 연결 화면으로 보낸다', async () => {
+    vi.mocked(acceptSteamConsent).mockRejectedValue(new Error('steam_notice_changed'));
+    await completeInteraction(click('steamconsent:accept'));
+    expect(lastMessage().content).toContain('사이트');
+    expect(JSON.stringify(lastMessage().components ?? [])).not.toContain('steamrec');
+    vi.mocked(commandAccess).mockResolvedValue({ kind: 'ok', userId: null });
+    vi.mocked(acceptSteamConsent).mockClear();
+    await completeInteraction(click('steamconsent:accept'));
+    expect(acceptSteamConsent).not.toHaveBeenCalled();
+    expect(buttons(lastMessage())).toContainEqual(expect.objectContaining({ url: 'https://www.jaemangho.shop/connect/steam' }));
+  });
+  it('R5: 연결 안 된 친구가 있으면 알림 버튼을 붙이고, 누르면 그 친구만 멘션하는 공개 메시지를 올린다', async () => {
+    vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }]);
+    await completeInteraction(parsed(component()));
+    const nudge = buttons(lastMessage()).find(b => b.custom_id?.startsWith('nudge:'));
+    expect(nudge?.custom_id).toBe(`nudge:${friend}`);
+    const defer = vi.fn();
+    expect(await (await receiveInteraction(request(click(nudge!.custom_id!)), defer, env)).json()).toEqual({ type: 5 });
+    await completeInteraction(click(nudge!.custom_id!));
+    const message = lastMessage();
+    expect(message.flags).toBeUndefined();
+    expect(message.content).toContain(`<@${friend}>`);
+    expect(message.allowed_mentions).toEqual({ parse: [], users: [friend] });
+    expect(buttons(message)).toContainEqual(expect.objectContaining({ style: 5, url: 'https://www.jaemangho.shop/connect/steam' }));
+  });
+  it('R5: 알림 버튼에는 100자 안에 들어가는 친구만 담고, 잘못된 형식은 거부한다', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => `1000000000000001${String(i).padStart(2, '0')}`);
+    vi.mocked(linkedPlayers).mockResolvedValue([]);
+    await completeInteraction(parsed({ ...component(), data: { ...component().data, values: [owner, ...many] } }));
+    const nudge = buttons(lastMessage()).find(b => b.custom_id?.startsWith('nudge:'))!;
+    expect(nudge.custom_id!.length).toBeLessThanOrEqual(100);
+    for (const bad of ['nudge:', 'nudge:abc', `nudge:${friend}.${friend}`]) {
+      expect(interactionSchema.safeParse({ ...command(), type: 3, data: { component_type: 2, custom_id: bad } }).success).toBe(false);
+    }
   });
 });

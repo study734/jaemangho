@@ -23,6 +23,8 @@ export function actionName(interaction: Interaction): string {
   if (prefix === 'party') return `게임추천 › ${PARTY[action] ?? '기타'}`;
   if (prefix === 'lobby') return `모집 › ${LOBBY[action] ?? '기타'}`;
   if (prefix === 'steamrec') return '게임추천 › 친구 선택';
+  if (prefix === 'steamconsent') return '게임추천 › 이용 동의';
+  if (prefix === 'nudge') return '게임추천 › 친구에게 알리기';
   if (prefix === 'lol') return '전적 › 소환사 선택';
   return '기타';
 }

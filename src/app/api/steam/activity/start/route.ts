@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   }
   try {
     const callback = new URL('/api/steam/activity/callback', request.url);
+    // 디스코드 게임추천 준비 화면(/connect/steam)에서 시작했으면 끝난 뒤 그 화면으로 돌아간다. 정해진 값만 받는다.
+    if (request.nextUrl.searchParams.get('from') === 'connect') callback.searchParams.set('from', 'connect');
     const { state, url } = await beginSteamLink(user.id, callback.toString());
     const response = NextResponse.redirect(url);
     response.cookies.set(COOKIE, state, {
