@@ -321,7 +321,7 @@ export const AdminDashboard: React.FC<Props> = ({ onDeleteMember }) => {
   );
 };
 
-const gaugeColor = (ratio: number) => (ratio >= 0.9 ? '#ff4a4a' : ratio >= 0.7 ? '#ffb703' : 'var(--primary)');
+const gaugeColor = (ratio: number) => (ratio >= 0.9 ? 'var(--status-error)' : ratio >= 0.7 ? '#ffb703' : 'var(--primary)');
 
 const Card: React.FC<{ label: string; value: string; sub?: string; ratio?: number }> = ({ label, value, sub, ratio }) => (
   <div style={styles.card}>
@@ -343,7 +343,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: 'var(--page-padding)', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', minHeight: 0 },
   header: { flexShrink: 0, display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--hairline)', paddingBottom: '20px' },
   title: { color: 'var(--ink)', letterSpacing: '-1px' },
-  error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'rgba(255, 74, 74, 0.12)', color: '#ff4a4a', fontSize: '13.5px' },
+  error: { padding: '12px 16px', borderRadius: '8px', backgroundColor: 'color-mix(in srgb, var(--status-error) 12%, transparent)', color: 'var(--status-error)', fontSize: '13.5px' },
   configuration: { padding: '12px 16px', borderRadius: 8, backgroundColor: 'var(--surface)', borderLeft: '4px solid var(--status-warning)', color: 'var(--status-warning)', fontSize: 14 },
   tabs: { flexShrink: 0, display: 'flex', gap: '4px', overflowX: 'auto', borderBottom: '1px solid var(--hairline)' },
   // 좁은 화면에서는 탭이 글자 단위로 줄바꿈되지 않고 탭 줄 안에서 가로로 스크롤한다.
@@ -359,6 +359,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   gaugeTrack: { height: '6px', borderRadius: '3px', backgroundColor: 'var(--surface-soft)', margin: '8px 0', overflow: 'hidden' },
   gaugeFill: { height: '100%', borderRadius: '3px' },
   handle: { color: 'var(--slate)', fontSize: '12px' },
-  blocked: { color: '#ff4a4a', fontSize: '12px', fontWeight: 600 },
+  blocked: { color: 'var(--status-error)', fontSize: '12px', fontWeight: 600 },
   danger: adminStyles.danger,
 };

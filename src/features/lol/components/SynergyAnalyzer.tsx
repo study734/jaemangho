@@ -71,21 +71,21 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
             </div>
 
             {/* Worst Duo Card */}
-            <div className="card-base" style={{ ...styles.highlightCard, border: '2px solid #ff4a4a' }}>
+            <div className="card-base" style={{ ...styles.highlightCard, border: '2px solid var(--status-error)' }}>
               <div style={styles.badgeRow}>
-                <span className="badge-orange" style={{ backgroundColor: '#ff4a4a' }}>WORST</span>
+                <span className="badge-orange" style={{ backgroundColor: 'var(--status-error)' }}>WORST</span>
                 <span style={styles.cardEyebrow}>환장의 시너지</span>
               </div>
 
               {worstSynergies.length > 0 ? (
                 <div style={styles.duoHighlightBox}>
                   <h4 style={styles.duoNameText}>{worstSynergies[0].duoName}</h4>
-                  <div style={{ ...styles.largeWinRateText, color: '#ff4a4a' }}>{worstSynergies[0].winRate}%</div>
+                  <div style={{ ...styles.largeWinRateText, color: 'var(--status-error)' }}>{worstSynergies[0].winRate}%</div>
                   <div style={styles.duoDetailsText}>
                     전적: <strong>{worstSynergies[0].gamesPlayed}판 {worstSynergies[0].wins}승 {worstSynergies[0].losses}패</strong>
                   </div>
                   <div style={styles.duoDetailsText}>
-                    평균 KDA: <strong style={{ color: '#ff4a4a' }}>{worstSynergies[0].avgKda}:1</strong>
+                    평균 KDA: <strong style={{ color: 'var(--status-error)' }}>{worstSynergies[0].avgKda}:1</strong>
                   </div>
                   <p className="body-sm" style={styles.cardComment}>
                     이 조합은 봉인하시는 것이 좋겠습니다. 같이 큐를 돌리면 트롤러가 되는 파멸의 듀오!
@@ -125,7 +125,7 @@ export const SynergyAnalyzer: React.FC<SynergyAnalyzerProps> = ({ members }) => 
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ 
-                        color: duo.winRate >= 50 ? 'var(--primary)' : '#ff4a4a',
+                        color: duo.winRate >= 50 ? 'var(--primary)' : 'var(--status-error)',
                         fontWeight: 700
                       }}>
                         {duo.winRate}%

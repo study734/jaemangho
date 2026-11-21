@@ -90,7 +90,7 @@ const styles = {
   removeBtn: {
     background: 'none',
     border: 'none',
-    color: '#ff4a4a',
+    color: 'var(--status-error)',
     cursor: 'pointer',
     opacity: 0.7,
     transition: 'opacity 0.2s',

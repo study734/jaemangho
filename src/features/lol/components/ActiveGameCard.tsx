@@ -183,10 +183,10 @@ const styles = {
   teamTitleEnemy: {
     fontSize: '11px',
     fontWeight: 700,
-    color: '#ff4a4a',
+    color: 'var(--status-error)',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px',
-    borderBottom: '1px solid rgba(255, 74, 74, 0.15)',
+    borderBottom: '1px solid color-mix(in srgb, var(--status-error) 15%, transparent)',
     paddingBottom: '4px',
   },
   teamPlayersList: {
