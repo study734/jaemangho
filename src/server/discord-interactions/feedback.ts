@@ -15,7 +15,7 @@ export function feedbackModal(customId: string) {
 }
 
 export interface FeedbackInput {
-  id: string; userId: string; discordId: string; body: string;
+  id: string; userId: string | null; discordId: string; body: string;
   source: 'command' | 'message'; messageLink: string | null;
 }
 
@@ -40,16 +40,17 @@ export async function saveFeedback(input: FeedbackInput): Promise<'saved' | 'lim
   } finally { client.release(); }
 }
 
-export interface FeedbackItem { name: string; body: string; messageLink: string | null; createdAt: string }
+export interface FeedbackItem { name: string | null; discordId: string; body: string; messageLink: string | null; createdAt: string }
 
 // 관리자 /개선에 붙이는 최근 7일 의견 수와 최신 5건.
 export async function recentFeedback(): Promise<{ count: number; items: FeedbackItem[] }> {
   const sql = await db();
   const [{ count }] = await sql`select count(*)::int as count from member_feedback where created_at > now() - interval '7 days'`;
-  const rows = await sql`select u.name, f.body, f.message_link as "messageLink", f.created_at as "createdAt"
-    from member_feedback f join "user" u on u.id = f.user_id
+  // 사이트 계정 없이 보낸 의견(intent/0004)은 이름이 없어 디스코드 멘션으로 보인다.
+  const rows = await sql`select u.name, f.discord_id as "discordId", f.body, f.message_link as "messageLink", f.created_at as "createdAt"
+    from member_feedback f left join "user" u on u.id = f.user_id
     where f.created_at > now() - interval '7 days' order by f.created_at desc, f.id desc limit 5`;
-  return { count: count as number, items: rows.map(row => ({ name: row.name as string, body: row.body as string,
+  return { count: count as number, items: rows.map(row => ({ name: (row.name as string | null) ?? null, discordId: row.discordId as string, body: row.body as string,
     messageLink: (row.messageLink as string | null) ?? null, createdAt: new Date(row.createdAt as string).toISOString() })) };
 }
 

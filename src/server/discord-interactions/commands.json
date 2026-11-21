@@ -190,6 +190,19 @@
         "name": "시상식게시",
         "description": "지난주 시상식을 지금 올리기 (주마다 한 번)",
         "type": 1
+      },
+      {
+        "name": "사용역할",
+        "description": "재순이와 사이트를 쓸 수 있는 역할 (비워 두면 서버 멤버 모두)",
+        "type": 1,
+        "options": [
+          {
+            "name": "역할",
+            "description": "친구들에게 준 역할",
+            "type": 8,
+            "required": false
+          }
+        ]
       }
     ]
   },

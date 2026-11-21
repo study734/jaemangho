@@ -43,6 +43,13 @@ describe.skipIf(!testDbUrl)('멤버 의견 저장 (격리 DB)', () => {
     expect(recent.items[0]).toMatchObject({ name: '의견테스트', body: '가장 최근', messageLink: link });
     expect(recent.items.map(item => item.body)).not.toContain('오래된 의견');
   });
+  it('사이트 계정 없이 보낸 의견도 저장·제한하고, 목록에는 이름 없이 디스코드 ID로 돌려준다 (intent/0004 R4)', async () => {
+    const guest = '100000000000000072';
+    const saveGuest = (n: number) => store.saveFeedback({ id: id(n), userId: null, discordId: guest, body: `손님 ${n}`, source: 'command', messageLink: null });
+    for (let n = 1; n <= 5; n++) expect(await saveGuest(n)).toBe('saved');
+    expect(await saveGuest(6)).toBe('limited');
+    expect((await store.recentFeedback()).items[0]).toMatchObject({ name: null, discordId: guest });
+  });
   it('동시에 여러 건을 제출해도 24시간 5건을 넘지 않는다', async () => {
     for (let n = 1; n <= 4; n++) await save(n);
     const results = await Promise.all([10, 11, 12].map(n => save(n)));

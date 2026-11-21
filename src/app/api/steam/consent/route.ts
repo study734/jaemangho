@@ -4,6 +4,7 @@ import { requireUser } from '@/server/viewer';
 import { parseBounded, serverError } from '@/server/http';
 import { acceptSteamConsent, hasSteamConsent, revokeSteamConsent, STEAM_FEATURE_NOTICE } from '@/server/steam/consent';
 import { STEAM_STORAGE_COUNTRY } from '@/server/activity/steam-policy';
+import { STEAM_NOTICE } from '@/lib/steam-notice';
 import { runSteamCollection, SteamCollectionBusyError } from '@/server/activity/steam-collection';
 import { reportFailure } from '@/server/diagnostics';
 
@@ -11,7 +12,7 @@ export async function GET() {
   const user = await requireUser();
   if (user instanceof Response) return user;
   try { return Response.json({ accepted: await hasSteamConsent(user.id), noticeVersion: STEAM_FEATURE_NOTICE,
-    storageCountry: STEAM_STORAGE_COUNTRY }, { headers: { 'Cache-Control': 'no-store' } }); }
+    storageCountry: STEAM_STORAGE_COUNTRY, notice: STEAM_NOTICE }, { headers: { 'Cache-Control': 'no-store' } }); }
   catch (error) { return serverError(error, 'steam.consent.GET'); }
 }
 

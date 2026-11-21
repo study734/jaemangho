@@ -26,6 +26,32 @@ describe.skipIf(!testDbUrl)('Discord command account mapping (isolated DB)', () 
     expect(await access.commandUser('100000000000000099')).toBeNull();
     expect(await access.linkedPlayers(discordIds)).toEqual(discordIds.map((discordId, i) => ({ discordId, steamId: steamIds[i] })));
   });
+  it('commandAccess: 계정 있음은 id, 계정 없음은 손님, 차단은 banned, 다른 provider는 손님 (intent/0004 R1·R3)', async () => {
+    const m = (id: string) => ({ user: { id } });
+    expect(await access.commandAccess(m(discordIds[0]))).toEqual({ kind: 'ok', userId: 'dci_test_0' });
+    expect(await access.commandAccess(m('100000000000000099'))).toEqual({ kind: 'ok', userId: null });
+    await pool.query('update "user" set banned = true where id = $1', ['dci_test_1']);
+    expect(await access.commandAccess(m(discordIds[1]))).toEqual({ kind: 'banned' });
+    await pool.query('update "user" set banned = null where id = $1', ['dci_test_1']);
+    expect(await access.commandAccess(m(discordIds[1]))).toEqual({ kind: 'ok', userId: 'dci_test_1' });
+    await pool.query('update "user" set banned = false where id = $1', ['dci_test_1']);
+    await pool.query('update account set "providerId" = $1 where id = $2', ['steam', 'dci_test_1']);
+    expect(await access.commandAccess(m(discordIds[1]))).toEqual({ kind: 'ok', userId: null });
+    await pool.query('update account set "providerId" = $1 where id = $2', ['discord', 'dci_test_1']);
+  });
+  it('commandAccess: 사용 역할을 정하면 서명된 역할이나 Administrator 권한이 있어야 한다 (intent/0004 R8)', async () => {
+    const role = '100000000000000500';
+    await pool.query(`insert into discord_member_role (id, role_id, set_by) values (1, $1, 'test') on conflict (id) do update set role_id = excluded.role_id`, [role]);
+    try {
+      expect(await access.commandAccess({ user: { id: discordIds[0] } })).toEqual({ kind: 'no_role', roleId: role });
+      expect(await access.commandAccess({ user: { id: '100000000000000099' }, roles: ['100000000000000501'] })).toEqual({ kind: 'no_role', roleId: role });
+      expect(await access.commandAccess({ user: { id: discordIds[0] }, roles: [role] })).toEqual({ kind: 'ok', userId: 'dci_test_0' });
+      expect(await access.commandAccess({ user: { id: '100000000000000099' }, permissions: '8' })).toEqual({ kind: 'ok', userId: null });
+      await pool.query('update "user" set banned = true where id = $1', ['dci_test_0']);
+      expect(await access.commandAccess({ user: { id: discordIds[0] }, roles: [role] })).toEqual({ kind: 'banned' });
+      await pool.query('update "user" set banned = false where id = $1', ['dci_test_0']);
+    } finally { await pool.query('delete from discord_member_role'); }
+  });
   it('accepts admin commands only with both the site admin role and the signed Administrator bit', async () => {
     expect(await access.adminUser(discordIds[0], '8')).toBeNull();
     await pool.query('update "user" set role = $1 where id = $2', ['admin', 'dci_test_0']);

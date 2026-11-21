@@ -21,6 +21,8 @@ describe('actionName', () => {
     expect(actionName(button(`party:${party}:again:all:fresh`))).toBe('게임추천 › 지난번 멤버로');
     expect(actionName(button(`lobby:${party}:join`))).toBe('모집 › 참여');
     expect(actionName(button(`lobby:${party}:recommend`))).toBe('모집 › 게임추천');
+    expect(actionName(button('steamconsent:accept'))).toBe('게임추천 › 이용 동의');
+    expect(actionName(button(`nudge:${party}`))).toBe('게임추천 › 친구에게 알리기');
     expect(actionName(parse({ type: 3, data: { component_type: 3, custom_id: `party:${party}:pref`, values: ['fresh'] } }))).toBe('게임추천 › 기준 바꾸기');
     expect(actionName(parse({ type: 3, data: { component_type: 5, custom_id: `steamrec:v1:${base.member.user.id}:all:${Math.floor(Date.now() / 1000)}`, values: [party, base.member.user.id] } }))).toBe('게임추천 › 친구 선택');
     expect(actionName(parse({ type: 3, data: { component_type: 3, custom_id: `lol:v1:${base.member.user.id}:${Math.floor(Date.now() / 1000)}`, values: ['abc'] } }))).toBe('전적 › 소환사 선택');

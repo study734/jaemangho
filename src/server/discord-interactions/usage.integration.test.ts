@@ -6,7 +6,7 @@ describe.skipIf(!testDbUrl)('디스코드 사용량 집계 (격리 DB)', () => {
   let pool: Awaited<ReturnType<typeof openTestDb>>;
   let usage: typeof import('./usage');
   const a = '100000000000000091', b = '100000000000000092';
-  const reset = async () => { await pool.query('delete from discord_usage'); await pool.query('delete from discord_usage_users'); };
+  const reset = async () => { await pool.query('delete from discord_usage'); await pool.query('delete from discord_usage_users'); await pool.query('delete from discord_usage_blocks'); };
   beforeAll(async () => { pool = await openTestDb(); usage = await import('./usage'); });
   beforeEach(reset);
   afterAll(async () => { await reset(); await pool.end(); });
@@ -50,5 +50,18 @@ describe.skipIf(!testDbUrl)('디스코드 사용량 집계 (격리 DB)', () => {
     await usage.purgeUsage();
     expect((await pool.query(`select count(*)::int as n from discord_usage_users`)).rows[0].n).toBe(2);
     expect((await pool.query(`select count(*)::int as n from discord_usage`)).rows[0].n).toBe(1);
+  });
+  it('막힌 이유를 하루 횟수·사용자 수로 세고 최근 7일을 이유별로 보고하며 ID는 영구 집계에 없다 (2번)', async () => {
+    await usage.recordBlock('no_role', a);
+    await usage.recordBlock('no_role', a);
+    await usage.recordBlock('no_role', b);
+    await usage.recordBlock('friend_unlinked', a);
+    await pool.query(`insert into discord_usage_blocks (day, reason, uses, users) values
+      ((now() at time zone 'Asia/Seoul')::date - 3, 'no_role', 4, 4), ((now() at time zone 'Asia/Seoul')::date - 8, 'steam_login', 9, 9)`);
+    expect(await usage.blockReport()).toEqual([
+      { reason: 'no_role', uses: 7, maxUsers: 4 },
+      { reason: 'friend_unlinked', uses: 1, maxUsers: 1 },
+    ]);
+    expect(JSON.stringify((await pool.query('select * from discord_usage_blocks')).rows)).not.toContain(a);
   });
 });

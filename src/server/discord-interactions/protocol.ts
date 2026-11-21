@@ -19,7 +19,8 @@ const envelope = {
   // 명령을 실행한 채널. 메시지 우클릭 의견의 메시지 링크를 만들 때만 쓴다.
   channel_id: snowflake.optional(),
   // permissions: 이 채널에서의 현재 권한 비트필드(Discord가 서명). 관리자 명령 실행 조건에 쓴다.
-  member: z.object({ user: z.object({ id: snowflake }), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
+  // roles: 이 서버에서 가진 역할 ID(Discord가 서명). 관리자가 정한 사용 역할 확인에 쓴다(intent/0004, member-role.ts).
+  member: z.object({ user: z.object({ id: snowflake }), roles: z.array(snowflake).max(250).optional(), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
 };
 const stringOption = <N extends string, V extends z.ZodTypeAny>(name: N, value: V) => z.object({ name: z.literal(name), type: z.literal(3), value });
 const subcommand = <N extends string>(name: N) => z.object({ name: z.literal(name), type: z.literal(1) });
@@ -58,6 +59,7 @@ const commandData = z.discriminatedUnion('name', [
     name: z.literal('운영'), type: z.literal(1),
     options: z.tuple([z.discriminatedUnion('name', [subcommand('상태'), subcommand('점검'), subcommand('동기화'), subcommand('시상식게시'),
       z.object({ name: z.literal('시상식채널'), type: z.literal(1), options: z.array(z.object({ name: z.literal('채널'), type: z.literal(7), value: snowflake })).max(1).optional() }),
+      z.object({ name: z.literal('사용역할'), type: z.literal(1), options: z.array(z.object({ name: z.literal('역할'), type: z.literal(8), value: snowflake })).max(1).optional() }),
       z.object({ name: z.literal('캐시'), type: z.literal(1), options: z.tuple([stringOption('종류', z.enum(['steam', 'riot']))]) })])]),
   }),
   // 멤버 의견(intent/0002): 첫 응답으로 입력창을 연다. 메시지 우클릭은 메시지 ID(target_id)만 쓰고 내용은 읽지 않는다.
@@ -86,6 +88,10 @@ const componentData = z.union([
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:pref$/), values: z.tuple([preferenceSchema]) }),
   // 추천 결과에서 고른 게임 이름으로 공개 모집을 연다(이름은 그대로 모집 메시지의 게임 칸에 들어간다).
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^party:\d{17,20}:recruit$/), values: z.tuple([z.string().trim().min(1).max(100)]) }),
+  // 디스코드 안에서 Steam 이용 동의(intent/0005 R4), 연결 안 된 친구 알림(R5, 친구 ID를 '.'로 이어 담는다).
+  z.object({ component_type: z.literal(2), custom_id: z.literal('steamconsent:accept') }),
+  z.object({ component_type: z.literal(2), custom_id: z.string().regex(/^nudge:\d{17,20}(\.\d{17,20}){0,4}$/)
+    .refine(id => { const ids = id.slice(6).split('.'); return new Set(ids).size === ids.length; }) }),
   z.object({ component_type: z.literal(3), custom_id: z.string().regex(/^lol:v1:\d{17,20}:\d{10}$/), values: z.tuple([z.string().regex(/^[\w-]{1,32}$/)]) }),
 ]);
 
@@ -113,7 +119,11 @@ export const modalText = (interaction: ModalInteraction) => {
 export type Interaction = Exclude<z.infer<typeof interactionSchema>, { type: 1 }>;
 export type CommandInteraction = Extract<Interaction, { type: 2 }>;
 export type ComponentInteraction = Extract<Interaction, { type: 3 }>;
-export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[] } };
+// block: 이 응답이 막힌 시도라면 그 이유(사용량 집계용, usage.ts). Discord로 보내기 전에 handler가 떼어 낸다.
+export type BlockReason = 'no_role' | 'banned' | 'steam_login' | 'steam_consent' | 'friend_unlinked';
+// allowed_mentions.users: 이 사람들만 멘션 알림을 받는다(연결 안 된 친구 알림, intent/0005). 기본은 아무에게도 알리지 않는다.
+export type Message = { content: string; components?: unknown[]; allowed_mentions?: { parse: string[]; users?: string[] }; block?: BlockReason };
+export const blocked = (block: BlockReason, message: Message): Message => ({ ...message, block });
 // 명령 결과: 보통은 본인에게만 보이는 메시지. public은 채널에 공개로 올리고, edit은 버튼이 달린 메시지를 그 자리에서 고친다.
 export type Reply = Message | { public: Message } | { edit: Message } | null;
 export const privateMessage = (content: string, components: unknown[] = []): Message => ({ content, components, allowed_mentions: { parse: [] } });
@@ -123,7 +133,7 @@ export const privateMessage = (content: string, components: unknown[] = []): Mes
 export type Ack = 'private' | 'public' | 'update';
 export function ackFor(interaction: Interaction): Ack {
   if (interaction.type === 2) return interaction.data.name === '모집' ? 'public' : 'private';
-  if (/^party:\d+:recruit$/.test(interaction.data.custom_id)) return 'public';
+  if (/^party:\d+:recruit$/.test(interaction.data.custom_id) || interaction.data.custom_id.startsWith('nudge:')) return 'public';
   // 다른 추천·기준 바꾸기는 새 메시지를 만들지 않고 보고 있던 추천 메시지를 고친다.
   return /^(lobby:\d+:(join|leave|close)|party:\d+:(more:\d+|pref))$/.test(interaction.data.custom_id) ? 'update' : 'private';
 }
@@ -136,6 +146,9 @@ export const label = (name: string, max = 80) => name.replace(/[\r\n]/g, ' ').sl
 export const mention = (discordId: string) => `<@${discordId}>`;
 // 디스코드에 맞지 않는 흐름(로그인·Steam 연결·동의·취향 설정)은 사이트로 안내한다.
 export const SITE = 'https://www.jaemangho.shop';
+// 디스코드 게임추천 준비 화면(로그인·Steam 연결·동의를 한 화면에서, intent/0005).
+export const CONNECT_URL = `${SITE}/connect/steam`;
+export const linkButton = (label: string, url: string) => ({ type: 2, style: 5, label, url });
 
 // Verify the exact bytes before parsing JSON. A fresh timestamp limits replay of signed requests.
 export function verifyInteraction(body: Uint8Array, signature: string | null, timestamp: string | null, publicKey: string, now = Date.now()): boolean {

@@ -6,15 +6,16 @@ import { checkOperations } from '../operations/monitor';
 import { operationStatus } from '../operations/status';
 import { purgeSteamCache } from '../steam/cache';
 import { postWeeklyAwards, setAwardChannel, type AwardPostResult } from '../chat/award-post';
+import { setMemberRole } from '../member-role';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { KIND_LABEL } from '../../lib/improvements';
 import { recentFeedback } from './feedback';
-import { usageReport, type UsageRow } from './usage';
+import { BLOCK_LABEL, blockReport, usageReport, type BlockRow, type UsageRow } from './usage';
 import { reportFailure } from '../diagnostics';
 
 // 관리자 전용 명령. 웹 /api/admin/operations와 같은 서비스와 작업 이력(audited)을 쓴다.
 // 사용자 차단·해제, 소환사 삭제처럼 되돌리기 어려운 작업은 웹 관리자 화면에만 둔다.
-export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot' | '시상식채널' | '시상식게시';
+export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot' | '시상식채널' | '시상식게시' | '사용역할';
 type Actor = { id: string; name: string };
 const KST = { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' } as const;
 const when = (value: unknown) => value ? new Date(value as string).toLocaleString('ko-KR', KST) : '없음';
@@ -23,8 +24,20 @@ const SYNC_BUDGET_MS = 30_000;
 
 export const ADMIN_DENIED = privateMessage('관리자만 실행할 수 있어요. 디스코드 Administrator 권한과 사이트 관리자 상태(로그인할 때 갱신)가 모두 필요해요.');
 
-export async function adminTask(task: AdminTask, actor: Actor, channelId?: string): Promise<Message> {
+// target: 시상식채널은 채널 ID, 사용역할은 역할 ID(비우면 끄기).
+export async function adminTask(task: AdminTask, actor: Actor, target?: string): Promise<Message> {
+  const channelId = target;
   switch (task) {
+    case '사용역할': {
+      const roleId = target;
+      await audited(actor, roleId ? 'access.role.set' : 'access.role.clear', 'access', () => setMemberRole(roleId ?? null, actor.id));
+      if (!roleId) return privateMessage('사용 역할 제한을 껐어요. 서버 멤버 모두 재순이와 사이트를 쓸 수 있어요.');
+      return privateMessage([
+        `이제 <@&${roleId}> 역할이 있는 멤버만 재순이와 사이트를 쓸 수 있어요. 서버 관리자는 역할이 없어도 쓸 수 있어요.`,
+        '사이트는 다음 로그인부터 적용돼요. 이미 로그인한 사람은 세션이 끝날 때(최대 7일)까지 유지되니, 바로 끊으려면 관리자 화면에서 차단해 주세요.',
+        ...(process.env.DISCORD_BOT_TOKEN ? [] : ['⚠️ 봇 토큰(DISCORD_BOT_TOKEN)이 없어 사이트 로그인에서 역할을 확인할 수 없어요. 그동안 서버 관리자만 로그인할 수 있어요.']),
+      ].join('\n'));
+    }
     case '시상식채널': {
       await audited(actor, channelId ? 'awards.channel.set' : 'awards.channel.clear', 'awards', () => setAwardChannel(channelId ?? null, actor.id));
       return privateMessage(channelId
@@ -66,11 +79,12 @@ export async function adminTask(task: AdminTask, actor: Actor, channelId?: strin
 
 async function improvements(): Promise<Message> {
   // 덧붙이는 절(사용량·의견)이 실패해도 기존 개선 우선순위는 보여주고 그 절만 알린다(부분 실패).
-  const [report, feedback, usage] = await Promise.all([improvementReport(),
+  const [report, feedback, usage, blocks] = await Promise.all([improvementReport(),
     recentFeedback().catch((error: unknown) => { reportFailure('api/discord.feedback', error); return null; }),
-    usageReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; })]);
+    usageReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; }),
+    blockReport().catch((error: unknown) => { reportFailure('api/discord.usage', error); return null; })]);
   const head = `📋 개선 우선순위 (최근 7일 열람 ${report.totalViews.current.toLocaleString('ko-KR')}회, 그 전 7일 ${report.totalViews.previous.toLocaleString('ko-KR')}회)`;
-  const voices = [...usageLines(usage), ...feedbackLines(feedback)];
+  const voices = [...usageLines(usage), ...blockLines(blocks), ...feedbackLines(feedback)];
   if (!report.items.length) return privateMessage(fit([`${head}\n지금 고칠 경고·실패가 없어요.${report.usageEnough ? '' : ' 열람이 적어 사용량 판단은 하지 않았어요.'}`, ...voices].join('\n\n')));
   const lines = report.items.slice(0, 8).map((item, index) =>
     `${index + 1}. **[${KIND_LABEL[item.kind]}] ${label(item.target)}** — ${item.reasons.map(reason => label(reason, 200)).join(' / ')}${item.next ? `\n   다음: ${item.next}` : ''}`);
@@ -79,6 +93,13 @@ async function improvements(): Promise<Message> {
 }
 
 // 디스코드 사용(intent/0003 R6). 하루 사용자 수는 날짜별 고유 값이라 '하루 최대'로 보여준다.
+// 막힌 시도(이유별). 고칠 곳을 바로 알 수 있게 이유 이름으로 보인다.
+function blockLines(rows: BlockRow[] | null): string[] {
+  if (!rows) return ['🚧 막힌 시도를 불러오지 못했어요. 잠시 후 다시 실행해 주세요.'];
+  if (!rows.length) return [];
+  return ['🚧 막힌 시도 (최근 7일)', rows.map(row => `- ${BLOCK_LABEL[row.reason]} ${row.uses.toLocaleString('ko-KR')}회 · 하루 최대 ${row.maxUsers}명`).join('\n')];
+}
+
 function usageLines(rows: UsageRow[] | null): string[] {
   if (!rows) return ['🎮 디스코드 사용을 불러오지 못했어요. 잠시 후 다시 실행해 주세요.'];
   if (!rows.length) return [];
@@ -95,7 +116,7 @@ function feedbackLines(feedback: Awaited<ReturnType<typeof recentFeedback>> | nu
   const items = feedback.items.map(item => {
     const body = item.body.length > 200 ? `${item.body.slice(0, 200)}…` : item.body;
     const link = item.messageLink ? ` · [메시지](<${item.messageLink}>)` : '';
-    return `- ${label(item.name)} · ${new Date(item.createdAt).toLocaleDateString('ko-KR', DAY)}${link}\n  ${label(body, 201)}`;
+    return `- ${item.name ? label(item.name) : `<@${item.discordId}>`} · ${new Date(item.createdAt).toLocaleDateString('ko-KR', DAY)}${link}\n  ${label(body, 201)}`;
   });
   return [`💬 멤버 의견 (최근 7일 ${feedback.count}건)`, ...items];
 }

@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { memberRole, roleAllows } from '../member-role';
 
 // Discord signs the guild/member identity. Project registration and bans are checked afresh on each command/click.
 // Returns the project user id of a registered, unbanned Discord member, or null.
@@ -7,6 +8,24 @@ export async function commandUser(discordId: string): Promise<string | null> {
   const rows = await sql`select u.id from account a join "user" u on u.id = a."userId"
     where a."providerId" = 'discord' and a."accountId" = ${discordId} and not coalesce(u.banned, false)`;
   return rows.length === 1 ? rows[0].id as string : null;
+}
+
+// 디스코드 명령의 요청자 확인(intent/0004). 이 서버의 멤버인지는 Discord 서명과 서버 ID로 이미 확인했다.
+// - 사이트에서 차단된 계정은 모두 막는다.
+// - 관리자가 사용 역할(member-role.ts)을 정했으면, 서명된 member.roles에 그 역할이 있거나 Administrator 권한이 있어야 한다.
+// - 사이트 계정이 없으면 손님(userId null)으로 대부분의 기능을 쓴다.
+export type CommandAccess = { kind: 'ok'; userId: string | null } | { kind: 'banned' } | { kind: 'no_role'; roleId: string };
+export interface SignedMember { user: { id: string }; roles?: string[]; permissions?: string }
+export async function commandAccess(member: SignedMember): Promise<CommandAccess> {
+  const sql = await db();
+  const [rows, roleId] = await Promise.all([
+    sql`select u.id, coalesce(u.banned, false) as banned from account a join "user" u on u.id = a."userId"
+      where a."providerId" = 'discord' and a."accountId" = ${member.user.id}`,
+    memberRole(),
+  ]);
+  if (rows.some(row => row.banned)) return { kind: 'banned' };
+  if (roleId && !roleAllows(roleId, member.roles ?? [], hasAdministrator(member.permissions))) return { kind: 'no_role', roleId };
+  return { kind: 'ok', userId: rows.length === 1 ? rows[0].id as string : null };
 }
 
 export interface LinkedPlayer { discordId: string; steamId: string }
