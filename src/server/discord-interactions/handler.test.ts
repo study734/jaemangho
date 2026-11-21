@@ -1,6 +1,6 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { adminUser, commandUser, linkedPlayers } from './access';
+import { adminUser, commandAccess, linkedPlayers } from './access';
 import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { saveFeedback } from './feedback';
@@ -14,7 +14,7 @@ import { recommendGames, type RecommendationsResult } from '../steam/recommendat
 import { completeInteraction, editReply, receiveInteraction } from './handler';
 import { friendPicker, interactionSchema, privateMessage, type Interaction } from './protocol';
 
-vi.mock('./access', () => ({ commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
+vi.mock('./access', () => ({ commandAccess: vi.fn(), commandUser: vi.fn(), linkedPlayers: vi.fn(), adminUser: vi.fn() }));
 vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: vi.fn(), setPartyPreference: vi.fn() }));
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
@@ -47,7 +47,7 @@ const result: RecommendationsResult = { games: [{ appId: 730, name: 'Game [safe]
 let fetchFn: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks();
-  vi.mocked(commandUser).mockResolvedValue('user_owner');
+  vi.mocked(commandAccess).mockResolvedValue({ userId: 'user_owner' });
   vi.mocked(hasSteamConsent).mockResolvedValue(true);
   vi.mocked(linkedPlayers).mockResolvedValue([{ discordId: owner, steamId: steamIds[0] }, { discordId: friend, steamId: steamIds[1] }]);
   vi.mocked(recommendGames).mockResolvedValue(result);
@@ -64,7 +64,7 @@ describe('signed Discord request', () => {
     expect((await receiveInteraction(forged, defer, env)).status).toBe(401);
     expect((await receiveInteraction(request({ type: 1 }, String(Math.floor(Date.now() / 1000) - 301)), defer, env)).status).toBe(401);
     expect((await receiveInteraction(request({ type: 1 }), defer, {})).status).toBe(503);
-    expect(commandUser).not.toHaveBeenCalled(); expect(defer).not.toHaveBeenCalled();
+    expect(commandAccess).not.toHaveBeenCalled(); expect(defer).not.toHaveBeenCalled();
   });
   it('rejects a changed body, malformed signed JSON, and oversized requests', async () => {
     const signed = request({ type: 1 });
@@ -79,9 +79,9 @@ describe('signed Discord request', () => {
     const response = await receiveInteraction(request(command()), work => deferred.push(work), env);
     expect(await response.json()).toEqual({ type: 5, data: { flags: 64 } });
     expect(performance.now() - start).toBeLessThan(1000);
-    expect(commandUser).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
+    expect(commandAccess).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
     await deferred[0]();
-    expect(commandUser).toHaveBeenCalledWith(owner);
+    expect(commandAccess).toHaveBeenCalledWith(owner);
     expect(lastMessage().components[0].components[0]).toMatchObject({ type: 5, min_values: 2, max_values: 20 });
   });
   it('rejects different apps/servers, DMs, unknown commands and invalid selections before scheduling', async () => {
@@ -95,7 +95,7 @@ describe('signed Discord request', () => {
       { ...component(), data: { ...component().data, values: Array(21).fill(owner) } }]) {
       expect((await receiveInteraction(request(value), defer, env)).status).toBe(400);
     }
-    expect(defer).not.toHaveBeenCalled(); expect(commandUser).not.toHaveBeenCalled();
+    expect(defer).not.toHaveBeenCalled(); expect(commandAccess).not.toHaveBeenCalled();
   });
 });
 
@@ -103,7 +103,7 @@ describe('message command 출처 찾기', () => {
   const sourceCommand = (attachments: unknown[]) => parsed({ ...command(), data: { name: '출처 찾기', type: 3, target_id: friend,
     resolved: { messages: { [friend]: { attachments } } } } });
   it('is gated by the same account check and never starts a lookup for a denied requester', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+    vi.mocked(commandAccess).mockResolvedValue('banned');
     await completeInteraction(sourceCommand([{ url: 'https://cdn.discordapp.com/a.png', content_type: 'image/png' }]));
     expect(lastMessage().content).toContain('차단');
     expect(fetchFn.mock.calls.every(call => !String(call[0]).includes('trace.moe'))).toBe(true);
@@ -119,7 +119,7 @@ describe('message command 출처 찾기', () => {
 
 describe('game recommendation flow', () => {
   it('checks bans on every command/click and never starts Steam for a denied requester', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+    vi.mocked(commandAccess).mockResolvedValue('banned');
     for (const value of [command(), component()]) await completeInteraction(parsed(value));
     expect(lastMessage().content).toContain('차단');
     expect(linkedPlayers).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
@@ -170,12 +170,12 @@ describe('game recommendation flow', () => {
   });
   it('answers slow work at 45 seconds and does not later send a stale success', async () => {
     vi.useFakeTimers();
-    let release!: (userId: string | null) => void;
-    vi.mocked(commandUser).mockReturnValue(new Promise(resolve => { release = resolve; }));
+    let release!: (access: { userId: string | null }) => void;
+    vi.mocked(commandAccess).mockReturnValue(new Promise(resolve => { release = resolve; }));
     const pending = completeInteraction(parsed(command()));
     await vi.advanceTimersByTimeAsync(45_000); await pending;
     expect(lastMessage().content).toContain('조회 시간이 길어');
-    release('user_owner'); await vi.advanceTimersByTimeAsync(1000);
+    release({ userId: 'user_owner' }); await vi.advanceTimersByTimeAsync(1000);
     expect(fetchFn).toHaveBeenCalledTimes(1); vi.useRealTimers();
   });
   it('returns a usable picker without storing state or needing a fixed roster list', () => {
@@ -227,12 +227,12 @@ describe('Discord delivery failure and recovery', () => {
 
 describe('slash command 패치노트', () => {
   it('shows only the Discord notes through the same account check', async () => {
-    vi.mocked(commandUser).mockResolvedValue('user_owner');
+    vi.mocked(commandAccess).mockResolvedValue({ userId: 'user_owner' });
   vi.mocked(hasSteamConsent).mockResolvedValue(true);
     await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
     expect(lastMessage().content).toContain('출처 찾기');
     expect(lastMessage().content).not.toContain('디스코드 위젯');
-    vi.mocked(commandUser).mockResolvedValue(null);
+    vi.mocked(commandAccess).mockResolvedValue('banned');
     await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
     expect(lastMessage().content).toContain('차단');
   });
@@ -407,11 +407,11 @@ describe('/모집 (public lobby)', () => {
     expect(message.components[0].components.map((c: { custom_id: string }) => c.custom_id.split(':')[2])).toEqual(['join', 'leave', 'recommend', 'close']);
   });
   it('never posts a denial publicly: deletes the public placeholder and tells only the requester', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+    vi.mocked(commandAccess).mockResolvedValue('banned');
     await completeInteraction(lobbyCommand());
     expect(createLobby).not.toHaveBeenCalled();
     expect(calls()).toEqual([['DELETE', '/messages/@original'], ['POST', '']]);
-    expect(lastMessage()).toMatchObject({ flags: 64 }); expect(lastMessage().content).toContain('로그인');
+    expect(lastMessage()).toMatchObject({ flags: 64 }); expect(lastMessage().content).toContain('차단');
   });
   it('edits the lobby message through the clicker’s token and only adds a private notice when something is refused', async () => {
     vi.mocked(lobbyAction).mockImplementation(async (_id, _user, _action, edit) => { await edit(privateMessage('edited')); return null; });
@@ -533,7 +533,7 @@ describe('멤버 의견 입력창 (intent/0002 R1·R2·R3·R8)', () => {
     expect(body).toMatchObject({ type: 9, data: { custom_id: 'feedback:cmd' } });
     expect(JSON.stringify(body)).toContain('"max_length":1000');
     expect(defer).not.toHaveBeenCalled();
-    expect(commandUser).not.toHaveBeenCalled();
+    expect(commandAccess).not.toHaveBeenCalled();
   });
   it('메시지 우클릭은 메시지 위치만 담은 입력창을 연다(내용은 담지 않는다)', async () => {
     const defer = vi.fn();
@@ -554,12 +554,18 @@ describe('멤버 의견 입력창 (intent/0002 R1·R2·R3·R8)', () => {
       source: 'message', messageLink: `https://discord.com/channels/${guild}/${channel}/${friend}` });
     expect(lastMessage().content).toContain('재순이가 전달받았어요');
   });
-  it('가입하지 않았으면 저장하지 않고, 쓴 글을 돌려준다', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+  it('사이트 계정이 없어도 저장하고(intent/0004 R4), 차단된 계정은 저장하지 않고 쓴 글을 돌려준다', async () => {
+    vi.mocked(commandAccess).mockResolvedValue({ userId: null });
+    vi.mocked(saveFeedback).mockResolvedValue('saved');
     await completeInteraction(parsed(submit('feedback:cmd', '로그인 안 한 의견')));
+    expect(saveFeedback).toHaveBeenCalledWith(expect.objectContaining({ userId: null, discordId: owner, body: '로그인 안 한 의견' }));
+    expect(lastMessage().content).toContain('재순이가 전달받았어요');
+    vi.mocked(saveFeedback).mockClear();
+    vi.mocked(commandAccess).mockResolvedValue('banned');
+    await completeInteraction(parsed(submit('feedback:cmd', '차단된 의견')));
     expect(saveFeedback).not.toHaveBeenCalled();
-    expect(lastMessage().content).toContain('로그인');
-    expect(lastMessage().content).toContain('로그인 안 한 의견');
+    expect(lastMessage().content).toContain('차단');
+    expect(lastMessage().content).toContain('차단된 의견');
   });
   it('하루 한도를 넘으면 알리고, 저장 실패는 원문 없이 오류 ID로 알린다', async () => {
     vi.mocked(saveFeedback).mockResolvedValueOnce('limited');
@@ -586,8 +592,8 @@ describe('디스코드 사용량 기록 (intent/0003 R1·R4·R5)', () => {
     expect(recordUsage).toHaveBeenCalledWith('/패치노트', owner, expect.any(Number));
     expect(fetchFn.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(recordUsage).mock.invocationCallOrder[0]);
   });
-  it('가입 안내로 끝난 요청도 시도로 센다', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+  it('차단 안내로 끝난 요청도 시도로 센다', async () => {
+    vi.mocked(commandAccess).mockResolvedValue('banned');
     await completeInteraction(parsed({ ...command(), data: { name: '기록', type: 1 } }));
     expect(recordUsage).toHaveBeenCalledWith('/기록', owner, expect.any(Number));
   });
@@ -611,7 +617,7 @@ describe('의견 제출의 예외 경로', () => {
   const submit = (value: string) => ({ ...command(), type: 5, channel_id: channel,
     data: { custom_id: 'feedback:cmd', components: [{ type: 1, components: [{ type: 4, custom_id: 'body', value }] }] } });
   it('줄이 많은 1000자 의견을 돌려줄 때도 디스코드 한도(2000자)를 넘지 않고 글을 모두 담는다', async () => {
-    vi.mocked(commandUser).mockResolvedValue(null);
+    vi.mocked(saveFeedback).mockRejectedValue(new Error('db down')); vi.spyOn(console, 'error').mockImplementation(() => {});
     const body = Array.from({ length: 499 }, (_, i) => String(i % 10)).join('\n');
     expect(body.length).toBeLessThanOrEqual(1000);
     await completeInteraction(parsed(submit(body)));
@@ -621,12 +627,32 @@ describe('의견 제출의 예외 경로', () => {
   });
   it('가입 확인 중 오류가 나도 쓴 글을 돌려주고 의견 실패로 기록한다', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(commandUser).mockRejectedValue(new Error('db down'));
+    vi.mocked(commandAccess).mockRejectedValue(new Error('db down'));
     await completeInteraction(parsed(submit('사라지면 안 되는 의견')));
     expect(saveFeedback).not.toHaveBeenCalled();
     expect(lastMessage().content).toContain('사라지면 안 되는 의견');
     expect(lastMessage().content).toContain('오류 ID');
     expect(JSON.stringify(log.mock.calls)).toContain('api/discord.feedback');
     expect(JSON.stringify(log.mock.calls)).not.toContain('사라지면 안 되는 의견');
+  });
+});
+
+describe('사이트 계정 없이 디스코드에서 바로 쓰기 (intent/0004 R1·R2)', () => {
+  beforeEach(() => { vi.mocked(commandAccess).mockResolvedValue({ userId: null }); });
+  it('계정이 필요 없는 명령은 로그인 안내 없이 처리한다', async () => {
+    await completeInteraction(parsed({ ...command(), data: { name: '패치노트', type: 1 } }));
+    expect(lastMessage().content).toContain('패치노트');
+    expect(lastMessage().content).not.toContain('Steam을 연결해'); expect(lastMessage().content).not.toContain('차단');
+    vi.mocked(createLobby).mockResolvedValue({ id: '100000000000000009', ownerId: owner, game: null, playTime: null, max: null, memberIds: [owner], closed: false, version: 1 });
+    await completeInteraction(parsed({ ...command(), data: { name: '모집', type: 1 } }));
+    expect(createLobby).toHaveBeenCalled();
+  });
+  it('게임추천 명령·버튼은 Steam 연결용 로그인 안내만 하고 Steam을 조회하지 않는다', async () => {
+    for (const value of [command(), component()]) {
+      await completeInteraction(parsed(value));
+      expect(lastMessage().content).toContain('로그인');
+      expect(lastMessage().content).toContain('Steam');
+    }
+    expect(hasSteamConsent).not.toHaveBeenCalled(); expect(linkedPlayers).not.toHaveBeenCalled(); expect(recommendGames).not.toHaveBeenCalled();
   });
 });

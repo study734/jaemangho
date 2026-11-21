@@ -95,7 +95,7 @@ function feedbackLines(feedback: Awaited<ReturnType<typeof recentFeedback>> | nu
   const items = feedback.items.map(item => {
     const body = item.body.length > 200 ? `${item.body.slice(0, 200)}…` : item.body;
     const link = item.messageLink ? ` · [메시지](<${item.messageLink}>)` : '';
-    return `- ${label(item.name)} · ${new Date(item.createdAt).toLocaleDateString('ko-KR', DAY)}${link}\n  ${label(body, 201)}`;
+    return `- ${item.name ? label(item.name) : `<@${item.discordId}>`} · ${new Date(item.createdAt).toLocaleDateString('ko-KR', DAY)}${link}\n  ${label(body, 201)}`;
   });
   return [`💬 멤버 의견 (최근 7일 ${feedback.count}건)`, ...items];
 }

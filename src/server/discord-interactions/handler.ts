@@ -1,4 +1,4 @@
-import { adminUser, commandUser } from './access';
+import { adminUser, commandAccess } from './access';
 import { ADMIN_DENIED, adminTask, type AdminTask } from './admin';
 import { gameRecommendations, partyAction, steamConsentMessage } from './games';
 import { createLobby, lobbyAction, lobbyMessage, loadLobby, type LobbyAction } from './lobby';
@@ -80,7 +80,7 @@ async function deliver(url: string, method: 'PATCH' | 'POST' | 'DELETE', message
 const option = <T>(options: { name: string; value?: unknown }[] | undefined, name: string) =>
   options?.find(item => item.name === name)?.value as T | undefined;
 
-async function runCommand(interaction: CommandInteraction, userId: string): Promise<Reply> {
+async function runCommand(interaction: CommandInteraction, userId: string | null): Promise<Reply> {
   const { data } = interaction;
   const owner = interaction.member.user.id;
   if (data.name === '개선' || data.name === '운영') {
@@ -100,8 +100,9 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
     case '출처 찾기': return findSource(data);
     case '기록': return records();
     case '멤버': return memberProfile(option<string>(data.options, '대상') ?? owner);
-    case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'), Date.now(), userId);
-    case '게임추천': return await steamConsentMessage(userId)
+    case '전적': return lolCommand(owner, option<string>(data.options, '닉네임'), Date.now(), userId ?? undefined);
+    case '게임추천': if (!userId) return STEAM_LOGIN_REQUIRED;
+      return await steamConsentMessage(userId)
       ?? friendPicker(owner, option(data.options, '범위') ?? 'all', option(data.options, '기준') ?? 'balanced', Date.now(), await lastParty(owner));
     // 의견 명령은 receiveInteraction이 첫 응답으로 입력창을 보내 여기까지 오지 않는다.
     case '의견': case '재순이에게 전달': return null;
@@ -109,7 +110,7 @@ async function runCommand(interaction: CommandInteraction, userId: string): Prom
 }
 
 // 멤버 의견 제출(intent/0002). 원문은 저장만 하고 로그·오류 기록에는 남기지 않는다.
-async function runFeedback(interaction: ModalInteraction, userId: string): Promise<Reply> {
+async function runFeedback(interaction: ModalInteraction, userId: string | null): Promise<Reply> {
   const [, kind, channelId, messageId] = interaction.data.custom_id.split(':');
   const result = await saveFeedback({ id: interaction.id, userId, discordId: interaction.member.user.id, body: modalText(interaction),
     source: kind === 'msg' ? 'message' : 'command',
@@ -122,7 +123,7 @@ async function runFeedback(interaction: ModalInteraction, userId: string): Promi
 // 쓴 글을 돌려줄 때 줄마다 '> '를 붙이면 줄이 많은 1000자 의견이 2000자를 넘으므로, 끝까지 인용하는 '>>> '를 한 번만 쓴다.
 const quoteRest = (text: string) => `>>> ${text}`;
 
-async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Reply> {
+async function runComponent(interaction: ComponentInteraction, userId: string | null): Promise<Reply> {
   const owner = interaction.member.user.id;
   const [prefix, partyId, action, arg] = interaction.data.custom_id.split(':');
   if (prefix === 'lol') return lolSelection(interaction);
@@ -130,6 +131,8 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
     return lobbyAction(partyId, owner, action as Exclude<LobbyAction, 'recommend'>,
       message => editReply(interaction.application_id, interaction.token, message));
   }
+  // 여기부터는 Steam 게임추천이다. 본인 Steam 연결·이용 동의는 사이트에서만 할 수 있다.
+  if (!userId) return STEAM_LOGIN_REQUIRED;
   const denied = await steamConsentMessage(userId);
   if (denied) return denied;
   if (prefix === 'lobby') {
@@ -150,16 +153,18 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
   return gameRecommendations({ id: interaction.id, ownerId: owner, discordIds: chosen.ids, scope: chosen.scope, preference: chosen.preference });
 }
 
-const LOGIN_REQUIRED = `[재망호 사이트](<${SITE}/login>)에 디스코드로 한 번 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.`;
+// 사이트 계정이 없어도 대부분의 기능을 쓴다(intent/0004). 본인 Steam이 필요한 게임추천만 사이트 로그인을 안내한다.
+const BANNED = privateMessage('차단된 계정은 재순이를 이용할 수 없어요.');
+const STEAM_LOGIN_REQUIRED = privateMessage(`게임추천은 내 Steam 계정이 필요해요. [재망호 사이트](<${SITE}/steam>)에 디스코드로 로그인해 Steam을 연결해 주세요. 다른 기능은 로그인 없이 쓸 수 있어요.`);
 
-// 의견 제출: 입력창은 가입 확인 전에 열리므로, 저장하지 못하면(미가입·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
-// 가입 확인을 포함한 모든 실패는 api/discord.feedback으로 남고, 원문은 기록하지 않는다.
+// 의견 제출: 입력창은 요청자 확인 전에 열리므로, 저장하지 못하면(차단·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
+// 요청자 확인을 포함한 모든 실패는 api/discord.feedback으로 남고, 원문은 기록하지 않는다.
 async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
   const text = modalText(interaction);
   try {
-    const userId = await commandUser(interaction.member.user.id);
-    if (!userId) return privateMessage(`${LOGIN_REQUIRED}\n보내려던 의견은 저장하지 않았어요. 아래 글을 복사해 두세요.\n${quoteRest(text)}`);
-    return await runFeedback(interaction, userId);
+    const access = await commandAccess(interaction.member.user.id);
+    if (access === 'banned') return privateMessage(`${BANNED.content}\n보내려던 의견은 저장하지 않았어요.\n${quoteRest(text)}`);
+    return await runFeedback(interaction, access.userId);
   } catch (error) {
     const id = reportFailure('api/discord.feedback', error);
     return privateMessage(`의견을 저장하지 못했어요. 잠시 후 다시 보내 주세요. 아래 글을 복사해 두세요.\n-# 오류 ID: ${id}\n${quoteRest(text)}`);
@@ -168,9 +173,9 @@ async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
 
 async function processCommand(interaction: Interaction): Promise<Reply> {
   if (interaction.type === 5) return processFeedback(interaction);
-  const userId = await commandUser(interaction.member.user.id);
-  if (!userId) return privateMessage(LOGIN_REQUIRED);
-  return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
+  const access = await commandAccess(interaction.member.user.id);
+  if (access === 'banned') return BANNED;
+  return interaction.type === 2 ? runCommand(interaction, access.userId) : runComponent(interaction, access.userId);
 }
 
 export async function completeInteraction(interaction: Interaction) {
@@ -235,7 +240,7 @@ export async function receiveInteraction(request: Request, defer: (work: () => P
   if (!env.DISCORD_CLIENT_ID || !env.DISCORD_GUILD_ID || interaction.application_id !== env.DISCORD_CLIENT_ID || interaction.guild_id !== env.DISCORD_GUILD_ID) {
     return Response.json({ type: 4, data: { ...privateMessage('재망호 서버에서만 이용할 수 있는 명령이에요.'), flags: 64 } });
   }
-  // 의견 명령은 첫 응답이 입력창이다(DB 없음). 제출(type 5)이 오면 그때 가입 확인·저장한다.
+  // 의견 명령은 첫 응답이 입력창이다(DB 없음). 제출(type 5)이 오면 그때 요청자 확인·저장한다.
   if (interaction.type === 2 && interaction.data.name === '의견') return Response.json(feedbackModal('feedback:cmd'));
   if (interaction.type === 2 && interaction.data.name === '재순이에게 전달') {
     return Response.json(feedbackModal(interaction.channel_id ? `feedback:msg:${interaction.channel_id}:${interaction.data.target_id}` : 'feedback:cmd'));

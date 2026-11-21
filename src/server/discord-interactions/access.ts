@@ -9,6 +9,17 @@ export async function commandUser(discordId: string): Promise<string | null> {
   return rows.length === 1 ? rows[0].id as string : null;
 }
 
+// 디스코드 명령의 요청자 확인(intent/0004). 이 서버의 멤버인지는 Discord 서명과 서버 ID로 이미 확인했다.
+// 사이트 계정이 없으면 손님(userId null)으로 대부분의 기능을 쓰고, 사이트에서 차단된 계정은 모두 막는다.
+export type CommandAccess = { userId: string | null } | 'banned';
+export async function commandAccess(discordId: string): Promise<CommandAccess> {
+  const sql = await db();
+  const rows = await sql`select u.id, coalesce(u.banned, false) as banned from account a join "user" u on u.id = a."userId"
+    where a."providerId" = 'discord' and a."accountId" = ${discordId}`;
+  if (rows.some(row => row.banned)) return 'banned';
+  return { userId: rows.length === 1 ? rows[0].id as string : null };
+}
+
 export interface LinkedPlayer { discordId: string; steamId: string }
 export async function linkedPlayers(discordIds: string[]): Promise<LinkedPlayer[]> {
   const sql = await db();

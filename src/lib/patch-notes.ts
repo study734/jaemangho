@@ -3,6 +3,10 @@
 export interface PatchNote { date: string; area: 'web' | 'discord'; title: string; items: string[] }
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: '2026-11-21', area: 'discord', title: '로그인 없이 바로 쓰기, 재순이 공지', items: [
+    '사이트에 로그인하지 않아도 /의견·/모집·/기록·/멤버·/전적·/패치노트·출처 찾기를 바로 쓸 수 있어요. /게임추천만 내 Steam 연결이 필요해요.',
+    '새 기능이 생기면 재순이가 시상식 채널에 직접 알려 줘요.',
+  ] },
   { date: '2026-11-20', area: 'discord', title: '재순이에게 의견 보내기', items: [
     '/의견으로 불편한 점이나 바라는 점을 재순이에게 보낼 수 있어요. 운영진이 확인해서 다음 기능에 반영해요.',
     '메시지를 우클릭해 "앱 → 재순이에게 전달"을 고르면 그 메시지 위치와 함께 의견을 보내요(메시지 내용은 저장하지 않아요).',

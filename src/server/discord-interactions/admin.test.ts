@@ -98,17 +98,21 @@ describe('/개선의 멤버 의견 (intent/0002 R6)', () => {
   it('최근 7일 의견 수와 최신 의견을 이름·날짜·앞 200자·링크로, 멘션 없이 보여준다', async () => {
     vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });
     const link = 'https://discord.com/channels/1/2/3';
-    vi.mocked(recentFeedback).mockResolvedValue({ count: 2, items: [
-      { name: '**굵게**', body: `${'가'.repeat(250)}`, messageLink: link, createdAt: '2026-11-20T03:00:00Z' },
-      { name: '둘', body: '<@100000000000000003> 줄\n바꿈', messageLink: null, createdAt: '2026-11-19T03:00:00Z' },
+    vi.mocked(recentFeedback).mockResolvedValue({ count: 3, items: [
+      { name: '**굵게**', discordId: '100000000000000005', body: `${'가'.repeat(250)}`, messageLink: link, createdAt: '2026-11-20T03:00:00Z' },
+      { name: '둘', discordId: '100000000000000006', body: '<@100000000000000003> 줄\n바꿈', messageLink: null, createdAt: '2026-11-19T03:00:00Z' },
+      { name: null, discordId: '100000000000000007', body: '손님 의견', messageLink: null, createdAt: '2026-11-18T03:00:00Z' },
     ] });
     const text = (await adminTask('개선', actor)).content;
-    expect(text).toContain('💬 멤버 의견 (최근 7일 2건)');
+    expect(text).toContain('💬 멤버 의견 (최근 7일 3건)');
     expect(text).toContain('\\*\\*굵게\\*\\*');
     expect(text).toContain(`${'가'.repeat(200)}…`);
     expect(text).not.toContain('가'.repeat(201));
     expect(text).toContain(`[메시지](<${link}>)`);
     expect(text).not.toContain('<@100000000000000003>');
+    // 사이트 계정 없이 보낸 의견(intent/0004 R4)은 멘션으로 보이고, 메시지는 알림을 보내지 않는다.
+    expect(text).toContain('- <@100000000000000007> · ');
+    expect((await adminTask('개선', actor)).allowed_mentions).toEqual({ parse: [] });
   });
   it('의견이 없으면 의견 절을 붙이지 않는다', async () => {
     vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 0, previous: 0 }, items: [] });

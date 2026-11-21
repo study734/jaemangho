@@ -6,6 +6,7 @@ import { resumePendingChat } from '@/server/operations/jobs';
 import { sendWeeklySummary } from '@/server/operations/weekly-summary';
 import { reportFailure } from '@/server/diagnostics';
 import { runScheduledSteamCollection } from '@/server/activity/steam-collection';
+import { postAnnouncements } from '@/server/chat/announce';
 
 vi.mock('@/server/operations/monitor', () => ({ authorizeMonitor: vi.fn(), checkOperations: vi.fn() }));
 vi.mock('@/server/http', () => ({ serverError: vi.fn() }));
@@ -13,8 +14,9 @@ vi.mock('@/server/operations/jobs', () => ({ resumePendingChat: vi.fn() }));
 vi.mock('@/server/operations/weekly-summary', () => ({ sendWeeklySummary: vi.fn() }));
 vi.mock('@/server/diagnostics', () => ({ reportFailure: vi.fn() }));
 vi.mock('@/server/activity/steam-collection', () => ({ runScheduledSteamCollection: vi.fn() }));
+vi.mock('@/server/chat/announce', () => ({ postAnnouncements: vi.fn() }));
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.resetAllMocks(); vi.mocked(postAnnouncements).mockResolvedValue({ status: 'none' }); });
 
 describe.each([['external', external], ['watchdog', watchdog]] as const)('%s 점검 라우트', (source, handler) => {
   it.each([['unconfigured', 503], ['unauthorized', 401]] as const)('인증 실패 %s에는 점검하지 않는다', async (auth, status) => {
@@ -72,5 +74,35 @@ describe('보조 점검의 Steam 예약 수집 (intent/0001 R1·R3)', () => {
     vi.mocked(resumePendingChat).mockResolvedValue('not_needed');
     await external(new Request('https://site.example/api/cron/ops'));
     expect(runScheduledSteamCollection).not.toHaveBeenCalled();
+  });
+});
+
+describe('보조 점검의 재순이 자동 공지 (intent/0004 R5·R7)', () => {
+  const run = async () => watchdog(new Request('https://site.example/api/cron/ops-watchdog'));
+  beforeEach(() => {
+    vi.mocked(authorizeMonitor).mockReturnValue('ok');
+    vi.mocked(checkOperations).mockResolvedValue({ skipped: false, active: 0 });
+    vi.mocked(sendWeeklySummary).mockResolvedValue('quiet');
+  });
+  it('요약 뒤, Steam 수집 앞에 한 번 부르고 결과 상태를 응답에 담는다', async () => {
+    const order: string[] = [];
+    vi.mocked(sendWeeklySummary).mockImplementation(async () => { order.push('summary'); return 'quiet'; });
+    vi.mocked(postAnnouncements).mockImplementation(async () => { order.push('announce'); return { status: 'posted', key: 'guide:v1' }; });
+    vi.mocked(runScheduledSteamCollection).mockImplementation(async () => { order.push('steam'); return 'budget'; });
+    const body = await (await run()).json();
+    expect(order).toEqual(['summary', 'announce', 'steam']);
+    expect(body).toMatchObject({ announcement: 'posted' });
+  });
+  it('공지가 예외로 끝나도 점검 응답은 그대로이고 실패만 남긴다', async () => {
+    vi.mocked(postAnnouncements).mockRejectedValue(new Error('private'));
+    const response = await run();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ skipped: false, announcement: 'failed' });
+    expect(reportFailure).toHaveBeenCalledWith('chat.announce', expect.any(Error));
+  });
+  it('외부 점검 경로(/api/cron/ops)는 공지하지 않는다', async () => {
+    vi.mocked(resumePendingChat).mockResolvedValue('not_needed');
+    await external(new Request('https://site.example/api/cron/ops'));
+    expect(postAnnouncements).not.toHaveBeenCalled();
   });
 });

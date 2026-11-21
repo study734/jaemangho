@@ -26,6 +26,18 @@ describe.skipIf(!testDbUrl)('Discord command account mapping (isolated DB)', () 
     expect(await access.commandUser('100000000000000099')).toBeNull();
     expect(await access.linkedPlayers(discordIds)).toEqual(discordIds.map((discordId, i) => ({ discordId, steamId: steamIds[i] })));
   });
+  it('commandAccess: 계정 있음은 id, 계정 없음은 손님, 차단은 banned, 다른 provider는 손님 (intent/0004 R1·R3)', async () => {
+    expect(await access.commandAccess(discordIds[0])).toEqual({ userId: 'dci_test_0' });
+    expect(await access.commandAccess('100000000000000099')).toEqual({ userId: null });
+    await pool.query('update "user" set banned = true where id = $1', ['dci_test_1']);
+    expect(await access.commandAccess(discordIds[1])).toBe('banned');
+    await pool.query('update "user" set banned = null where id = $1', ['dci_test_1']);
+    expect(await access.commandAccess(discordIds[1])).toEqual({ userId: 'dci_test_1' });
+    await pool.query('update "user" set banned = false where id = $1', ['dci_test_1']);
+    await pool.query('update account set "providerId" = $1 where id = $2', ['steam', 'dci_test_1']);
+    expect(await access.commandAccess(discordIds[1])).toEqual({ userId: null });
+    await pool.query('update account set "providerId" = $1 where id = $2', ['discord', 'dci_test_1']);
+  });
   it('accepts admin commands only with both the site admin role and the signed Administrator bit', async () => {
     expect(await access.adminUser(discordIds[0], '8')).toBeNull();
     await pool.query('update "user" set role = $1 where id = $2', ['admin', 'dci_test_0']);
