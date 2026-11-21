@@ -5,8 +5,10 @@ import { adminTask } from './admin';
 import { createLobby, lobbyAction, loadLobby } from './lobby';
 import { saveFeedback } from './feedback';
 import { recordBlock, recordUsage } from './usage';
+import { claimNudges } from './nudge';
 import { lastParty, loadParty, saveParty, setPartyPreference } from './party';
 import { acceptSteamConsent, hasSteamConsent } from '../steam/consent';
+import { runSteamCollection } from '../activity/steam-collection';
 import { getDeals } from '../steam/deals';
 import { compareGames } from '../steam/games';
 import { findMissions } from '../steam/missions';
@@ -18,6 +20,8 @@ vi.mock('./access', () => ({ commandAccess: vi.fn(), commandUser: vi.fn(), linke
 vi.mock('./admin', async original => ({ ...await original<typeof import('./admin')>(), adminTask: vi.fn() }));
 vi.mock('./party', () => ({ saveParty: vi.fn(), loadParty: vi.fn(), lastParty: vi.fn(), setPartyPreference: vi.fn() }));
 vi.mock('./lobby', async original => ({ ...await original<typeof import('./lobby')>(), createLobby: vi.fn(), lobbyAction: vi.fn(), loadLobby: vi.fn() }));
+vi.mock('./nudge', async original => ({ ...await original<typeof import('./nudge')>(), claimNudges: vi.fn() }));
+vi.mock('../activity/steam-collection', () => ({ runSteamCollection: vi.fn(), SteamCollectionBusyError: class extends Error {} }));
 vi.mock('../steam/consent', () => ({ hasSteamConsent: vi.fn(), acceptSteamConsent: vi.fn(), STEAM_FEATURE_NOTICE: 'steam-common-v1' }));
 vi.mock('./feedback', async original => ({ ...await original<typeof import('./feedback')>(), saveFeedback: vi.fn() }));
 vi.mock('./usage', async original => ({ ...await original<typeof import('./usage')>(), recordUsage: vi.fn(), recordBlock: vi.fn() }));
@@ -747,6 +751,19 @@ describe('게임추천 준비를 디스코드에서 (intent/0005)', () => {
     expect(lastMessage().content).toContain('동의했어요');
     expect(JSON.stringify(lastMessage().components)).toContain(`steamrec:v2:${owner}:all:balanced:`);
   });
+  it('R4: 디스코드에서 동의해도 웹처럼 확인된 내 계정의 첫 기록을 준비하고, 준비가 실패해도 선택창은 연다', async () => {
+    vi.mocked(acceptSteamConsent).mockResolvedValue([steamIds[0]]);
+    await completeInteraction(click('steamconsent:accept'));
+    expect(runSteamCollection).toHaveBeenCalledWith('manual', { steamIds: [steamIds[0]], budgetMs: 10_000 });
+    expect(JSON.stringify(lastMessage().components)).toContain('steamrec:v2');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(runSteamCollection).mockRejectedValue(new Error('steam down'));
+    await completeInteraction(click('steamconsent:accept'));
+    expect(JSON.stringify(lastMessage().components)).toContain('steamrec:v2');
+    vi.mocked(runSteamCollection).mockClear(); vi.mocked(acceptSteamConsent).mockResolvedValue([]);
+    await completeInteraction(click('steamconsent:accept'));
+    expect(runSteamCollection).not.toHaveBeenCalled();
+  });
   it('R4: 저장 국가가 정해지지 않아 동의를 저장할 수 없으면 웹으로 안내하고, 계정이 없으면 연결 화면으로 보낸다', async () => {
     vi.mocked(acceptSteamConsent).mockRejectedValue(new Error('steam_notice_changed'));
     await completeInteraction(click('steamconsent:accept'));
@@ -765,12 +782,25 @@ describe('게임추천 준비를 디스코드에서 (intent/0005)', () => {
     expect(nudge?.custom_id).toBe(`nudge:${friend}`);
     const defer = vi.fn();
     expect(await (await receiveInteraction(request(click(nudge!.custom_id!)), defer, env)).json()).toEqual({ type: 5 });
+    vi.mocked(claimNudges).mockImplementation(async ids => ids);
     await completeInteraction(click(nudge!.custom_id!));
+    expect(claimNudges).toHaveBeenCalledWith([friend]);
     const message = lastMessage();
     expect(message.flags).toBeUndefined();
     expect(message.content).toContain(`<@${friend}>`);
     expect(message.allowed_mentions).toEqual({ parse: [], users: [friend] });
     expect(buttons(message)).toContainEqual(expect.objectContaining({ style: 5, url: 'https://www.jaemangho.shop/connect/steam' }));
+  });
+  it('R5: 6시간 안에 이미 알린 친구에게는 다시 알리지 않고, 남은 친구가 없으면 본인에게만 알린다', async () => {
+    const other = '100000000000000005';
+    vi.mocked(claimNudges).mockResolvedValue([other]);
+    await completeInteraction(click(`nudge:${friend}.${other}`));
+    expect(lastMessage().content).toContain(`<@${other}>`); expect(lastMessage().content).not.toContain(`<@${friend}>`);
+    expect(lastMessage().allowed_mentions).toEqual({ parse: [], users: [other] });
+    vi.mocked(claimNudges).mockResolvedValue([]);
+    await completeInteraction(click(`nudge:${friend}`));
+    expect(lastMessage().flags).toBe(64);
+    expect(lastMessage().content).toContain('6시간');
   });
   it('R5: 알림 버튼에는 100자 안에 들어가는 친구만 담고, 잘못된 형식은 거부한다', async () => {
     const many = Array.from({ length: 8 }, (_, i) => `1000000000000001${String(i).padStart(2, '0')}`);

@@ -7,6 +7,9 @@ import { acceptSteamConsent, hasSteamConsent, STEAM_FEATURE_NOTICE } from '../st
 import { STEAM_STORAGE_COUNTRY } from '../activity/steam-policy';
 import { STEAM_NOTICE_COUNTRY_TERM, STEAM_NOTICE_INTRO, STEAM_NOTICE_ITEMS, STEAM_NOTICE_TITLE } from '../../lib/steam-notice';
 import { lastParty } from './party';
+import { nudgeButton } from './nudge';
+import { runSteamCollection, SteamCollectionBusyError } from '../activity/steam-collection';
+import { reportFailure } from '../diagnostics';
 import { getDeals } from '../steam/deals';
 import { compareGames } from '../steam/games';
 import { findMissions } from '../steam/missions';
@@ -37,37 +40,25 @@ export async function steamConsentMessage(userId: string): Promise<Message | nul
   ] }]));
 }
 
-// 동의 버튼: 웹과 같은 기록을 남기고 바로 친구 선택창을 연다. 저장 국가가 정해지지 않았으면 저장하지 않는다.
-// 첫 기준 기록 준비는 매일 예약 수집이 이어 받는다(웹처럼 여기서 기다리지 않는다).
+const CONSENT_PREPARE_MS = 10_000;
+// 동의 버튼: 웹(POST /api/steam/consent)과 같은 기록을 남기고, 확인된 내 계정의 첫 기준 기록을 준비한 뒤 친구 선택창을 연다.
+// 준비가 실패하거나 다른 수집이 돌고 있어도 선택창은 연다(다음 예약 수집이 이어 받는다). 저장 국가가 정해지지 않았으면 저장하지 않는다.
 export async function acceptConsentAndPick(userId: string, owner: string, now = Date.now()): Promise<Message> {
-  try { await acceptSteamConsent(userId, STEAM_FEATURE_NOTICE); }
+  let steamIds: string[];
+  try { steamIds = await acceptSteamConsent(userId, STEAM_FEATURE_NOTICE); }
   catch (error) {
     if (error instanceof Error && error.message === 'steam_notice_changed') {
       return privateMessage(`지금은 디스코드에서 동의를 받을 수 없어요. [사이트](<${SITE}/steam>)에서 확인해 주세요.`);
     }
     throw error;
   }
+  if (steamIds.length) {
+    // 디스코드 처리 예산(45초) 안에서 선택창을 보내도록 짧게 끊는다. 못 한 계정은 다음 예약 수집이 이어 받는다.
+    try { await runSteamCollection('manual', { steamIds, budgetMs: CONSENT_PREPARE_MS }); }
+    catch (error) { if (!(error instanceof SteamCollectionBusyError)) reportFailure('steam.consent.prepare', error); }
+  }
   const picker = friendPicker(owner, 'all', 'balanced', now, await lastParty(owner));
   return { ...picker, content: `✅ 동의했어요. ${picker.content}` };
-}
-
-// 연결 안 된 친구 알림(intent/0005 R5): 요청자가 버튼을 누르면 그 친구들만 멘션 알림을 받는 공개 메시지를 올린다.
-const NUDGE_LIMIT = 100;
-function nudgeButton(ids: string[]) {
-  let customId = 'nudge:';
-  for (const id of ids.slice(0, 5)) {
-    const next = customId === 'nudge:' ? `${customId}${id}` : `${customId}.${id}`;
-    if (next.length > NUDGE_LIMIT) break;
-    customId = next;
-  }
-  return { type: 2, style: 1, label: '📣 연결 안 된 친구에게 알리기', custom_id: customId };
-}
-export function nudgeMessage(requester: string, ids: string[]): Message {
-  return {
-    content: `🎮 ${mention(requester)}님이 같이 게임추천을 받으려고 해요.\n${ids.map(mention).join(' ')} 처음 한 번만 Steam을 연결해 주세요. 디스코드 로그인 한 번이면 돼요.`,
-    allowed_mentions: { parse: [], users: ids.filter(id => id !== requester) },
-    components: [{ type: 1, components: [linkButton('Steam 연결하기', CONNECT_URL)] }],
-  };
 }
 
 type Players = { ok: true; steamIds: string[]; discordIds: string[] } | { ok: false; message: Message };

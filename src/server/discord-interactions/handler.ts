@@ -1,6 +1,7 @@
 import { adminUser, commandAccess } from './access';
 import { ADMIN_DENIED, adminTask, type AdminTask } from './admin';
-import { acceptConsentAndPick, gameRecommendations, nudgeMessage, partyAction, steamConsentMessage } from './games';
+import { acceptConsentAndPick, gameRecommendations, partyAction, steamConsentMessage } from './games';
+import { claimNudges, nudgeReply } from './nudge';
 import { createLobby, lobbyAction, lobbyMessage, loadLobby, type LobbyAction } from './lobby';
 import { lolCommand, lolSelection } from './lol';
 import { memberProfile, records } from './records';
@@ -128,7 +129,7 @@ async function runComponent(interaction: ComponentInteraction, userId: string | 
   const [prefix, partyId, action, arg] = interaction.data.custom_id.split(':');
   if (prefix === 'lol') return lolSelection(interaction);
   // 연결 안 된 친구 알림: 요청자가 누를 때만 채널에 공개로 올린다(첫 응답 public).
-  if (prefix === 'nudge') return { public: nudgeMessage(owner, partyId.split('.')) };
+  if (prefix === 'nudge') return nudgeReply(owner, await claimNudges(partyId.split('.').filter(id => id !== owner)));
   if (prefix === 'steamconsent') return userId ? acceptConsentAndPick(userId, owner) : STEAM_LOGIN_REQUIRED;
   if (prefix === 'lobby' && action !== 'recommend') {
     return lobbyAction(partyId, owner, action as Exclude<LobbyAction, 'recommend'>,
