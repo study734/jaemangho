@@ -80,7 +80,8 @@ export async function postWeeklyAwards({ token, fetchFn = fetch, now = new Date(
     returning (select status from prev) as "prevStatus", (select error_code from prev) as "prevCode"`;
   if (!claimed.length) return { status: 'already_posted' };
   const { prevStatus, prevCode } = claimed[0] as { prevStatus: string | null; prevCode: string | null };
-  const uncertain = prevStatus === 'posting' || (prevStatus === 'failed' && !!prevCode && (UNCERTAIN_CODES.has(prevCode) || prevCode.startsWith('discord_lookup')));
+  // Discord 5xx(게이트웨이 오류 포함)는 메시지가 실제로 만들어졌을 수 있어 시간 초과와 같이 먼저 찾는다.
+  const uncertain = prevStatus === 'posting' || (prevStatus === 'failed' && !!prevCode && (UNCERTAIN_CODES.has(prevCode) || prevCode.startsWith('discord_lookup') || /^discord_http_5\d\d$/.test(prevCode)));
   let code: string;
   if (uncertain) {
     const found = await findPosted(fetchFn, token, channelId, awardHeader(week));

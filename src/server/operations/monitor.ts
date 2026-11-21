@@ -31,7 +31,7 @@ export function findings(input: MonitorInput, now = Date.now()): Finding[] {
     if (input.usage.errorCode || input.usage.stale) result.push({ key: 'usage.unknown', title: 'Neon 사용량을 확인할 수 없습니다. 사용량 점검 실행과 NEON_API_KEY를 확인하세요.', severity: 'warning' });
     if (['limited', 'paused'].includes(input.usage.mode)) result.push({ key: 'usage.budget', title: input.usage.mode === 'paused'
       ? 'Neon 무료 예산 보호로 예약 채팅 수집을 중단했습니다. 최신 사용량이 충분히 낮아지면 자동 재개합니다.'
-      : 'Neon 무료 예산 보호로 예약 채팅 수집·복구를 48시간에 한 번으로 줄였습니다.', severity: 'warning' });
+      : 'Neon 무료 예산 보호로 예약 채팅 수집·복구를 이틀에 한 번으로 줄였습니다.', severity: 'warning' });
   }
   if (input.externalCheck !== undefined && (!input.externalCheck || now - new Date(input.externalCheck).getTime() > 2 * 3_600_000))
     result.push({ key: 'monitor.stale', title: '외부 운영 점검의 성공 기록이 없거나 2시간 이상 지났습니다. GitHub Actions 실행을 확인하세요.', severity: 'warning' });

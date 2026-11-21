@@ -130,3 +130,17 @@ describe('/개선의 디스코드 사용 (intent/0003 R6)', () => {
     expect(text).toContain('/의견 1회 (새로) · 하루 최대 1명 · 평균 0.0초');
   });
 });
+
+describe('/개선의 부분 실패 (AGENTS: 부분 실패와 전체 실패 구분)', () => {
+  it('의견·사용량 조회가 실패해도 개선 우선순위는 보여주고, 실패한 절만 알린다', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(improvementReport).mockResolvedValue({ usageEnough: true, totalViews: { current: 4, previous: 2 },
+      items: [{ id: 'fix:lol', kind: 'fix', target: '롤', reasons: ['Riot 키 오류 3회'], next: '', views: 1 }] });
+    vi.mocked(recentFeedback).mockRejectedValue(new Error('feedback down'));
+    vi.mocked(usageReport).mockRejectedValue(new Error('usage down'));
+    const text = (await adminTask('개선', actor)).content;
+    expect(text).toContain('**[고치기] 롤**');
+    expect(text).toContain('디스코드 사용을 불러오지 못했어요');
+    expect(text).toContain('멤버 의견을 불러오지 못했어요');
+  });
+});

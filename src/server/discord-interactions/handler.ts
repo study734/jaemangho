@@ -119,7 +119,8 @@ async function runFeedback(interaction: ModalInteraction, userId: string): Promi
     : '오늘은 의견을 많이 보내 주셨어요. 잠시 뒤에 다시 보내 주세요(24시간에 5건까지).');
 }
 
-const quote = (text: string) => text.split('\n').map(line => `> ${line}`).join('\n');
+// 쓴 글을 돌려줄 때 줄마다 '> '를 붙이면 줄이 많은 1000자 의견이 2000자를 넘으므로, 끝까지 인용하는 '>>> '를 한 번만 쓴다.
+const quoteRest = (text: string) => `>>> ${text}`;
 
 async function runComponent(interaction: ComponentInteraction, userId: string): Promise<Reply> {
   const owner = interaction.member.user.id;
@@ -151,19 +152,24 @@ async function runComponent(interaction: ComponentInteraction, userId: string): 
 
 const LOGIN_REQUIRED = `[재망호 사이트](<${SITE}/login>)에 디스코드로 한 번 로그인한 뒤 이용해 주세요. 차단된 계정은 이용할 수 없어요.`;
 
+// 의견 제출: 입력창은 가입 확인 전에 열리므로, 저장하지 못하면(미가입·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
+// 가입 확인을 포함한 모든 실패는 api/discord.feedback으로 남고, 원문은 기록하지 않는다.
+async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
+  const text = modalText(interaction);
+  try {
+    const userId = await commandUser(interaction.member.user.id);
+    if (!userId) return privateMessage(`${LOGIN_REQUIRED}\n보내려던 의견은 저장하지 않았어요. 아래 글을 복사해 두세요.\n${quoteRest(text)}`);
+    return await runFeedback(interaction, userId);
+  } catch (error) {
+    const id = reportFailure('api/discord.feedback', error);
+    return privateMessage(`의견을 저장하지 못했어요. 잠시 후 다시 보내 주세요. 아래 글을 복사해 두세요.\n-# 오류 ID: ${id}\n${quoteRest(text)}`);
+  }
+}
+
 async function processCommand(interaction: Interaction): Promise<Reply> {
+  if (interaction.type === 5) return processFeedback(interaction);
   const userId = await commandUser(interaction.member.user.id);
-  if (!userId) {
-    // 입력창은 가입 확인 전에 열리므로, 거절할 때 쓴 글을 돌려줘 로그인 뒤 다시 붙여 넣을 수 있게 한다.
-    return privateMessage(interaction.type === 5 ? `${LOGIN_REQUIRED}\n보내려던 의견은 저장하지 않았어요. 아래 글을 복사해 두세요.\n${quote(modalText(interaction))}` : LOGIN_REQUIRED);
-  }
-  if (interaction.type === 5) {
-    try { return await runFeedback(interaction, userId); }
-    catch (error) {
-      const id = reportFailure('api/discord.feedback', error);
-      return privateMessage(`의견을 저장하지 못했어요. 잠시 후 다시 보내 주세요.\n-# 오류 ID: ${id}`);
-    }
-  }
+  if (!userId) return privateMessage(LOGIN_REQUIRED);
   return interaction.type === 2 ? runCommand(interaction, userId) : runComponent(interaction, userId);
 }
 

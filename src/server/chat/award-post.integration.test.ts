@@ -63,6 +63,15 @@ describe.skipIf(!testDbUrl)('weekly award auto-post (isolated DB)', () => {
     expect(await post.postWeeklyAwards({ token: 'bot', fetchFn: broken, now })).toMatchObject({ status: 'failed', code: 'discord_network' });
     expect(JSON.stringify(log.mock.calls)).not.toContain('bot-token-leak');
   });
+  it('after a Discord 5xx, looks for the post first because it may have been created', async () => {
+    await post.setAwardChannel(channel, 'admin');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const gateway = vi.fn<typeof fetch>(async () => new Response('', { status: 502 }));
+    expect(await post.postWeeklyAwards({ token: 'bot', fetchFn: gateway, now })).toMatchObject({ status: 'failed', code: 'discord_http_502' });
+    const found = channelWith([{ id: '100000000000000999', author: { bot: true }, content: '## 🏆 재망호 주간 시상식\n**11월 2일(월) ~ 11월 8일(일)**\n\n본문' }]);
+    expect(await post.postWeeklyAwards({ token: 'bot', fetchFn: found, now })).toMatchObject({ status: 'posted' });
+    expect(methods(found)).toEqual(['GET']);
+  });
   it('after a timeout, finds the post that actually went through instead of posting twice', async () => {
     await post.setAwardChannel(channel, 'admin');
     vi.spyOn(console, 'error').mockImplementation(() => {});

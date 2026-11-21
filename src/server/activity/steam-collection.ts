@@ -13,7 +13,7 @@ const JOB = 'steam_activity';
 const MAX_ACCOUNTS = 20;
 
 export class SteamCollectionBusyError extends Error {}
-// 예약 수집이 무료 사용량 보호(중단, 또는 감속 중 48시간 이내)로 막혔다. 실행 기록은 남기지 않는다.
+// 예약 수집이 무료 사용량 보호(중단, 또는 감속 중 이틀 이내)로 막혔다. 실행 기록은 남기지 않는다.
 export class SteamCollectionBudgetError extends Error {}
 
 export interface SteamCollectionOptions {
@@ -131,4 +131,20 @@ async function saveAccountState(steamId: string, at: Date, result: 'success' | '
       last_result = excluded.last_result,
       last_error_code = excluded.last_error_code`,
   [steamId, at, result === 'success' ? at : null, result, code]);
+}
+
+// 운영 보조 점검(/api/cron/ops-watchdog)이 부르는 Steam 예약 수집(intent/0001). 점검이 DB를 쓴 뒤에만 돌아 Neon을 새로 깨우지 않는다.
+// 점검·요약과 합쳐 maxDuration 60초 안에 끝나도록 25초 예산이며, 남은 계정은 다음 날 이어서 한다.
+// 거부·실패는 점검 응답을 바꾸지 않도록 상태 문자열로 돌려주고, 응답에는 상태와 개수만 담는다.
+export async function runScheduledSteamCollection(run: typeof runSteamCollection = runSteamCollection) {
+  try {
+    const result = await run('scheduled', { budgetMs: 25_000 });
+    return { status: result.status, eligible: result.eligible, collected: result.collected, unavailable: result.unavailable,
+      failed: result.failed, changes: result.changes, deferred: result.deferred };
+  } catch (error) {
+    if (error instanceof SteamCollectionBudgetError) return 'budget' as const;
+    if (error instanceof SteamCollectionBusyError) return 'busy' as const;
+    reportFailure('steam.activity.scheduled', error);
+    return 'failed' as const;
+  }
 }

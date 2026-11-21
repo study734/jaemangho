@@ -77,7 +77,7 @@ describe.skipIf(!testDbUrl)('Steam 요청 계정 수집 (DB)', () => {
     expect((await pool.query(`select last_error_code from steam_collection_state where steam_id = $1`, [RATE_LIMIT_IDS[0]])).rows[0].last_error_code).toBe('upstream_429');
   });
 
-  it('예약 수집은 무료 사용량을 따른다: 중단이면 안 하고, 감속이면 48시간에 한 번 (intent/0001 R2)', async () => {
+  it('예약 수집은 무료 사용량을 따른다: 중단이면 안 하고, 감속이면 이틀에 한 번 (intent/0001 R2)', async () => {
     const { SteamCollectionBudgetError } = await import('./steam-collection');
     const fetchLibrary = vi.fn().mockResolvedValue({ ok: true, games: [] });
     const usage = (mode: string) => pool.query(`insert into ops_usage (id, checked_at, sample, error_code, mode)
@@ -90,12 +90,12 @@ describe.skipIf(!testDbUrl)('Steam 요청 계정 수집 (DB)', () => {
       await usage('limited');
       await pool.query(`delete from ops_jobs where job = 'steam_activity'`);
       await pool.query(`insert into ops_jobs (id, job, source, status, started_at, finished_at)
-        values ('tsc-recent', 'steam_activity', 'scheduled', 'success', now() - interval '47 hours', now() - interval '47 hours')`);
+        values ('tsc-recent', 'steam_activity', 'scheduled', 'success', now() - interval '25 hours', now() - interval '25 hours')`);
       await expect(runSteamCollection('scheduled', { fetchLibrary })).rejects.toBeInstanceOf(SteamCollectionBudgetError);
       expect(fetchLibrary).not.toHaveBeenCalled();
       // 거부는 실행 기록을 남기지 않는다(다음 판단의 기준 시각을 옮기지 않는다)
       expect((await pool.query(`select count(*)::int as n from ops_jobs where job = 'steam_activity'`)).rows[0].n).toBe(1);
-      await pool.query(`update ops_jobs set started_at = now() - interval '49 hours' where id = 'tsc-recent'`);
+      await pool.query(`update ops_jobs set started_at = now() - interval '47 hours 59 minutes' where id = 'tsc-recent'`);
       expect((await runSteamCollection('scheduled', { fetchLibrary })).status).toBeDefined();
       expect((await pool.query(`select source from ops_jobs where job = 'steam_activity' order by started_at desc limit 1`)).rows[0].source).toBe('scheduled');
       // 수동 수집(본인 요청 흐름)은 사용량과 관계없이 동작한다

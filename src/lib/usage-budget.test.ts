@@ -27,7 +27,10 @@ describe('무료 예산 보호', () => {
   });
   it('감속 상태는 성공 여부와 관계없이 예약 시도 간격을 제한한다', () => {
     const budget: UsageBudget = { checkedAt: null, sample: sample(80), mode: 'limited', errorCode: null, stale: false };
-    expect(scheduledCollectionAllowed(budget, new Date(now - 47 * 3_600_000).toISOString(), now)).toBe(false);
+    // 하루 한 번 도는 실행은 다음 날 거부하고, 이틀째는 시작 시각이 조금 당겨져도(점검이 빨리 끝남) 허용한다.
+    expect(scheduledCollectionAllowed(budget, new Date(now - 24 * 3_600_000).toISOString(), now)).toBe(false);
+    expect(scheduledCollectionAllowed(budget, new Date(now - 35 * 3_600_000).toISOString(), now)).toBe(false);
+    expect(scheduledCollectionAllowed(budget, new Date(now - (48 * 3_600_000 - 5_000)).toISOString(), now)).toBe(true);
     expect(scheduledCollectionAllowed(budget, new Date(now - 48 * 3_600_000).toISOString(), now)).toBe(true);
     expect(scheduledCollectionAllowed({ ...budget, mode: 'paused' }, null, now)).toBe(false);
   });
