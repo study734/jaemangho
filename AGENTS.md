@@ -107,7 +107,7 @@ npm run db:migrate # migrations/ 적용
 - **라우트 핸들러(`src/app/api`)는 얇게**: 인증 -> zod 검증(`src/server/http.ts`) -> 서비스 호출 -> 응답. SQL과 로직은 `src/server`에 두고 거기서 테스트한다.
 - **Riot 호출은 `/api/riot` 프록시를 거친다.** 브라우저에 API 키를 두지 않는다. 새 엔드포인트는 `src/server/riot/routes.ts`의 허용 목록과 TTL에 추가하고 `routes.test.ts`를 갱신한다. 401/403/429/5xx는 캐시하지 않는다(`proxy.ts`).
 - 마이그레이션은 이전 버전 코드와도 호환되게 쓴다(컬럼 삭제·이름 변경은 두 번의 배포로 나눈다). `user` 등 로그인 테이블을 바꾸면 `schema-drift` 테스트가 잡는다.
-- 동작이 바뀌면 테스트를 함께 바꾼다. 서버 로직은 `*.test.ts`/`*.integration.test.ts`, 사용자 흐름은 `e2e/`.
+- 동작이 바뀌면 테스트를 함께 바꾼다. 서버 로직은 `*.test.ts`/`*.integration.test.ts`, 사용자 흐름은 `e2e/`. DB를 쓰는 테스트는 반드시 `*.integration.test.ts`로 이름 짓는다. 이 이름만 한 파일씩 실행되고 나머지는 병렬로 돈다(`vitest.config.ts`).
 - 새 UI는 `src/features/lol/components/`(앱 공용은 `src/components/`)에 만든다. 기존 컴포넌트처럼 파일 안의 `styles` 객체와 `src/app/globals.css`의 클래스를 쓰고, 색·글꼴·모서리 값은 [DESIGN.md](DESIGN.md)의 토큰을 따른다(버튼은 pill 형태, 카드 12px, 입력 8px). 임의의 새 색을 만들지 않는다.
 
 ## UI / 디자인 작업
