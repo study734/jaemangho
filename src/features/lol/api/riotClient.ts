@@ -1,5 +1,3 @@
-import axios, { type AxiosError } from 'axios';
-
 // ==========================================
 // 1. Global Request Queue (Rate Limiter)
 // ==========================================
@@ -23,18 +21,37 @@ const enqueueRequest = async () => {
 };
 
 // ==========================================
-// 2. Axios Instance Setup
+// 2. HTTP 요청
 // ==========================================
-export const riotClient = axios.create({
-  timeout: 10000,
-});
+const REQUEST_TIMEOUT_MS = 10000;
 
-riotClient.interceptors.request.use(async (config) => {
+// 응답이 실패 상태면 status를 남긴다. 네트워크 실패·시간 초과·응답 해석 실패는 status가 없다.
+export class RiotRequestError extends Error {
+  status?: number;
+  constructor(status?: number) {
+    super(status ? `Riot 요청 실패 (HTTP ${status})` : 'Riot 요청 실패');
+    this.status = status;
+  }
+}
+
+async function getJson<T>(url: string): Promise<T> {
   await enqueueRequest();
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  } catch (cause) {
+    throw Object.assign(new RiotRequestError(), { cause });
+  }
+  if (!response.ok) throw new RiotRequestError(response.status);
+  try {
+    return await response.json() as T;
+  } catch (cause) {
+    throw Object.assign(new RiotRequestError(), { cause });
+  }
+}
+
+// 테스트에서 전송만 바꿀 수 있게 객체로 둔다.
+export const riotClient = { get: getJson };
 
 // ==========================================
 // 3. Local Caching Strategy
@@ -85,13 +102,13 @@ export const setCachedData = <T>(cacheKey: string, data: T) => {
 // 4. API Wrapping Functions
 // ==========================================
 export function riotErrorMessage(error: unknown): string {
-  const source = error instanceof Error && error.cause ? error.cause : error;
-  const status = (source as AxiosError | null)?.response?.status;
+  const source = error instanceof RiotRequestError || !(error instanceof Error) || !error.cause ? error : error.cause;
+  const status = (source as { status?: unknown } | null)?.status;
   if (status === 401) return '인증을 확인하지 못했습니다 (HTTP 401). 다시 로그인하고, 계속되면 관리자에게 문의해 주세요.';
   if (status === 403) return 'Riot API 키가 만료되었거나 권한이 없습니다 (HTTP 403). 관리자에게 문의해 주세요.';
   if (status === 404) return '대상 계정 정보를 찾지 못했습니다 (HTTP 404). Riot ID를 확인해 주세요.';
   if (status === 429) return '요청 한도를 초과했습니다 (HTTP 429). 잠시 후 다시 시도해 주세요.';
-  return status ? `Riot 서버 응답 오류 (HTTP ${status}). 잠시 후 다시 시도해 주세요.` : 'Riot 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.';
+  return typeof status === 'number' ? `Riot 서버 응답 오류 (HTTP ${status}). 잠시 후 다시 시도해 주세요.` : 'Riot 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.';
 }
 
 const pendingRequests = new Map<string, Promise<unknown>>();
@@ -105,11 +122,11 @@ export const riotGet = <T>(url: string, cacheKey?: string, isImmutable: boolean 
   if (pending) return pending as Promise<T | null>;
   const request = (async () => {
     try {
-      const res = await riotClient.get<T>(url);
-      if (cacheKey) setCachedData(cacheKey, res.data);
-      return res.data;
+      const data = await riotClient.get<T>(url);
+      if (cacheKey) setCachedData(cacheKey, data);
+      return data;
     } catch (e) {
-      const status = (e as AxiosError).response?.status;
+      const status = e instanceof RiotRequestError ? e.status : undefined;
       // 대상 없음은 null, 인증·호출 제한·서버 오류는 호출자가 처리한다.
       if (status === 404) return null;
       throw new Error(riotErrorMessage(e), { cause: e });
