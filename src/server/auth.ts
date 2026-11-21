@@ -4,6 +4,7 @@ import { admin } from 'better-auth/plugins';
 import type { DiscordProfile } from 'better-auth/social-providers';
 import { after } from 'next/server';
 import { fetchGuildMember } from './discord';
+import { webLoginAllowed } from './member-role';
 import { type RawConnection, fetchConnections, linkConnections } from './discord-connections';
 import { pool } from './pool';
 import { authBaseURL } from './auth-base-url';
@@ -64,6 +65,8 @@ export const auth = betterAuth({
           [member.id]
         );
         if (ban.rows[0]?.banned) return null;
+        // 관리자가 사용 역할을 정했으면 그 역할이 있는 멤버만(서버 관리자는 통과). 역할 조회 실패도 거부한다(member-role.ts).
+        if (!(await webLoginAllowed(member.id, member.isAdmin, { guildId: process.env.DISCORD_GUILD_ID ?? '', token: process.env.DISCORD_BOT_TOKEN }))) return null;
 
         for (const [key, value] of pending) if (Date.now() - value.at > PENDING_TTL_MS) pending.delete(key);
         pending.set(member.id, { role: member.isAdmin ? 'admin' : 'user', username: member.username, connections, at: Date.now() });

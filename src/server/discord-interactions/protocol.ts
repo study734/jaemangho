@@ -19,7 +19,8 @@ const envelope = {
   // 명령을 실행한 채널. 메시지 우클릭 의견의 메시지 링크를 만들 때만 쓴다.
   channel_id: snowflake.optional(),
   // permissions: 이 채널에서의 현재 권한 비트필드(Discord가 서명). 관리자 명령 실행 조건에 쓴다.
-  member: z.object({ user: z.object({ id: snowflake }), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
+  // roles: 이 서버에서 가진 역할 ID(Discord가 서명). 관리자가 정한 사용 역할 확인에 쓴다(intent/0004, member-role.ts).
+  member: z.object({ user: z.object({ id: snowflake }), roles: z.array(snowflake).max(250).optional(), permissions: z.string().regex(/^\d{1,20}$/).optional() }),
 };
 const stringOption = <N extends string, V extends z.ZodTypeAny>(name: N, value: V) => z.object({ name: z.literal(name), type: z.literal(3), value });
 const subcommand = <N extends string>(name: N) => z.object({ name: z.literal(name), type: z.literal(1) });
@@ -58,6 +59,7 @@ const commandData = z.discriminatedUnion('name', [
     name: z.literal('운영'), type: z.literal(1),
     options: z.tuple([z.discriminatedUnion('name', [subcommand('상태'), subcommand('점검'), subcommand('동기화'), subcommand('시상식게시'),
       z.object({ name: z.literal('시상식채널'), type: z.literal(1), options: z.array(z.object({ name: z.literal('채널'), type: z.literal(7), value: snowflake })).max(1).optional() }),
+      z.object({ name: z.literal('사용역할'), type: z.literal(1), options: z.array(z.object({ name: z.literal('역할'), type: z.literal(8), value: snowflake })).max(1).optional() }),
       z.object({ name: z.literal('캐시'), type: z.literal(1), options: z.tuple([stringOption('종류', z.enum(['steam', 'riot']))]) })])]),
   }),
   // 멤버 의견(intent/0002): 첫 응답으로 입력창을 연다. 메시지 우클릭은 메시지 ID(target_id)만 쓰고 내용은 읽지 않는다.

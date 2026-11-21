@@ -11,6 +11,7 @@ import { adminTask } from './admin';
 import { postWeeklyAwards, setAwardChannel } from '../chat/award-post';
 import { recentFeedback } from './feedback';
 import { usageReport } from './usage';
+import { setMemberRole } from '../member-role';
 
 vi.mock('../admin', () => ({ purgeRiotCache: vi.fn() }));
 vi.mock('../improvements', () => ({ improvementReport: vi.fn() }));
@@ -22,6 +23,7 @@ vi.mock('../steam/cache', () => ({ purgeSteamCache: vi.fn() }));
 vi.mock('../chat/award-post', () => ({ postWeeklyAwards: vi.fn(), setAwardChannel: vi.fn() }));
 vi.mock('./feedback', () => ({ recentFeedback: vi.fn() }));
 vi.mock('./usage', () => ({ usageReport: vi.fn() }));
+vi.mock('../member-role', () => ({ setMemberRole: vi.fn() }));
 const actor = { id: 'u1', name: 'Admin' };
 beforeEach(() => {
   vi.resetAllMocks();
@@ -71,6 +73,20 @@ describe('admin tasks', () => {
       steam: { cache: { rows: 10, fresh: 7 }, stats: [], errors: [] } });
     const status = (await adminTask('상태', actor)).content;
     expect(status).toContain('활성 경고 1개'); expect(status).toContain('🔴 Riot 키 오류'); expect(status).toContain('7/10');
+  });
+});
+
+describe('/운영 사용역할 (intent/0004 R9)', () => {
+  it('작업 이력을 남기며 역할을 정하고 끄고, 웹은 다음 로그인부터라는 것과 봇 토큰이 없을 때를 알린다', async () => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'bot');
+    const set = (await adminTask('사용역할', actor, '100000000000000500')).content;
+    expect(set).toContain('<@&100000000000000500>'); expect(set).toContain('다음 로그인부터'); expect(set).not.toContain('봇 토큰');
+    expect((await adminTask('사용역할', actor)).content).toContain('껐어요');
+    vi.stubEnv('DISCORD_BOT_TOKEN', '');
+    expect((await adminTask('사용역할', actor, '100000000000000500')).content).toContain('봇 토큰');
+    vi.unstubAllEnvs();
+    expect(vi.mocked(setMemberRole).mock.calls).toEqual([['100000000000000500', 'u1'], [null, 'u1'], ['100000000000000500', 'u1']]);
+    expect(vi.mocked(audited).mock.calls.map(call => call[1])).toEqual(['access.role.set', 'access.role.clear', 'access.role.set']);
   });
 });
 

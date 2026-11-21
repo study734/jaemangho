@@ -6,6 +6,7 @@ import { checkOperations } from '../operations/monitor';
 import { operationStatus } from '../operations/status';
 import { purgeSteamCache } from '../steam/cache';
 import { postWeeklyAwards, setAwardChannel, type AwardPostResult } from '../chat/award-post';
+import { setMemberRole } from '../member-role';
 import { fit, label, privateMessage, SITE, type Message } from './protocol';
 import { KIND_LABEL } from '../../lib/improvements';
 import { recentFeedback } from './feedback';
@@ -14,7 +15,7 @@ import { reportFailure } from '../diagnostics';
 
 // 관리자 전용 명령. 웹 /api/admin/operations와 같은 서비스와 작업 이력(audited)을 쓴다.
 // 사용자 차단·해제, 소환사 삭제처럼 되돌리기 어려운 작업은 웹 관리자 화면에만 둔다.
-export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot' | '시상식채널' | '시상식게시';
+export type AdminTask = '개선' | '상태' | '점검' | '동기화' | 'steam' | 'riot' | '시상식채널' | '시상식게시' | '사용역할';
 type Actor = { id: string; name: string };
 const KST = { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' } as const;
 const when = (value: unknown) => value ? new Date(value as string).toLocaleString('ko-KR', KST) : '없음';
@@ -23,8 +24,20 @@ const SYNC_BUDGET_MS = 30_000;
 
 export const ADMIN_DENIED = privateMessage('관리자만 실행할 수 있어요. 디스코드 Administrator 권한과 사이트 관리자 상태(로그인할 때 갱신)가 모두 필요해요.');
 
-export async function adminTask(task: AdminTask, actor: Actor, channelId?: string): Promise<Message> {
+// target: 시상식채널은 채널 ID, 사용역할은 역할 ID(비우면 끄기).
+export async function adminTask(task: AdminTask, actor: Actor, target?: string): Promise<Message> {
+  const channelId = target;
   switch (task) {
+    case '사용역할': {
+      const roleId = target;
+      await audited(actor, roleId ? 'access.role.set' : 'access.role.clear', 'access', () => setMemberRole(roleId ?? null, actor.id));
+      if (!roleId) return privateMessage('사용 역할 제한을 껐어요. 서버 멤버 모두 재순이와 사이트를 쓸 수 있어요.');
+      return privateMessage([
+        `이제 <@&${roleId}> 역할이 있는 멤버만 재순이와 사이트를 쓸 수 있어요. 서버 관리자는 역할이 없어도 쓸 수 있어요.`,
+        '사이트는 다음 로그인부터 적용돼요. 이미 로그인한 사람은 세션이 끝날 때(최대 7일)까지 유지되니, 바로 끊으려면 관리자 화면에서 차단해 주세요.',
+        ...(process.env.DISCORD_BOT_TOKEN ? [] : ['⚠️ 봇 토큰(DISCORD_BOT_TOKEN)이 없어 사이트 로그인에서 역할을 확인할 수 없어요. 그동안 서버 관리자만 로그인할 수 있어요.']),
+      ].join('\n'));
+    }
     case '시상식채널': {
       await audited(actor, channelId ? 'awards.channel.set' : 'awards.channel.clear', 'awards', () => setAwardChannel(channelId ?? null, actor.id));
       return privateMessage(channelId

@@ -88,7 +88,7 @@ async function runCommand(interaction: CommandInteraction, userId: string | null
     if (!actor) return ADMIN_DENIED;
     const sub = data.name === '운영' ? data.options[0] : undefined;
     const task: AdminTask = !sub ? '개선' : sub.name === '캐시' ? sub.options[0].value : sub.name;
-    return adminTask(task, actor, sub?.name === '시상식채널' ? sub.options?.[0]?.value : undefined);
+    return adminTask(task, actor, sub?.name === '시상식채널' || sub?.name === '사용역할' ? sub.options?.[0]?.value : undefined);
   }
   if (data.name === '모집') {
     const lobby = await createLobby({ id: interaction.id, ownerId: owner, game: option<string>(data.options, '게임') ?? null,
@@ -155,6 +155,8 @@ async function runComponent(interaction: ComponentInteraction, userId: string | 
 
 // 사이트 계정이 없어도 대부분의 기능을 쓴다(intent/0004). 본인 Steam이 필요한 게임추천만 사이트 로그인을 안내한다.
 const BANNED = privateMessage('차단된 계정은 재순이를 이용할 수 없어요.');
+// 역할 멘션은 이름으로 보이고 알림은 가지 않는다(privateMessage의 allowed_mentions).
+const roleRequired = (roleId: string) => `<@&${roleId}> 역할이 있는 멤버만 재순이를 쓸 수 있어요. 서버 관리자에게 역할을 요청해 주세요.`;
 const STEAM_LOGIN_REQUIRED = privateMessage(`게임추천은 내 Steam 계정이 필요해요. [재망호 사이트](<${SITE}/steam>)에 디스코드로 로그인해 Steam을 연결해 주세요. 다른 기능은 로그인 없이 쓸 수 있어요.`);
 
 // 의견 제출: 입력창은 요청자 확인 전에 열리므로, 저장하지 못하면(차단·오류) 쓴 글을 돌려줘 다시 붙여 넣을 수 있게 한다.
@@ -162,8 +164,11 @@ const STEAM_LOGIN_REQUIRED = privateMessage(`게임추천은 내 Steam 계정이
 async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
   const text = modalText(interaction);
   try {
-    const access = await commandAccess(interaction.member.user.id);
-    if (access === 'banned') return privateMessage(`${BANNED.content}\n보내려던 의견은 저장하지 않았어요.\n${quoteRest(text)}`);
+    const access = await commandAccess(interaction.member);
+    if (access.kind !== 'ok') {
+      const reason = access.kind === 'banned' ? BANNED.content : roleRequired(access.roleId);
+      return privateMessage(`${reason}\n보내려던 의견은 저장하지 않았어요.\n${quoteRest(text)}`);
+    }
     return await runFeedback(interaction, access.userId);
   } catch (error) {
     const id = reportFailure('api/discord.feedback', error);
@@ -173,8 +178,9 @@ async function processFeedback(interaction: ModalInteraction): Promise<Reply> {
 
 async function processCommand(interaction: Interaction): Promise<Reply> {
   if (interaction.type === 5) return processFeedback(interaction);
-  const access = await commandAccess(interaction.member.user.id);
-  if (access === 'banned') return BANNED;
+  const access = await commandAccess(interaction.member);
+  if (access.kind === 'banned') return BANNED;
+  if (access.kind === 'no_role') return privateMessage(roleRequired(access.roleId));
   return interaction.type === 2 ? runCommand(interaction, access.userId) : runComponent(interaction, access.userId);
 }
 
