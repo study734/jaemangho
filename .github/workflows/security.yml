@@ -3,8 +3,7 @@ name: Security scan
 on:
   pull_request:
   merge_group:
-  push:
-    branches: [main]
+  # main 푸시 실행 없음: PR에서 이미 검사했다(Actions 분 절약). main은 주간 schedule이 다시 확인한다.
   schedule:
     - cron: '13 18 * * 4'
   workflow_dispatch:
