@@ -6,8 +6,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '23 18 * * 1'
-  push:
-    branches: [main]
+  # main 푸시에서는 돌리지 않는다: 같은 변경을 PR에서 이미 검사했고(Actions 분 절약), main은 주간 schedule이 다시 확인한다.
 
 # 워크플로 토큰은 읽기 전용으로 둔다 (저장소 기본값에 기대지 않고 명시한다)
 permissions:
