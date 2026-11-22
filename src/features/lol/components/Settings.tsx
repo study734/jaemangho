@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import axios from 'axios';
-import { riotErrorMessage } from '../api/riotClient';
+import { riotClient, riotErrorMessage } from '../api/riotClient';
 
 // Riot API 키는 서버(RIOT_API_KEY)가 관리하므로 여기서는 서버의 Riot 연결 상태만 확인한다.
 export const Settings: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
@@ -14,7 +13,7 @@ export const Settings: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     setErrorMessage('');
 
     try {
-      await axios.get(`/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}`);
+      await riotClient.get(`/api/riot?region=asia&path=${encodeURIComponent('/riot/account/v1/accounts/by-riot-id/오채/KR1')}`);
       setTestStatus('success');
     } catch (e) {
       setTestStatus('failed');
