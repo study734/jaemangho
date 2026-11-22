@@ -2,7 +2,8 @@ name: Operations monitor
 
 on:
   schedule:
-    - cron: '2,32 * * * *'
+    # 12시간마다. 짧은 장애 감지는 5분 주기 Cloudflare Worker가 맡고 이것은 Worker가 멈췄을 때의 보조 경로다(Actions 분 절약).
+    - cron: '2 3,15 * * *'
   workflow_dispatch:
 
 permissions:

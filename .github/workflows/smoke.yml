@@ -4,7 +4,8 @@ on:
   deployment_status:
   workflow_dispatch:
   schedule:
-    - cron: '3,33 * * * *'
+    # 12시간마다(배포 직후 검사는 deployment_status가 맡는다). Actions 분 절약.
+    - cron: '3 3,15 * * *'
 
 permissions:
   contents: read

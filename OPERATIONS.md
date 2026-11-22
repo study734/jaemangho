@@ -146,9 +146,9 @@ npm run db:verify-restore -- backups/jaemangho-YYYYMMDD.dump --confirm-isolated
 | CI / workflow-policy | CI와 동일 | actionlint로 YAML·표현식·셸 검사, 기존 SQL 수정·삭제·이름 변경 차단, 신규 번호 중복·역순 방지 |
 | Recovery rehearsal / backup-restore | PR·merge queue·수동·매주 목요일 03:41 KST | 임시 DB에 가짜 데이터 생성 → 실제 pg_dump/pg_restore → 사용자·세션·소환사·통계·스키마 체크섬 비교 |
 | CodeQL / analyze | PR·merge queue·수동·매주 금요일 03:13 KST | JavaScript/TypeScript와 Actions 코드의 보안 분석, Security 탭에 결과 저장 |
-| Operations monitor | 기존 30분 예약·main에서 수동 | 외부 사이트·DB 점검과 내부 운영 점검, 기존 Discord 알림 |
+| Operations monitor | 12시간 예약(UTC 03·15시)·main에서 수동 | 외부 사이트·DB 점검과 내부 운영 점검, 기존 Discord 알림 |
 | CI / dependabot-merge | Dependabot PR | `check`·`e2e` 통과 후 `minor-and-patch`·`action-updates` 묶음 PR을 바로 squash 머지(비공개 무료 저장소라 GitHub 자동 머지 대신). 검사 중 새 커밋이 오면 머지하지 않는다. 메이저·`security-fixes`는 사람이 머지. GITHUB_TOKEN 머지라 그 main 커밋의 Actions는 다시 돌지 않는다 |
-| Smoke / health | 성공한 Production 배포·30분 예약·main에서 수동 | health JSON, 로그인 HTML, 홈의 로그인 이동, 공개되지 않아야 하는 API의 401 응답 |
+| Smoke / health | 성공한 Production 배포·12시간 예약(UTC 03·15시)·main에서 수동 | health JSON, 로그인 HTML, 홈의 로그인 이동, 공개되지 않아야 하는 API의 401 응답 |
 
 PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 남지 않게 한다. 새 PR 커밋은 이전 PR 실행을 취소하고, main 실행은 보존한다. 고정된 Ubuntu 24.04와 Node 24를 쓰고 각 작업에 시간 제한을 둔다. Actions는 검증한 전체 커밋 SHA로 고정하며 Dependabot이 갱신 PR을 만든다. checkout에는 자격 증명을 남기지 않는다.
 
@@ -212,7 +212,7 @@ rtk proxy bash scripts/agent-npm.sh exec -- node scripts/measure-project.mjs --l
 
 채팅의 제한·타임아웃·일시 HTTP/DB 오류는 기존 최대 6회 지수 재시도로 처리한다. 경고는 관리자 화면에 즉시 남긴다. 자동 복구 대기는 외부 알림 없이 기록하고, 영구 오류·횟수 소진 또는 6시간 지속 시 영향·원인·복구 시도·실행 ID·조치를 알린다. Steam/Riot 일시 오류는 30분 연속 경고일 때 알린다. 조용히 해소된 경고의 복구 알림은 보내지 않는다.
 
-배포 보호는 배포 성공 콜백·30분 예약·main 수동 실행에서 작동한다. 콜백 누락도 다음 예약 점검에서 확인한다. 배포는 고정된 프로젝트·팀·저장소의 main 운영 배포만 대상으로 한다. 공개 배포를 3회 확인해 모두 실패하고, 직전에 검증한 배포가 롤백 후보의 첫 이전 버전이며, 두 커밋의 `migrations/` 차이가 없고, 이전 배포 URL도 같은 DB에서 정상인 경우에만 롤백한다. 보호된 이전 URL이나 공통 DB 장애면 수동 조치로 남긴다. 이전 커밋이 없거나 캐시가 없으면 자동 롤백하지 않는다. API 응답 유실에 대비해 요청 전 시도 기록을 저장한다. 공개 별칭과 헬스를 재확인한 뒤 같은 이전 버전을 재승격하여 다음 main 배포의 자동 공개를 재개한다. 실패하면 반복 롤백 대신 개입을 알린다. 수동 배포와 동시 발생 시 점검마다 배포 ID 변경을 확인하지만 API의 확인·변경은 원자적이지 않으므로, 장애 대응 중 수동 배포는 먼저 자동 정책을 비활성화한다.
+배포 보호는 배포 성공 콜백·12시간 예약·main 수동 실행에서 작동한다. 콜백 누락도 다음 예약 점검에서 확인한다. 배포는 고정된 프로젝트·팀·저장소의 main 운영 배포만 대상으로 한다. 공개 배포를 3회 확인해 모두 실패하고, 직전에 검증한 배포가 롤백 후보의 첫 이전 버전이며, 두 커밋의 `migrations/` 차이가 없고, 이전 배포 URL도 같은 DB에서 정상인 경우에만 롤백한다. 보호된 이전 URL이나 공통 DB 장애면 수동 조치로 남긴다. 이전 커밋이 없거나 캐시가 없으면 자동 롤백하지 않는다. API 응답 유실에 대비해 요청 전 시도 기록을 저장한다. 공개 별칭과 헬스를 재확인한 뒤 같은 이전 버전을 재승격하여 다음 main 배포의 자동 공개를 재개한다. 실패하면 반복 롤백 대신 개입을 알린다. 수동 배포와 동시 발생 시 점검마다 배포 ID 변경을 확인하지만 API의 확인·변경은 원자적이지 않으므로, 장애 대응 중 수동 배포는 먼저 자동 정책을 비활성화한다.
 
 백업은 매일 03:19 KST에 직접 DB를 읽기 전용 pg_dump로 추출하고 AES-256-GCM으로 암호화한다. 매번 암호화 파일을 다시 복호화하여 실행기가 만든 격리 DB에서 실제 pg_restore와 마이그레이션 검증을 완료한 뒤에만 암호화 파일과 비식별 검증 보고서를 30일 보관한다. 평문은 runner 임시 디렉터리에만 존재하며 성공·실패 시 지운다. 프로세스 강제 종료 시 runner 폐기로 정리되며 평문 아티팩트는 업로드하지 않는다. 매주 목요일 03:47 KST에는 최근 7일 이내 성공한 main 백업 아티팩트를 다시 내려받아 복원한다. 운영 데이터는 GitHub runner의 격리 DB에서만 처리하며 운영 DB를 덮어쓰는 기능은 없다.
 
