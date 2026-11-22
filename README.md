@@ -259,7 +259,7 @@ src/
 | `STEAM_API_KEY` | (선택) Steam Web API 키. 없으면 Steam 기능은 503을 돌려줍니다. 32자리 16진수. |
 | `DATABASE_URL` | Postgres 연결 문자열 (Vercel에서 Neon을 연결하면 자동 등록) |
 | `DATABASE_URL_UNPOOLED` | (선택) 마이그레이션이 우선 사용하는 직접 연결 주소. Neon 연동이 자동 등록합니다. |
-| `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. |
+| `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. `npm test`는 이 DB에 마이그레이션을 적용해 템플릿으로 삼고, 테스트 파일마다 `jmh_t_*` 복제 DB를 만들어 병렬로 실행한 뒤 지웁니다(`src/server/testing/isolated-db.ts`). 그래서 계정에 DB 생성 권한이 필요하고, 실행 중에는 이 DB에 다른 접속(같은 DB를 쓰는 E2E 서버 등)이 없어야 합니다. |
 | `DEV_LOGIN` | `1`이면 **개발 서버에서만** 디스코드 로그인 없이 관리자로 접속 (운영 빌드에서는 무시됨) |
 | `GITHUB_ACTIONS_READ_TOKEN` | (선택) 관리자 화면의 자동 운영 보호(암호화 백업·복원 검증·배포 검사)와 Actions 보관 용량 조회용. 저장소가 비공개라 없으면 모두 `확인 불가`입니다. GitHub fine-grained 토큰을 이 저장소만, 권한은 **Actions: Read-only**만 주어 만들고 Vercel Production에 등록합니다(`github_pat_`로 시작). 만료 전에 교체하며, 만료·폐기되면 다시 `확인 불가`로 표시됩니다. 요청 헤더에만 쓰고 기록하지 않습니다. |
 | `OPS_ALERT_WEBHOOK_URL` | (선택) 운영 장애·복구 알림 전용 Discord webhook URL. Vercel 환경변수와 GitHub Actions secret에 각각 설정. URL의 토큰은 비밀값으로 취급합니다. |
