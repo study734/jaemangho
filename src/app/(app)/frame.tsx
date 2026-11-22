@@ -130,7 +130,7 @@ const styles: { [key: string]: CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottom: '3px solid #fa6e39',
+    borderBottom: '3px solid var(--accent-orange)',
     zIndex: 5,
   },
   errorCloseBtn: {
@@ -139,7 +139,7 @@ const styles: { [key: string]: CSSProperties } = {
     color: 'var(--ink)',
     cursor: 'pointer',
     backgroundColor: 'transparent',
-    border: '2px solid #fa6e39',
+    border: '2px solid var(--accent-orange)',
     borderRadius: '4px',
     marginLeft: '16px',
     whiteSpace: 'nowrap',

@@ -66,7 +66,7 @@ export function ImprovementPanel() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  error: { padding: '12px 16px', borderRadius: 8, backgroundColor: 'rgba(255, 74, 74, 0.12)', color: 'var(--status-error)', fontSize: 13.5, margin: '12px 0' },
+  error: { padding: '12px 16px', borderRadius: 8, backgroundColor: 'color-mix(in srgb, var(--status-error) 12%, transparent)', color: 'var(--status-error)', fontSize: 13.5, margin: '12px 0' },
   list: { listStyle: 'none', margin: 0, padding: 0 },
   row: { padding: '16px 0', borderTop: '1px solid var(--hairline)', minWidth: 0 },
   head: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
