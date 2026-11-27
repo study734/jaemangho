@@ -83,6 +83,23 @@ describe('rankImprovements', () => {
     expect(report.items.some((i) => i.id.startsWith('review:/') || i.id.startsWith('check:/'))).toBe(false);
   });
 
+  it('2026-11 운영 보고 재현: Steam 오류가 운영 경고 기준(3회) 미만이면 고치기가 아니라 살펴보기로 둔다', () => {
+    const one = rankImprovements(input({
+      failures: [{ operation: 'db.connect-retry', code: 'recovered', count: 2 }],
+      steamErrors: [{ code: 'invalid_response', count: 1 }],
+    }));
+    expect(kinds(one)).toEqual(['check:db-retry', 'check:steam-errors']);
+    expect(one.items[1]).toMatchObject({ kind: 'check', target: 'Steam', reasons: ['Steam 요청 오류 1회 · invalid_response 1회 (운영 경고 기준 3회 미만)'] });
+    expect(one.items[1].next).toContain('timeout·http_5xx는 Steam 쪽');
+    // 같은 영역에 진짜 서버 실패가 있으면 기존처럼 고치기 한 항목에 함께 보인다.
+    const withFailure = rankImprovements(input({
+      failures: [{ operation: 'steam.taste.GET', code: 'unexpected', count: 1 }],
+      steamErrors: [{ code: 'invalid_response', count: 1 }],
+    }));
+    expect(kinds(withFailure)).toEqual(['fix:steam']);
+    expect(withFailure.items[0].reasons[1]).toBe('Steam 요청 오류 1회 · invalid_response 1회');
+  });
+
   it('DB 다시 시도와 진짜 서버 실패가 함께 있으면 실패만 고치기로 센다', () => {
     const report = rankImprovements(input({ failures: [
       { operation: 'db.connect-retry', code: 'recovered', count: 9 }, { operation: 'mystery.job', code: 'unexpected', count: 1 },
