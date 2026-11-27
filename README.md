@@ -261,7 +261,7 @@ src/
 | `DATABASE_URL_UNPOOLED` | (선택) 마이그레이션이 우선 사용하는 직접 연결 주소. Neon 연동이 자동 등록합니다. |
 | `TEST_DATABASE_URL` | (선택) DB 통합 테스트용. 없으면 해당 테스트는 건너뜁니다. 개발 DB와 분리된 빈 DB를 쓰세요. `npm test`는 이 DB에 마이그레이션을 적용해 템플릿으로 삼고, 테스트 파일마다 `jmh_t_*` 복제 DB를 만들어 병렬로 실행한 뒤 지웁니다(`src/server/testing/isolated-db.ts`). 그래서 계정에 DB 생성 권한이 필요하고, 실행 중에는 이 DB에 다른 접속(같은 DB를 쓰는 E2E 서버 등)이 없어야 합니다. |
 | `DEV_LOGIN` | `1`이면 **개발 서버에서만** 디스코드 로그인 없이 관리자로 접속 (운영 빌드에서는 무시됨) |
-| `GITHUB_ACTIONS_READ_TOKEN` | (선택) 관리자 화면의 자동 운영 보호(암호화 백업·복원 검증·배포 검사)와 Actions 보관 용량 조회용. 저장소가 비공개라 없으면 모두 `확인 불가`입니다. GitHub fine-grained 토큰을 이 저장소만, 권한은 **Actions: Read-only**만 주어 만들고 Vercel Production에 등록합니다(`github_pat_`로 시작). 만료 전에 교체하며, 만료·폐기되면 다시 `확인 불가`로 표시됩니다. 요청 헤더에만 쓰고 기록하지 않습니다. |
+| `GITHUB_ACTIONS_READ_TOKEN` | (선택) 관리자 화면의 자동 운영 보호(암호화 백업·복원 검증·배포 검사)와 Actions 보관 용량 조회용. 저장소가 공개라 없어도 토큰 없는 조회(IP당 시간 60회 제한)로 동작하며, 제한에 걸리면 `확인 불가`로 표시됩니다. GitHub fine-grained 토큰을 이 저장소만, 권한은 **Actions: Read-only**만 주어 만들고 Vercel Production에 등록합니다(`github_pat_`로 시작). 만료 전에 교체하며, 만료·폐기되면 다시 `확인 불가`로 표시됩니다. 요청 헤더에만 쓰고 기록하지 않습니다. |
 | `OPS_ALERT_WEBHOOK_URL` | (선택) 운영 장애·복구 알림 전용 Discord webhook URL. Vercel 환경변수와 GitHub Actions secret에 각각 설정. URL의 토큰은 비밀값으로 취급합니다. |
 
 Discord 앱의 OAuth2 Redirects에는 실제 접속 도메인 기준으로 `https://<도메인>/api/auth/callback/discord`를 등록합니다. 도메인이 `www`로 리다이렉트되면 `www` 주소를 등록해야 합니다. 로컬에서 실제 로그인을 시험하려면 `http://localhost:3000/api/auth/callback/discord`도 추가합니다. 리다이렉트 주소는 요청에서 자동으로 정해지므로 별도 URL 환경변수는 필요 없습니다.
@@ -373,7 +373,7 @@ npm run test:e2e   # 브라우저 E2E 테스트 (Playwright, 아래 참고)
 
 ### CI 보안 검사
 
-개인 소유 비공개 저장소에서 지원되지 않는 GitHub dependency review·CodeQL 대신, 러너에서 실행되는 검사를 사용합니다. [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 [`scripts/audit-gate.mjs`](scripts/audit-gate.mjs)(`npm audit --audit-level=high`와 같은 기준)로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. 수정판이 없는 권고만 사유·만료일과 함께 그 파일의 `EXCEPTIONS`에 권고 ID 단위로 둘 수 있고(추가·연장은 CI 보안 규칙 변경이라 사전 확인), 만료일이 지나면 다시 실패하며 더 이상 보고되지 않는 예외는 경고로 알립니다. 현재 예외는 없습니다(picomatch `GHSA-fc5q-39xc-vjpf`는 2026-11-18 철회되어 삭제). `check`의 운영 의존성 검사(`--omit=dev`)도 같은 도구를 씁니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
+GitHub dependency review·CodeQL 대신 러너에서 실행되는 검사를 사용합니다(비공개였던 기간에 도입했고, 공개 저장소에서는 GitHub 기능으로 바꿀 수 있으나 CI 보안 규칙 변경이라 사전 확인 대상). [CI](.github/workflows/ci.yml)의 `dependency-review` 작업 이름은 유지하며 `npm ci --ignore-scripts` 후 [`scripts/audit-gate.mjs`](scripts/audit-gate.mjs)(`npm audit --audit-level=high`와 같은 기준)로 운영·개발 의존성 전체의 high 이상 취약점을 차단합니다. 수정판이 없는 권고만 사유·만료일과 함께 그 파일의 `EXCEPTIONS`에 권고 ID 단위로 둘 수 있고(추가·연장은 CI 보안 규칙 변경이라 사전 확인), 만료일이 지나면 다시 실패하며 더 이상 보고되지 않는 예외는 경고로 알립니다. 현재 예외는 없습니다(picomatch `GHSA-fc5q-39xc-vjpf`는 2026-11-18 철회되어 삭제). `check`의 운영 의존성 검사(`--omit=dev`)도 같은 도구를 씁니다. PR·merge group에서는 이 검사가 성공해야 `check`가 진행됩니다.
 
 [Security scan](.github/workflows/security.yml)은 고정 버전 Semgrep Community Edition으로 `src`·`scripts`·`e2e`의 JavaScript·TypeScript 보안 규칙(수동 검토용 `audit` 규칙 제외)을, zizmor로 `.github/workflows`를 검사하며 발견 사항이나 실행 오류가 있으면 실패합니다. Semgrep 커뮤니티 규칙은 커밋·다운로드 체크섬을 고정하고 메트릭·버전 확인을 끕니다. zizmor는 오프라인으로 실행합니다. 외부 계정·비밀값·code scanning 업로드 권한 없이 실행되며 소스 코드를 업로드하지 않습니다. 로컬 재현 명령과 도구·규칙 버전은 해당 워크플로의 `run` 단계가 기준입니다. Semgrep Community Edition의 함수·파일 단위 분석은 CodeQL의 분석 범위와 동일하지 않습니다. 지원하지 않는 구문의 부분 파싱 경고는 로그에 남지만 검사를 중단하지 않습니다. TypeScript 문법·타입 검사는 기존 build가 맡습니다.
 
