@@ -55,6 +55,11 @@ const EXTERNAL_OPERATIONS = new Set(['riot.upstream', 'riot.response', 'steam.we
 // 실패가 아니라 다시 시도로 회복한 느린 DB 연결(src/server/pool.ts). 서버 실패에서 빼고 '살펴보기' 한 항목으로 보여준다.
 const DB_RETRY = 'db.connect-retry';
 
+// Steam 외부 오류는 OPERATIONS.md의 Steam 장애 경고 기준(3건)부터 고치기로 본다. 그보다 적으면 Steam 쪽 일시 응답일 수 있어 살펴보기다.
+const STEAM_FIX_MIN = 3;
+const STEAM_ERROR_STEP = '관리자 연동 탭의 Steam 오류 코드 확인(http_401·403은 키, 429는 호출 한도, timeout·http_5xx는 Steam 쪽 지연·장애)';
+const steamReason = (errors: ImprovementInput['steamErrors']) =>
+  `Steam 요청 오류 ${sum(errors.map((e) => e.count))}회 · ${[...errors].sort((a, b) => b.count - a.count).slice(0, 3).map((e) => `${e.code} ${e.count}회`).join(', ')}`;
 const MIN_VIEWS = 30; // 두 주 합계가 이보다 적으면 사용량 변화로 판단하지 않는다
 const MIN_SCREEN = 10; // 화면별 변화를 볼 최소 열람 수
 const CHANGE = 0.3; // 30% 이상 늘거나 줄면 표시
@@ -68,6 +73,7 @@ const label = (path: string) => (TRACKED as Record<string, string>)[path] ?? pat
 export function rankImprovements(input: ImprovementInput): ImprovementReport {
   const viewsByPath = new Map(input.views.map((v) => [v.path, v]));
   const areaViews = (area: Area) => sum(area.paths.map((p) => viewsByPath.get(p)?.current ?? 0));
+  const viewsOf = (id: string) => areaViews(AREAS.find((a) => a.id === id) ?? AREAS[AREAS.length - 1]);
 
   // 1) 고치기: 영역별 활성 경고·서버 실패·외부 오류
   const fixes = AREAS.map((area) => {
@@ -98,10 +104,10 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
     }
     if (area.id === 'steam') {
       const count = sum(input.steamErrors.map((e) => e.count));
-      if (count) {
-        const top = [...input.steamErrors].sort((a, b) => b.count - a.count).slice(0, 3).map((e) => `${e.code} ${e.count}회`).join(', ');
-        reasons.push(`Steam 요청 오류 ${count}회 · ${top}`);
-        steps.push('관리자 연동 탭의 Steam 오류 코드 확인(http_401·403은 키, 429는 호출 한도, timeout·http_5xx는 Steam 쪽 지연·장애)');
+      // 운영 경고 기준(3회) 미만의 외부 오류만 있으면 아래 '살펴보기'로 보낸다. 같은 영역에 다른 신호가 있으면 함께 보인다.
+      if (count >= STEAM_FIX_MIN || (count && score > 0)) {
+        reasons.push(steamReason(input.steamErrors));
+        steps.push(STEAM_ERROR_STEP);
         score += count;
       }
     }
@@ -125,6 +131,13 @@ export function rankImprovements(input: ImprovementInput): ImprovementReport {
     reasons: [`새 연결 시간 초과 후 다시 시도로 회복 ${retries}회 · 사용자 오류 없이 10초 이상 대기`],
     next: 'Vercel 오류의 database.connect(최종 실패)와 비교하고, 계속 늘면 Neon 풀러 주소·드라이버 교체 검토',
   }] : [];
+  // 고치기에 들어가지 않은 적은 Steam 외부 오류(위 STEAM_FIX_MIN 참고)
+  const steamCount = sum(input.steamErrors.map((e) => e.count));
+  if (steamCount && !fixes.some((f) => f.id === 'fix:steam')) slow.push({
+    id: 'check:steam-errors', kind: 'check', target: 'Steam', views: viewsOf('steam'),
+    reasons: [`${steamReason(input.steamErrors)} (운영 경고 기준 ${STEAM_FIX_MIN}회 미만)`],
+    next: STEAM_ERROR_STEP,
+  });
 
   // 2) 사용량 기반: 화면별 변화. 관리자 화면은 판단에서 뺀다.
   const screens = (Object.keys(TRACKED) as TrackKey[]).filter((p) => p !== '/admin')
