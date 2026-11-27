@@ -14,8 +14,8 @@ function run(value: unknown, kind: AutomationKind): AutomationRun | null {
 }
 
 // 실행 메타데이터(실행 상태, 보관 파일 이름·크기)만 조회한다. 백업 내용·DB 주소는 가져오지 않는다.
-// 저장소가 비공개라 토큰 없는 조회는 404다. GITHUB_ACTIONS_READ_TOKEN(이 저장소의 Actions 읽기만 허용한
-// fine-grained 토큰)이 있으면 Authorization 헤더에만 넣는다. 토큰은 주소·로그·응답에 남기지 않는다.
+// 공개 저장소라 토큰 없이도 조회된다(IP당 시간 60회 제한). GITHUB_ACTIONS_READ_TOKEN(이 저장소의 Actions 읽기만 허용한
+// fine-grained 토큰)이 있으면 한도가 넉넉한 인증 조회를 쓰며 Authorization 헤더에만 넣는다. 토큰은 주소·로그·응답에 남기지 않는다.
 export function createAutomationReader(fetchFn: typeof fetch = fetch, clock = Date.now,
   token: () => string | undefined = () => process.env.GITHUB_ACTIONS_READ_TOKEN || undefined) {
   let cached: AutomationEvidence | undefined;
