@@ -20,4 +20,4 @@ tag = "v1"
 new_sqlite_classes = ["OperationsRunner"]
 
 [vars]
-OPS_BACKUP_ENABLED = "0"
+OPS_BACKUP_ENABLED = "1"

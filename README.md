@@ -487,6 +487,6 @@ Steam API 키는 서버에서만 사용한다. 보유·최근 기록 캐시는 5
 | `BACKUP_DATABASE_URL` | GitHub Actions Secret | 백업 전용 계정의 직접 DB 연결 주소. SELECT 권한으로 전체 테이블을 읽을 수 있어야 함 |
 | `BACKUP_ENCRYPTION_KEY` | GitHub Actions Secret | 무작위 32바이트의 canonical base64 AES-256-GCM 키. 백업과 별도로 안전하게 보관 |
 | `OPS_AUTO_ROLLBACK` | GitHub Actions Variable | `1`일 때 안전 조건을 통과한 이전 버전으로 자동 롤백. 기본은 비활성 |
-| `OPS_BACKUP_ENABLED` | GitHub Actions Variable·Worker Variable | `1`일 때 운영 백업·보관 파일 복원 검증 예약 활성화. 기본은 비활성 |
+| `OPS_BACKUP_ENABLED` | GitHub Actions Variable·Worker Variable | `1`일 때 Actions는 운영 백업·보관 파일 복원 검증 예약을, Worker는 백업 공백 감시를 켠다. Actions Variable은 없으면 비활성, Worker는 `wrangler.toml` 기본 `1`(공개 저장소 전제) |
 
 `BACKUP_OUTPUT_DIRECTORY`는 백업 CLI의 출력 디렉터리 선택용 로컬 설정이며 서비스 환경에 등록할 필요가 없습니다. `TEST_DATABASE_URL`은 기존 설정을 쓰되 백업 워크플로가 만든 로컬 PostgreSQL에만 연결합니다. 운영 DB 복원·유료 전환·권한 변경·암호화 키 교체는 사람이 결정합니다.
