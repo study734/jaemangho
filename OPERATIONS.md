@@ -15,7 +15,7 @@
 
 ## 운영 상태와 장애 알림
 
-GitHub Actions는 30분 주기로 예약되어 앱 바깥에서 `/api/health`를 검사하고, 정상일 때 인증된 `/api/cron/ops`로 내부 상태를 점검한다. GitHub 스케줄은 지연·누락될 수 있으며 정확한 실행 시간을 보장하지 않는다. 응답이 중복 실행으로 건너뛴 점검이거나 완료 형식이 아니면 Actions는 실패로 기록한다.
+GitHub Actions는 12시간 주기(UTC 03·15시)로 예약되어 앱 바깥에서 `/api/health`를 검사하고, 정상일 때 인증된 `/api/cron/ops`로 내부 상태를 점검한다. GitHub 스케줄은 지연·누락될 수 있으며 정확한 실행 시간을 보장하지 않는다. 응답이 중복 실행으로 건너뛴 점검이거나 완료 형식이 아니면 Actions는 실패로 기록한다.
 
 Vercel은 별도 경로 `/api/cron/ops-watchdog`를 매일 UTC 03시(한국 시간 12시)에 실행한다. Hobby에서는 해당 시간대 안에서 지연될 수 있다. 이 보조 점검은 GitHub의 마지막 성공이 없거나 2시간 이상 지났으면 `monitor.stale` 알림을 만들고 내부 점검·알림 재시도·보존 기간 정리도 수행한다. 수동·보조 점검은 GitHub 성공 기록을 갱신하지 않는다. 첫 배포 후 GitHub 점검이 한 번도 성공하지 않았다면 누락으로 알린다. 새 `0015_monitor_heartbeat.sql`이 먼저 적용되어야 한다.
 
@@ -147,7 +147,7 @@ npm run db:verify-restore -- backups/jaemangho-YYYYMMDD.dump --confirm-isolated
 | Recovery rehearsal / backup-restore | PR·merge queue·수동·매주 목요일 03:41 KST | 임시 DB에 가짜 데이터 생성 → 실제 pg_dump/pg_restore → 사용자·세션·소환사·통계·스키마 체크섬 비교 |
 | CodeQL / analyze | PR·merge queue·수동·매주 금요일 03:13 KST | JavaScript/TypeScript와 Actions 코드의 보안 분석, Security 탭에 결과 저장 |
 | Operations monitor | 12시간 예약(UTC 03·15시)·main에서 수동 | 외부 사이트·DB 점검과 내부 운영 점검, 기존 Discord 알림 |
-| CI / dependabot-merge | Dependabot PR | `check`·`e2e` 통과 후 `minor-and-patch`·`action-updates` 묶음 PR을 바로 squash 머지(비공개 무료 저장소라 GitHub 자동 머지 대신). 검사 중 새 커밋이 오면 머지하지 않는다. 메이저·`security-fixes`는 사람이 머지. GITHUB_TOKEN 머지라 그 main 커밋의 Actions는 다시 돌지 않는다 |
+| CI / dependabot-merge | Dependabot PR | `check`·`e2e` 통과 후 `minor-and-patch`·`action-updates` 묶음 PR을 바로 squash 머지(GitHub 자동 머지 대신). 검사 중 새 커밋이 오면 머지하지 않는다. 메이저·`security-fixes`는 사람이 머지. GITHUB_TOKEN 머지라 그 main 커밋의 Actions는 다시 돌지 않는다 |
 | Smoke / health | 성공한 Production 배포·12시간 예약(UTC 03·15시)·main에서 수동 | health JSON, 로그인 HTML, 홈의 로그인 이동, 공개되지 않아야 하는 API의 401 응답 |
 
 PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 남지 않게 한다. 새 PR 커밋은 이전 PR 실행을 취소하고, main 실행은 보존한다. 고정된 Ubuntu 24.04와 Node 24를 쓰고 각 작업에 시간 제한을 둔다. Actions는 검증한 전체 커밋 SHA로 고정하며 Dependabot이 갱신 PR을 만든다. checkout에는 자격 증명을 남기지 않는다.
@@ -170,7 +170,7 @@ PR CI는 경로 필터로 생략하지 않아 필수 검사가 대기 상태로 
 2. Worker는 5분마다 헬스 → 기존 채팅 복구 API → 운영 점검 API 순서로 실행한다. 공개 HTTP 트리거는 없고 Durable Object의 SQLite 저장소로 중복 실행 방지와 알림 상태를 보존한다. 앱/DB 장애는 10분 지속 후, 인증 설정 오류는 즉시 개입 필요로 알린다. 알림 전송 실패도 실행 실패로 남겨 다음 주기에 재시도한다. GitHub의 기존 30분 감시와 독립적으로 작동한다. 실행마다 상태 요약 한 줄(`ops-runner.tick`, 비밀값 제외, 정상은 log·이상은 warn)을 Workers Logs에 남기고, 알림을 보낸 장애가 이어지거나 알림 전송이 실패한 때만 실행을 실패(error)로 남긴다. 10분 미만 일시 장애는 warn 요약만 남는다(`worker.mjs`의 `needsAttention`). 이 변경은 Worker를 다시 배포해야 반영된다(`wrangler.toml`의 `[observability]`, 무료 플랜 포함). 대시보드의 Worker → Observability에서 확인한다.
 3. GitHub `VERCEL_TOKEN`을 등록하고 정상 상태에서 **Smoke**를 수동 실행한다. 정상 배포 ID·커밋을 캐시에 등록한 뒤에만 `OPS_AUTO_ROLLBACK=1`로 활성화한다. 토큰이 없으면 기존 smoke 검사만 수행하며 summary에 자동 롤백 미활성 상태를 표시한다. 토큰/메타데이터 권한 확인이 실패하면 자동 조작을 중단한다.
 4. 백업용 직접 DB 주소와 암호화 키를 GitHub Secrets에 등록한다. 권한은 읽기 전용 계정으로 최소화한다. 키는 백업과 독립된 비밀 보관소에도 보관한다. 키 생성은 비밀 관리 도구에서 무작위 32바이트 base64로 수행하고 터미널 출력·대화에 남기지 않는다. `OPS_BACKUP_ENABLED=1` 등록 후 **Production encrypted backup**을 수동 실행하여 첫 성공을 확인한다.
-5. **Stored backup restore verification**도 수동 실행해 보관 파일 다운로드 → 복호화 → 격리 DB 복원 → 최신 마이그레이션 검증까지 확인한다. 두 백업 워크플로 첫 성공 뒤 Worker Variable도 `OPS_BACKUP_ENABLED=1`로 바꿔 재배포한다. Worker는 공개 Actions 메타데이터를 시간당 확인하여 백업 36시간·보관 파일 복원 검증 8일의 공백도 알린다. GitHub API 확인 실패는 별도 상태로 기록하며 새 토큰을 요구하지 않는다. 저장소가 비공개로 전환되면 이 감시는 설정 변경이 필요하다. **현재 저장소는 비공개다.** 토큰 없는 GitHub API 조회가 404가 되어 매 실행 `backup_inspection_failed`가 되므로 Worker의 `OPS_BACKUP_ENABLED`는 `0`으로 둔다(2026-11-08 변경, `wrangler.toml` 기본값과 같음). 이름이 같은 GitHub Actions의 백업 활성화 설정은 별개이며 유지한다. 백업·복원 검증의 성공 여부는 해당 워크플로 실행 기록과 실패 알림으로 확인한다. 앱 관리자 화면의 같은 조회는 Vercel의 `GITHUB_ACTIONS_READ_TOKEN`(이 저장소 Actions 읽기 전용 fine-grained 토큰)이 있을 때만 동작하며, Worker 설정과는 별개다.
+5. **Stored backup restore verification**도 수동 실행해 보관 파일 다운로드 → 복호화 → 격리 DB 복원 → 최신 마이그레이션 검증까지 확인한다. 두 백업 워크플로 첫 성공 뒤 Worker Variable도 `OPS_BACKUP_ENABLED=1`로 바꿔 재배포한다. Worker는 공개 Actions 메타데이터를 시간당 확인하여 백업 36시간·보관 파일 복원 검증 8일의 공백도 알린다. GitHub API 확인 실패는 별도 상태로 기록하며 새 토큰을 요구하지 않는다. 저장소가 비공개로 전환되면 이 감시는 설정 변경이 필요하다. 저장소는 2026-11-08~11-27 비공개였다가 다시 공개됐다. 비공개 기간에 토큰 없는 조회가 404가 되어 Worker의 `OPS_BACKUP_ENABLED`를 `0`으로 내렸으며(`wrangler.toml` 기본값과 같음), 다시 켜려면 Worker Variable을 `1`로 바꿔 재배포한다. 토큰 없는 조회는 IP당 시간 60회 제한이라 Cloudflare 공유 IP에서 `backup_inspection_failed`가 날 수 있으니 켠 뒤 며칠간 Workers Logs를 확인한다. 이름이 같은 GitHub Actions의 백업 활성화 설정은 별개이며 유지한다. 백업·복원 검증의 성공 여부는 해당 워크플로 실행 기록과 실패 알림으로 확인한다. 앱 관리자 화면의 같은 조회는 Vercel의 `GITHUB_ACTIONS_READ_TOKEN`(이 저장소 Actions 읽기 전용 fine-grained 토큰)이 있을 때만 동작하며, Worker 설정과는 별개다.
 
 Worker 정상 실행·Smoke baseline·최근 암호화 백업·보관 파일 복원 성공이 모두 있어야 활성화 완료다.
 
