@@ -394,6 +394,8 @@ TEST_DATABASE_URL=postgres://... npm run test:e2e
 ## 배포
 `main` 브랜치에 머지하면 Vercel이 자동 배포합니다. 환경변수를 바꾼 뒤에는 **재배포**해야 반영됩니다. Vercel 프로젝트의 `previewDeploymentsDisabled`를 `true`로 설정해 PR 프리뷰 배포를 생성하지 않습니다. PR은 GitHub Actions의 `check`·`e2e`로 검증합니다. `main` 이외 브랜치의 빌드를 건너뛰는 `vercel.json`의 `ignoreCommand`도 보조 방어로 유지합니다. 프리뷰 비활성화는 Vercel 프로젝트 설정이므로 프로젝트를 새로 만들거나 이전하면 같은 설정을 확인해야 합니다.
 
+모든 응답에는 [security-headers.ts](src/server/security-headers.ts)의 보안 헤더가 붙습니다(`next.config.ts`의 `headers()`). 다른 사이트가 이 사이트를 iframe에 넣는 것을 막고(`X-Frame-Options: DENY`, `frame-ancestors 'none'`), MIME 추측(`nosniff`)과 카메라·마이크·위치 권한을 끕니다. 전체 CSP는 Next.js 인라인 스크립트와 충돌해 두지 않았고, HSTS는 Vercel이 붙입니다. 이 사이트가 Discord 위젯을 iframe으로 넣는 것은 영향이 없습니다. 확인: `npm test -- src/server/security-headers.test.ts`, 운영은 `curl -sI https://jaemangho.vercel.app/`.
+
 ### 변경의 운영 반영 확인
 
 CI 통과와 운영 반영은 서로 다른 결과입니다. 변경을 운영에서 확인할 때는 대상 PR 또는 정확한 커밋을 지정합니다.
